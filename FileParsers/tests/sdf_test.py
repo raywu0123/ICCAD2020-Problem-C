@@ -71,3 +71,8 @@ def test_read_file():
         whole_file = f.read()
     num_cells = whole_file.count("(CELLTYPE")
     assert len(cells) == num_cells
+
+    for cell in cells:
+        assert isinstance(cell, dict)
+        assert 'type' in cell
+        assert 'delay' in cell

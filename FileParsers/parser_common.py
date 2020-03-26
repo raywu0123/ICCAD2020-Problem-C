@@ -7,12 +7,10 @@ from pyparsing import (
     Group,
     Suppress,
     delimitedList,
-    alphas,
-    alphanums,
     ParserElement,
-    Combine,
     Literal,
     nums,
+    pyparsing_common,
 )
 
 
@@ -23,12 +21,14 @@ def enclosedExpr(content=None, opener="(", closer=")", supress_font=False) -> Pa
     return expr
 
 
+def make_keyword(w: str):
+    return Keyword(w)
+
+
 posnegedge_keyword = Optional(Keyword('posedge') | Keyword('negedge'))
 
-variable = Word(alphas + '_', alphanums + "_")
+variable = pyparsing_common.identifier
 variable_list = Group(delimitedList(variable))
-
-floatnum = Combine(Word(nums) + '.' + Word(nums))
 
 timeunits = ['ps', 'ns']
 timeunits = [Literal(tu) for tu in timeunits]
