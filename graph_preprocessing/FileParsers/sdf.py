@@ -27,15 +27,15 @@ class SDFParser:
 
     @staticmethod
     def get_cell_grammar() -> ParserElement:
-        cell_type = enclosedExpr(Suppress(make_keyword("CELLTYPE")) + quotedString)
+        cell_type = enclosedExpr(Suppress(make_keyword("CELLTYPE")) + quotedString('type'))
 
-        instance = enclosedExpr(Suppress("INSTANCE") + variable)
+        instance = enclosedExpr(Suppress("INSTANCE") + variable('name'))
         null_instance = enclosedExpr(Suppress(make_keyword("INSTANCE")))
 
         float_num = pyparsing_common.real
         colon = Suppress(':')
         partial_path = enclosedExpr(float_num + colon + float_num + colon + float_num)
-        path_input = variable | enclosedExpr(Group(posnegedge_keyword + variable))
+        path_input = variable | enclosedExpr(posnegedge_keyword + variable)
 
         iopath_kw = Suppress('iopath')
         iopath = enclosedExpr(iopath_kw + path_input + variable + Group(partial_path[1, 2]))
@@ -47,13 +47,13 @@ class SDFParser:
         absolute_kw = Suppress(make_keyword("ABSOLUTE"))
         delay = enclosedExpr(
             delay_kw + enclosedExpr(
-                absolute_kw + (iopath[1, ...] | interconnect)
+                absolute_kw + (Group(iopath)[1, ...] | interconnect)
             )
         )
 
         cell_kw = Suppress(make_keyword("CELL"))
         cell = enclosedExpr(
-            cell_kw + cell_type('type') + (instance('name') | null_instance) + delay('delay')
+            cell_kw + cell_type + (instance | null_instance) + delay('delay')
         )
         return cell
 

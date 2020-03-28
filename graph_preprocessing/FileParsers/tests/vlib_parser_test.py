@@ -1,3 +1,5 @@
+from pprint import pprint
+
 from ..vlib_parser import VLibParser
 
 
@@ -7,6 +9,7 @@ def test_parse_primitive():
         `timescale 1ps/1ps
         primitive udp_dff (q, d, clk, clr, set, notifier);
         output q;
+        output r;
         input  d, clk, clr, set, notifier;
         reg    q;
         table
@@ -20,16 +23,23 @@ def test_parse_primitive():
         `celldefine
         `endcelldefine
         """.lstrip('\n')
-    parser.grammar.parseString(test_case)
-    parser.summary()
+    results = parser.get_grammar().parseString(test_case)
 
-    assert set(parser.modules[0].keys()) == {'name', 'type', 'reg', 'input', 'output', 'table'}
-    assert parser.modules[0]['type'] == 'primitive'
-    assert parser.modules[0]['name'] == 'udp_dff'
-    assert set(parser.modules[0]['input']) == {'d', 'clk', 'clr', 'set', 'notifier'}
-    assert set(parser.modules[0]['output']) == {'q'}
-    assert set(parser.modules[0]['reg']) == {'q'}
-    assert len(parser.modules[0]['table']) == 5
+    pprint(dict(results))
+    pprint(results.primitives[0].declares)
+    pprint(results.primitives[0].declares[0])
+    pprint(results.primitives[0].variables)
+
+    assert len(results.primitives) == 1
+    assert set(results.primitives[0].keys()) == {'name', 'declares', 'variables', 'table'}
+    assert results.primitives[0].name == 'udp_dff'
+    assert set(results.primitives[0].variables) == {'q', 'd', 'clk', 'clr', 'set', 'notifier'}
+    assert results.primitives[0].declares[0].type == 'output'
+    assert set(results.primitives[0].declares[0].ids) == {'q'}
+
+    assert results.primitives[0].declares[-1].type == 'reg'
+    assert set(results.primitives[0].declares[-1].ids) == {'q'}
+    assert len(results.primitives[0].table) == 5
 
 
 def test_parse_module():
@@ -53,10 +63,14 @@ def test_parse_module():
         endmodule
         `endcelldefine
         """.lstrip('\n')
-    parser.grammar.parseString(test_case)
-    parser.summary()
+    results = parser.get_grammar().parseString(test_case)
 
-    assert(set(parser.modules[0].keys()) == {'name', 'type', 'gate', 'specify', 'input', 'output'})
+    pprint(results.modules[0].declares)
+    assert set(results.modules[0].keys()) == {'name', 'declares', 'variables', 'specify'}
+    assert results.modules[0].name == 'GEN_AND4_D2'
+    assert len(results.modules[0].declares) == 6
+    assert results.modules[0].declares[0].type == 'input'
+    assert set(results.modules[0].declares[0].ids) == {'a1'}
 
 
 def test_multiple_modules():
@@ -90,14 +104,16 @@ def test_multiple_modules():
         endmodule
         `endcelldefine
         """.lstrip('\n')
-    parser.grammar.parseString(test_case)
-    parser.summary()
-    assert len(parser.modules) == 2
-    assert parser.timescale == [[1, 'ps'], [1, 'ps']]
+    results = parser.get_grammar().parseString(test_case)
+
+    assert len(results.modules) == 2
+
+    assert len(results.timescale) == 2
+    assert tuple(results.timescale[0]) == ('1', 'ps')
+    assert tuple(results.timescale[1]) == ('1', 'ps')
 
 
 def test_ignore_comment():
-    parser = VLibParser()
     test_case = """
         `timescale 1ps/1ps
         primitive udp_dff (q, d, clk, clr, set, notifier);
@@ -113,40 +129,41 @@ def test_ignore_comment():
         `celldefine
         `endcelldefine
         """.lstrip('\n')
-    parser.grammar.parseString(test_case)
-    parser.summary()
+    parser = VLibParser()
+    results = parser.get_grammar().parseString(test_case)
 
-    assert(set(parser.modules[0].keys()) == {'name', 'type', 'reg', 'input', 'output', 'table'})
-    assert(len(parser.modules[0]['table']) == 1)
+    assert set(results.primitives[0].keys()) == {'name', 'declares', 'variables', 'table'}
+    assert len(results.primitives[0].table) == 1
 
 
 def test_parse_latch():
-    parser = VLibParser()
     test_case = """
         `timescale 1ps/1ps
         `celldefine
         module GEN_LATCH_D1 (d,e,q);
-        input d;
-        input e;
-        output q;
-        reg notifier;
-        supply1 cdn;
-        supply1 sdn;
-        udp_tlat udpi0 (q, d, e, cdn, sdn, notifier);
-        specify
-        (d => q)=(1, 1);
-        (posedge e => (q +: d))=(1, 1);
-        endspecify
+            input d;
+            input e;
+            output q;
+            reg notifier;
+            supply1 cdn;
+            supply1 sdn;
+            udp_tlat udpi0 (q, d, e, cdn, sdn, notifier);
+            specify
+                (d => q)=(1, 1);
+                (posedge e => (q +: d))=(1, 1);
+            endspecify
         endmodule
         `endcelldefine
         """.lstrip('\n')
-    parser.grammar.parseString(test_case)
-    parser.summary()
-    assert len(parser.modules) == 0
+    parser = VLibParser()
+    results = parser.get_grammar().parseString(test_case)
+    pprint(results.modules)
+
+    assert len(results.primitives) == 0
+    assert len(results.modules) == 0
 
 
 def test_parse_submodule():
-    parser = VLibParser()
     test_case = """
         `timescale 1ps/1ps
         `celldefine
@@ -165,6 +182,11 @@ def test_parse_submodule():
         endmodule
         `endcelldefine
         """.lstrip('\n')
-    parser.grammar.parseString(test_case)
-    parser.summary()
-    assert set(parser.modules[0].keys()) == {'input', 'output', 'submodule', 'specify', 'name', 'type'}
+    parser = VLibParser()
+    results = parser.get_grammar().parseString(test_case)
+
+    assert set(results.modules[0].keys()) == {'name', 'declares', 'variables', 'specify'}
+    assert set(results.modules[0].declares[-1].keys()) == {'submodule_type', 'id', 'variables'}
+    assert results.modules[0].declares[-1].submodule_type == 'udp_mux2'
+    assert results.modules[0].declares[-1].id == 'udpi0'
+    assert set(results.modules[0].declares[-1].variables) == {'z', 'i0', 'i1', 's'}

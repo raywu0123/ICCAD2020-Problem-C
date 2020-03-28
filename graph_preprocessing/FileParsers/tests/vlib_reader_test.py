@@ -2,7 +2,7 @@ import os
 from tempfile import NamedTemporaryFile
 from pprint import pprint
 
-from ..vlib_reader import read_vlib_file
+from ..vlib_reader import VlibReader
 
 
 def test_reader_custom_small():
@@ -53,16 +53,17 @@ def test_reader_custom_small():
         file=f,
         flush=True,
     )
-    result = read_vlib_file(path=f.name)
+    result = VlibReader.read_file(path=f.name)
     pprint(result)
 
 
 def test_reader():
     path = os.path.join('./test-cases/GENERIC_STD_CELL.vlib')
-    result = read_vlib_file(path)
+    result = VlibReader.read_file(path)
     with open(path, 'r') as f:
         s = f.read()
 
+    print(dict(result).keys())
     s = s.replace("endmodule", "")
     s = s.replace('module', '#')
     s = s.replace("endprimitive", '')
@@ -71,12 +72,13 @@ def test_reader():
 
     valid_modules = [
         m.split('(')[0].strip() for m in splits
-        if 'always' not in m and '+:' not in m
+        if 'always' not in m and '+:' not in m and 'reg' not in m
     ]
+    parsed_modules = list(result.modules.keys()) + list(result.primitives.keys())
+    print(len(parsed_modules))
 
-    parsed_modules = {m['name'] for m in result['modules']}
     valid_modules_not_parsed = [
         m for m in valid_modules if m not in parsed_modules
     ]
     assert len(valid_modules_not_parsed) == 0
-    assert set(result.keys()) == {'timescale', 'modules'}
+    assert set(result.keys()) == {'modules', 'primitives', 'timescale'}

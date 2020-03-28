@@ -14,8 +14,8 @@ from pyparsing import (
 )
 
 
-def enclosedExpr(content=None, opener="(", closer=")", supress_font=False) -> ParserElement:
-    if supress_font or opener == "(":
+def enclosedExpr(content=None, opener="(", closer=")", supress_front=False) -> ParserElement:
+    if supress_front or opener == "(":
         opener = Suppress(opener)
     expr = opener + content + Suppress(closer)
     return expr
@@ -34,3 +34,11 @@ timeunits = ['ps', 'ns']
 timeunits = [Literal(tu) for tu in timeunits]
 timescale = Group(Word(nums) + reduce(lambda a, b: a | b, timeunits))
 
+bitwidth = Group(enclosedExpr(
+    pyparsing_common.integer + Optional(Suppress(":") + pyparsing_common.integer),
+    opener='[',
+    closer=']',
+    supress_front=True,
+    ))
+
+bits = pyparsing_common.integer('n_bits') + "'b" + pyparsing_common.integer('value')
