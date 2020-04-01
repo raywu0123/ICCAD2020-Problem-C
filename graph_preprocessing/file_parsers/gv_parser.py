@@ -47,7 +47,9 @@ class GVParser:
 
     @classmethod
     def get_assign(cls):
-        return make_keyword('assign') + variable('id') + Optional(bitwidth) + Suppress("=") + bits + Suppress(';')
+        custom_bitwidth = '[' + pyparsing_common.integer + Optional(':' + pyparsing_common.integer) + ']'
+        return Suppress(make_keyword('assign')) + Combine(variable + Optional(custom_bitwidth))('lhs') + Suppress("=") \
+               + Combine(bits) + Suppress(';')
 
     @classmethod
     def get_module(cls) -> ParserElement:
@@ -65,21 +67,23 @@ class GVParser:
 
         grammar = cls.get_module()
         results = grammar.parseFile(path)
-        io, assign, cells = [], [], []
+        results['io'], results['assign'], results['cells'] = [], [], []
+
         for line in results.body:
-            if 'type' in line:
-                if 'id' in line:
-                    line.bitwidth = tuple(line.bitwidth)
-                io.append(line)
-            elif 'value' in line:
-                assign.append(line)
-            elif 'cell_type' in line:
+            if 'cell_type' in line:
                 args = [' '.join(p) for p in line.parameters]
                 line.parameters = args
-                cells.append(line)
+
+        for line in results.body:
+            if 'type' in line:
+                bucket_key = 'io'
+            elif 'value' in line:
+                bucket_key = 'assign'
+            elif 'cell_type' in line:
+                bucket_key = 'cells'
             else:
                 raise ValueError(f'Unrecognized line type {line}')
+            results[bucket_key].append(line)
 
-        results['io'], results['assign'], results['cells'] = io, assign, cells
         del results['body']
         return results

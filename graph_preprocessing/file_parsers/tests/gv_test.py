@@ -83,8 +83,7 @@ def test_parse_cell(test_case, num_params, composite_num):
     assert len(results.parameters) == num_params
 
     if composite_num is not None:
-        print(results.parameters[0]['from'])
-        assert len(results.parameters[0]['from']) == composite_num
+        assert len(results.parameters[0]) == composite_num + 1
 
 
 @pytest.mark.parametrize(
@@ -126,7 +125,7 @@ def test_parse_assign(test_case):
     grammar = GVParser.get_assign()
     results = dict(grammar.parseString(test_case.strip('\n')))
     pprint(results)
-    assert set(results.keys()) == {'id', 'n_bits', 'value'}
+    assert len(list(results)) == 3
 
 
 def test_read_file():

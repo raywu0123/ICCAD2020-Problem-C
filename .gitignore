@@ -4,3 +4,4 @@ build/
 CMakeFiles/
 __pycache__/
 test-cases/
+vcddiff/
