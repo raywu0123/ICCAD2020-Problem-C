@@ -3,6 +3,8 @@ from sys import argv
 from graph_preprocessing.file_parsers import VlibReader, SDFParser, GVParser
 from graph_preprocessing.intermediate_file_writer import IntermediateFileWriter
 
+from graph_preprocessing.circuit_model import Circuit
+
 
 if __name__ == '__main__':
     if len(argv) != 5:
@@ -38,12 +40,18 @@ if __name__ == '__main__':
     else:
         gv_info = None
 
+    if gv_info is not None:
+        circuit = Circuit(gv_info, std_cell_info)
+        circuit.summary()
+    else:
+        circuit = None
+
     with IntermediateFileWriter(output_file) as writer:
         if std_cell_info is not None:
             writer.write_vlib(std_cell_info)
 
-        if gv_info is not None:
-            writer.write_gv(gv_info)
+        if circuit is not None:
+            writer.write_graph(circuit.graph)
 
         if sdf_header is not None and sdf_cells is not None:
             writer.write_sdf(sdf_header, sdf_cells)

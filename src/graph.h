@@ -22,7 +22,7 @@ class Node {
 };
 
 class SlicedWire {
-//    edges on the graph
+//    edges on the circuit
 public:
     SlicedWire(const Wire& original_wire, Bitwidth bitwidth):
         original_wire(original_wire), bitwidth(std::move(bitwidth)) {
