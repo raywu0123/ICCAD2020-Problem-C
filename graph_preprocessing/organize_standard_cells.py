@@ -15,6 +15,10 @@ class StandardCellOrganizer:
     def __init__(self, std_cell_info):
         self.std_cell_info = std_cell_info
 
+    def organize_primitives(self):
+        for p in self.std_cell_info.primitives.values():
+            del p.declares['submodules']
+
     def organize_modules(self):
         modules = self.std_cell_info.modules
         for module_spec in modules.values():

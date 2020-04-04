@@ -46,6 +46,7 @@ int main(int argc, char* argv[]) {
     IntermediateFileReader intermediate_file_reader(c, timing_spec);
     intermediate_file_reader.read(inter_repr_file);
     intermediate_file_reader.summary();
+    return 0;
 
     InputWaveforms input_waveforms;
     VCDReader vcd_reader(input_waveforms, c);
@@ -59,5 +60,4 @@ int main(int argc, char* argv[]) {
     simulator.run();
 
     simulation_result.write(output_file, saif_or_vcd_flag);
-    return 0;
 }

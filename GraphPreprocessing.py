@@ -25,6 +25,7 @@ if __name__ == '__main__':
         print('Finished.')
         standard_cell_organizer = StandardCellOrganizer(std_cell_info)
         standard_cell_organizer.organize_modules()
+        standard_cell_organizer.organize_primitives()
     else:
         std_cell_info = None
 

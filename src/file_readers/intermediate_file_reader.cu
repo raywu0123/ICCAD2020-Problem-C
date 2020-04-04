@@ -24,6 +24,7 @@ void IntermediateFileReader::read(char* path) {
     cout << "Reading Intermediate File: " << path << " ..." << endl;
     fin = ifstream(path);
     read_vlib();
+    return;
     circuit.read_file(fin);
     read_sdf();
 }
@@ -66,10 +67,10 @@ void IntermediateFileReader::read_vlib_module() {
     vector<pair<string, vector<string>>> submodules;
     fin >> num_submodules;
     for (int i = 0; i < num_submodules; i++) {
-        string submod_type, arg;
+        string submod_type, submod_id, arg;
         int num_args;
         vector<string> args;
-        fin >> submod_type >> submod_type >> num_args;
+        fin >> submod_type >> submod_type >> submod_id >> num_args;
         for (int i_arg = 0; i_arg < num_args; i_arg++) {
             fin >> arg;
             args.push_back(arg);
