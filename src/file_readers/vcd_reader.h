@@ -3,7 +3,7 @@
 
 #include <fstream>
 
-#include "../graph.h"
+#include "../circuit_model/circuit.h"
 #include "../input_waveforms.h"
 
 using namespace std;
@@ -11,8 +11,8 @@ using namespace std;
 
 class VCDReader {
 public:
-    explicit VCDReader(InputWaveforms& iw, Graph& g):
-        input_waveforms(iw), g(g) {};
+    explicit VCDReader(InputWaveforms& iw, Circuit& c):
+        input_waveforms(iw), circuit(c) {};
 
     void read(char*);
     void summary();
@@ -27,7 +27,7 @@ public:
     ifstream fin;
 
     InputWaveforms& input_waveforms;
-    Graph& g;
+    Circuit& circuit;
 };
 
 #endif //ICCAD2020_VCD_READER_H

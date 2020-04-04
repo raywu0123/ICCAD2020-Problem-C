@@ -8,7 +8,7 @@
 #include <unordered_map>
 
 #include "constants.h"
-#include "graph.h"
+#include "circuit_model/circuit.h"
 
 using namespace std;
 
@@ -19,7 +19,6 @@ public:
     int timescale_num;
     string timescale_unit;
 
-    unordered_map<string, shared_ptr<Wire>> token_to_wire;
     vector<
         pair<Timestamp, vector<pair<string, string>>>
     > dumps;

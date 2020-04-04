@@ -8,7 +8,10 @@ using namespace std;
 
 class SDFCell {
 public:
-    SDFCell(const string& type, const string& id, const vector<pair<string, vector<string>>>& paths);
+    SDFCell(
+            const string& type,
+            const string& id,
+            const vector<pair<string, vector<string>>>& paths);
 };
 
 

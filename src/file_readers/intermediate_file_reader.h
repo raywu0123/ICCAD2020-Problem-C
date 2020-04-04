@@ -5,8 +5,9 @@
 #include <fstream>
 #include <string>
 
-#include "../graph.h"
+#include "../circuit_model/circuit.h"
 #include "../specs/timing_spec.h"
+#include "../constants.h"
 
 
 using namespace  std;
@@ -16,11 +17,11 @@ class IntermediateFileReader {
 
 
 public:
-    IntermediateFileReader(Graph& g, TimingSpec& timing_spec):
-        g(g), timing_spec(timing_spec) {};
+    IntermediateFileReader(Circuit& circuit, TimingSpec& timing_spec):
+        circuit(circuit), timing_spec(timing_spec) {};
 
     void read(char*);
-    void summary();
+    void summary() const;
 
     void read_vlib();
     string read_vlib_common(vector<pair<STD_CELL_DECLARE_TYPE, vector<string>>>&);
@@ -28,7 +29,8 @@ public:
     void read_vlib_module();
     void read_vlib_table(vector<string>&);
     void read_sdf();
-    Graph& g;
+
+    Circuit& circuit;
     TimingSpec& timing_spec;
 
     ifstream fin;

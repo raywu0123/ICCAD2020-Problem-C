@@ -1,6 +1,8 @@
 #ifndef ICCAD2020_CONSTANTS_H
 #define ICCAD2020_CONSTANTS_H
 
+#include <vector>
+
 using namespace std;
 
 

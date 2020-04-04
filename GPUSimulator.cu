@@ -1,6 +1,6 @@
 #include <iostream>
 #include "src/file_readers/intermediate_file_reader.h"
-#include "src/graph.h"
+#include "src/circuit_model/circuit.h"
 #include "src/file_readers/vcd_reader.h"
 #include "src/input_waveforms.h"
 #include "src/file_readers/vcd_reader.h"
@@ -41,25 +41,21 @@ int main(int argc, char* argv[]) {
     char* saif_or_vcd_flag = argv[3];
     char* output_file = argv[4];
 
-    Graph g;
+    Circuit c;
     TimingSpec timing_spec;
-    IntermediateFileReader intermediate_file_reader(g, timing_spec);
+    IntermediateFileReader intermediate_file_reader(c, timing_spec);
     intermediate_file_reader.read(inter_repr_file);
     intermediate_file_reader.summary();
 
     InputWaveforms input_waveforms;
-    VCDReader vcd_reader(input_waveforms, g);
+    VCDReader vcd_reader(input_waveforms, c);
     vcd_reader.read(input_vcd_file);
     vcd_reader.summary();
 
-    if (!g.verify(input_waveforms)) {
-        cerr << "Exit: Circuit error." << endl;
-        return -1;
-    }
-    g.summary();
+    c.summary();
 
     SimulationResult simulation_result;
-    Simulator simulator(g, input_waveforms, simulation_result);
+    Simulator simulator(c, input_waveforms, simulation_result);
     simulator.run();
 
     simulation_result.write(output_file, saif_or_vcd_flag);
