@@ -2,7 +2,7 @@ from abc import ABC
 from typing import List, Tuple, Dict
 from itertools import chain
 
-from .graph import Graph
+from graph_preprocessing.graph import Graph
 
 
 SINGLE_BITWIDTH = (0, 0)

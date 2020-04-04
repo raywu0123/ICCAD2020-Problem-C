@@ -1,7 +1,7 @@
 from copy import deepcopy
 from itertools import chain
 
-from .circuit_model import Circuit
+from graph_preprocessing.circuit_model.circuit_model import Circuit
 
 
 class IntermediateFileWriter:
@@ -22,7 +22,6 @@ class IntermediateFileWriter:
     def write_vlib_common(self, name, m):
         declare_types = deepcopy(list(m.declares.keys()))
         declare_types.remove('gates')
-        declare_types.remove('submodules')
 
         self.print(f'{name}')
         for declare_type in declare_types:
@@ -30,9 +29,9 @@ class IntermediateFileWriter:
 
     def write_vlib_module(self, name: str, m: dict):
         self.write_vlib_common(name, m)
-        self.print(len(m.declares['gates']) + len(m.declares['submodules']))
-        for gate in chain(m.declares['gates'], m.declares['submodules']):
-            self.print(f'gate {gate[0]} {len(gate[1])} {" ".join(gate[1])}')
+        self.print(len(m.declares['gates']))
+        for gate in chain(m.declares['gates']):
+            self.print(f'gate {gate[0]} {gate[1]} {len(gate[2])} {" ".join(gate[2])}')
 
     def write_vlib_primitive(self, name: str, m):
         self.write_vlib_common(name, m)

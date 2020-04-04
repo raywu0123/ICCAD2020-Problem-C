@@ -3,7 +3,8 @@ from sys import argv
 from graph_preprocessing.file_parsers import VlibReader, SDFParser, GVParser
 from graph_preprocessing.intermediate_file_writer import IntermediateFileWriter
 
-from graph_preprocessing.circuit_model import Circuit
+from graph_preprocessing.circuit_model.circuit_model import Circuit
+from graph_preprocessing.organize_standard_cells import StandardCellOrganizer
 
 
 if __name__ == '__main__':
@@ -22,6 +23,8 @@ if __name__ == '__main__':
         print('Reading standard cell library... ', end='', flush=True)
         std_cell_info = VlibReader.read_file(std_cells_file)
         print('Finished.')
+        standard_cell_organizer = StandardCellOrganizer(std_cell_info)
+        standard_cell_organizer.organize_modules()
     else:
         std_cell_info = None
 
