@@ -12,7 +12,6 @@ void VCDReader::summary() {
     cout << "Summary of VCD File" << endl;
     cout << "Timescale: "
          << input_waveforms.timescale_num << " " << input_waveforms.timescale_unit << endl;
-    cout << "Number of variables: " << input_waveforms.token_to_wire.size() << endl;
     cout << "Number of time dumps: " << input_waveforms.dumps.size() << endl;
     cout << "Begin time: " << input_waveforms.dumps.front().first << endl;
     cout << "End time: " << input_waveforms.dumps.back().first << endl;
@@ -49,7 +48,7 @@ void VCDReader::read_vars() {
         char c;
         pair<int, int> bitwidth;
         if (n_bits > 1) ss >> c >> bitwidth.first >> c >> bitwidth.second;
-        input_waveforms.token_to_wire.emplace(variable, new Wire(id, bitwidth));
+//        input_waveforms.token_to_wire.emplace(variable, new Wire(id, bitwidth));
         getline(fin, s);
     } while(s.find("$var") == 0);
 
