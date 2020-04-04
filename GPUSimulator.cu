@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
     vcd_reader.summary();
 
     if (!g.verify(input_waveforms)) {
-        cerr << "Exit: Graph error." << endl;
+        cerr << "Exit: Circuit error." << endl;
         return -1;
     }
     g.summary();
