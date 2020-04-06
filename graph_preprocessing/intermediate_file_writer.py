@@ -1,7 +1,7 @@
 from copy import deepcopy
 from itertools import chain
 
-from graph_preprocessing.circuit_model.circuit_model import Circuit
+from graph_preprocessing.circuit_model import Circuit
 
 
 class IntermediateFileWriter:

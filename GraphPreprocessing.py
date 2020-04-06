@@ -3,7 +3,7 @@ from sys import argv
 from graph_preprocessing.file_parsers import VlibReader, SDFParser, GVParser
 from graph_preprocessing.intermediate_file_writer import IntermediateFileWriter
 
-from graph_preprocessing.circuit_model.circuit_model import Circuit
+from graph_preprocessing.circuit_model import Circuit
 from graph_preprocessing.organize_standard_cells import StandardCellOrganizer
 
 

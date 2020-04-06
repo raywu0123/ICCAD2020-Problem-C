@@ -1,4 +1,3 @@
-from pprint import pprint
 from itertools import chain, product
 
 from graph_preprocessing.graph import Graph
