@@ -41,21 +41,18 @@ if __name__ == '__main__':
         print('Reading GV file... ', end='', flush=True)
         gv_info = GVParser.read_file(netlist_gv_file)
         print('Finished.')
-    else:
-        gv_info = None
-
-    if gv_info is not None:
         circuit = Circuit(gv_info, std_cell_info)
         circuit.summary()
     else:
+        gv_info = None
         circuit = None
 
     with IntermediateFileWriter(output_file) as writer:
         if std_cell_info is not None:
             writer.write_vlib(std_cell_info)
 
-        if circuit is not None:
-            writer.write_graph(circuit.graph)
+        if gv_info is not None:
+            writer.write_circuit(circuit, gv_info.id)
 
         if sdf_header is not None and sdf_cells is not None:
             writer.write_sdf(sdf_header, sdf_cells)

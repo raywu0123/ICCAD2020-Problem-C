@@ -7,19 +7,17 @@ using namespace std;
 
 
 typedef pair<int, int> BitWidth;
-typedef pair<string, BitWidth> Multibit;
-typedef vector<Multibit> ArgumentList;
-typedef pair<string, ArgumentList> ArgumentPair;
+typedef pair<string, int> Wirekey;
+
+struct pair_hash {
+    template<class T1, class T2>
+    std:: size_t operator() (const std::pair<T1, T2>& pair) const {
+        return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+    }
+};
+
 
 typedef long long int Timestamp;
-
-enum GV_IO_TYPE{
-    GV_INPUT,
-    GV_OUTPUT,
-    GV_WIRE,
-    Last=GV_WIRE,
-};
-const GV_IO_TYPE GV_IO_TYPES[] = {GV_INPUT, GV_OUTPUT, GV_WIRE};
 
 const int NUM_VALUES = 4;
 const char VALUES[NUM_VALUES] = {'0', '1', 'x', 'z'};

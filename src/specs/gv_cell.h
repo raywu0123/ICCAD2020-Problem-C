@@ -15,15 +15,9 @@
 using namespace std;
 class GVCell {
 public:
-    GVCell(
-        string type,
-        string id,
-        vector<ArgumentPair> args
-    ):
-        type(std::move(type)), id(std::move(id)), args(std::move(args)) {};
+    GVCell(string type, string id): type(std::move(type)), id(std::move(id)) {};
 
     string type, id;
-    vector<ArgumentPair> args;
 };
 
 
