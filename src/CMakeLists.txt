@@ -1,6 +1,6 @@
 set(HEADER_FILES
         input_waveforms.h
-        simulator.h
+        simulator/simulator.h
         simulation_result.h
         circuit_model/circuit.h
         file_readers/intermediate_file_reader.h
@@ -12,7 +12,7 @@ set(HEADER_FILES
         data_containers.h)
 set(SOURCE_FILES
         input_waveforms.cu
-        simulator.cu
+        simulator/simulator.cu
         simulation_result.cu
         circuit_model/circuit.cu
         file_readers/intermediate_file_reader.cu
@@ -21,5 +21,5 @@ set(SOURCE_FILES
         specs/timing_spec.cu
         specs/gv_cell.cu
         specs/sdf_cell.cu
-        data_containers.cu)
+        data_containers.cu simulator/data_structures.cu simulator/data_structures.h simulator/module_registry.cu simulator/module_registry.h)
 add_library(mylib STATIC ${HEADER_FILES} ${SOURCE_FILES})

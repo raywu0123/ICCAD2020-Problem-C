@@ -5,7 +5,7 @@
 #include "src/input_waveforms.h"
 #include "src/file_readers/vcd_reader.h"
 #include "src/simulation_result.h"
-#include "src/simulator.h"
+#include "simulator/simulator.h"
 
 using namespace std;
 
