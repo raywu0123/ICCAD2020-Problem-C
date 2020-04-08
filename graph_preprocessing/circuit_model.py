@@ -18,21 +18,21 @@ class Circuit:
             'wire': set(),
         }
         self.wire_inputs = {
-            ("1'b1", SINGLE_BIT_INDEX) : [],
-            ("1'b0", SINGLE_BIT_INDEX) : [],
+            ("1'b1", SINGLE_BIT_INDEX): [],
+            ("1'b0", SINGLE_BIT_INDEX): [],
         }   # wire_id -> List[cell_id]
         self.wire_outputs = {
-            ("1'b1", SINGLE_BIT_INDEX) : [],
-            ("1'b0", SINGLE_BIT_INDEX) : [],
+            ("1'b1", SINGLE_BIT_INDEX): [],
+            ("1'b0", SINGLE_BIT_INDEX): [],
         }
 
         self.register_wires(gv_info)
         self.cells, self.cell_id_to_cell = self.register_cells(gv_info)
-        self.register_assigns(gv_info)
+        self.assigns = self.register_assigns(gv_info)
 
         self.graph = self.build_graph()
         self.schedule_layers = self.graph.get_schedule_layers()
-        self.mem_alloc_schedule, self.mem_free_schedule = self.get_mem_free_schedule()
+        self.mem_alloc_schedule, self.mem_free_schedule = self.get_mem_schedules()
 
     def summary(self):
         print('Circuit summary:')
@@ -84,6 +84,7 @@ class Circuit:
         self.wire_outputs[wire_key] = []
 
     def register_assigns(self, gv_info):
+        assigns = []
         for assign in gv_info.assign:
             lhs_name, lhs_bitwidth = extract_bitwidth(assign[0])
             rhs_name, rhs_bitwidth = extract_bitwidth(assign[1])
@@ -98,26 +99,30 @@ class Circuit:
             else:
                 rhs_key = self.make_wire_key(rhs_name, SINGLE_BIT_INDEX)
 
+            assigns.append((lhs_key, rhs_key))
             for bucket in [self.wire_inputs, self.wire_outputs]:
                 bucket[rhs_key].extend(bucket[lhs_key])
                 del bucket[lhs_key]
 
-    def register_cells(self, gv_info) -> Tuple[Set[str], dict]:
-        cells = set()
+        return assigns
+
+    def register_cells(self, gv_info) -> Tuple[dict, dict]:
+        cells = {}
         for cell in gv_info.cells:
             cell_spec = self.get_cell_spec(cell.cell_type)
             if cell_spec is None:
                 continue
 
-            cells.add(cell.id)
+            params = []
             for p in cell.parameters:
                 pin_name, wire_key = self.from_parameter_string(p)
                 pin_type = self.get_pin_type(cell_spec, pin_name)
+                params.append((pin_name, pin_type, wire_key))
                 if pin_type == "input":
                     self.wire_outputs[wire_key].append(cell.id)
                 else:
                     self.wire_inputs[wire_key].append(cell.id)
-
+            cells[cell.id] = {'parameters': params, 'type': cell.cell_type}
         return cells, {cell.id: cell for cell in gv_info.cells}
 
     def from_parameter_string(self, p: str):
@@ -163,7 +168,7 @@ class Circuit:
                 graph.add_edge(in_cell, out_cell)
         return graph
 
-    def get_mem_free_schedule(self):
+    def get_mem_schedules(self):
         used_wires_layers = [
             set.union(*[
                 {

@@ -9,8 +9,6 @@ class IntermediateFileWriter:
     def __init__(self, path: str):
         self.path = path
         self.file = None
-        self.gv_io = {'input': [], 'output': [], 'wire': []}
-        self.multibit_gv_io = {'input': [], 'output': [], 'wire': []}
 
     def __enter__(self):
         self.file = open(self.path, 'w')
@@ -47,33 +45,30 @@ class IntermediateFileWriter:
         for name, m in std_cell_info.modules.items():
             self.write_vlib_module(name, m)
 
-    def write_graph(self, g: Circuit):
-        pass
+    def write_circuit(self, circuit: Circuit, design_name: str):
+        self.print(design_name)
+        self.print(len(circuit.wire_inputs.keys()))
+        for wire_key in circuit.wire_inputs.keys():
+            self.print(f'{wire_key[0]} {wire_key[1]}')
 
-    # def write_gv(self, gv_info):
-    #     for io in gv_info.io:
-    #         if 'bitwidth' in io:
-    #             self.multibit_gv_io[io.type].append(f'{io.id} {io.bitwidth[0]} {io.bitwidth[1]}')
-    #         else:
-    #             self.gv_io[io.type].extend(io.ids)
-    #
-    #     self.print(gv_info.id)
-    #     for io_type in self.gv_io.keys():
-    #         self.print(f'{io_type} {len(self.gv_io[io_type])} {" ".join(self.gv_io[io_type])}')
-    #         self.print(f'multibit_{io_type} {len(self.multibit_gv_io[io_type])} {" ".join(self.multibit_gv_io[io_type])}')
-    #
-    #     self.print(len(gv_info.assign))
-    #     for assign in gv_info.assign:
-    #         self.print(f"{self.extract_bitwidth(assign[0])} {assign[1]}")
-    #
-    #     self.print(len(gv_info.cells))
-    #     for cell in gv_info.cells:
-    #         self.print(f'{cell.cell_type} {cell.id} {len(cell.parameters)}')
-    #         for p in cell.parameters:
-    #             s = p.split(' ')
-    #             self.print(f'{s[0]} {len(s[1:])}')
-    #             args = [self.extract_bitwidth(arg) for arg in s[1:]]
-    #             self.print(" ".join(args))
+        self.print(len(circuit.assigns))
+        for assign in circuit.assigns:
+            self.print(f"{assign[0][0]} {assign[0][1]} {assign[1][0]} {assign[1][1]}")
+
+        self.print(len(circuit.cells))  # filtered cells, stripped to only combinational
+        for cell_id, cell in circuit.cells.items():
+            self.print(f'{cell["type"]} {cell_id} {len(cell["parameters"])}')
+            for pin_name, pin_type, wire_key in cell["parameters"]:
+                self.print(f"{pin_name} {pin_type[0]} {wire_key[0]} {wire_key[1]}")
+
+        self.print(len(circuit.schedule_layers))
+        for cell_ids, alloc_wire_keys, free_wire_keys in zip(
+                circuit.schedule_layers, circuit.mem_alloc_schedule, circuit.mem_free_schedule
+        ):
+            self.print(len(cell_ids), ' '.join(cell_ids))
+            self.print(len(alloc_wire_keys), ' '.join([f'{wire_key[0]} {wire_key[1]}' for wire_key in alloc_wire_keys]))
+            self.print(len(free_wire_keys), ' '.join([f'{wire_key[0]} {wire_key[1]}' for wire_key in free_wire_keys]))
+            self.print()
 
     def write_sdf(self, header, cells):
         self.print(f'timescale {header["TIMESCALE"]}')
