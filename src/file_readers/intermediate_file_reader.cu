@@ -1,15 +1,12 @@
 #include <iostream>
 #include "intermediate_file_reader.h"
 
-#include "../specs/standard_cell.h"
-
 
 using namespace std;
 
 
 void IntermediateFileReader::summary() const {
     cout << "Summary of intermediate file" << endl;
-    cout << "Number of standard cells: " << StandardCellLibrary::cells.size() << endl;
     cout << "SDF Timescale: " << timing_spec.timescale_num << " " << timing_spec.timescale_unit << endl;
     cout << "Number of sdf cells: " << timing_spec.cells.size() << endl;
     cout << endl;
@@ -20,7 +17,6 @@ void IntermediateFileReader::read(char* path) {
     fin = ifstream(path);
     read_vlib();
     circuit.read_file(fin);
-    return;
     read_sdf();
 }
 
@@ -37,11 +33,16 @@ void IntermediateFileReader::read_vlib() {
 }
 
 void IntermediateFileReader::read_vlib_primitive() {
-    vector<pair<STD_CELL_DECLARE_TYPE, vector<string>>> declares;
+    StdCellDeclare declares;
     string name = read_vlib_common(declares);
     vector<string> table;
     read_vlib_table(table);
-    StandardCellLibrary::cells.emplace(name, new PrimitiveCell(declares, table));
+    module_registry.register_user_defined_primitive(
+            name,
+            table,
+            declares.buckets[STD_CELL_INPUT].size(),
+            declares.buckets[STD_CELL_OUTPUT].size()
+    );
 }
 
 void IntermediateFileReader::read_vlib_table(vector<string>& table) {
@@ -55,39 +56,44 @@ void IntermediateFileReader::read_vlib_table(vector<string>& table) {
 }
 
 void IntermediateFileReader::read_vlib_module() {
-    vector<pair<STD_CELL_DECLARE_TYPE, vector<string>>> declares;
+    StdCellDeclare declares;
     string name = read_vlib_common(declares);
     int num_submodules;
 
-    vector<pair<string, vector<string>>> submodules;
+    unordered_map<string, int> arg_name_to_index;
+    for (const auto& bucket : declares.buckets) {
+        for (const auto &arg_name: bucket) {
+            arg_name_to_index[arg_name] = arg_name_to_index.size();
+        }
+    }
+
+    vector<pair<string, vector<int>>> submodules;
     fin >> num_submodules;
     for (int i = 0; i < num_submodules; i++) {
         string submod_type, submod_id, arg;
         int num_args;
-        vector<string> args;
+        vector<int> args;
         fin >> submod_type >> submod_type >> submod_id >> num_args;
         for (int i_arg = 0; i_arg < num_args; i_arg++) {
             fin >> arg;
-            args.push_back(arg);
+            args.push_back(arg_name_to_index[arg]);
         }
         submodules.emplace_back(submod_type, args);
     }
-    StandardCellLibrary::cells.emplace(name, new Module(declares, submodules));
+    module_registry.register_module(name, submodules);
 }
 
-string IntermediateFileReader::read_vlib_common(vector<pair<STD_CELL_DECLARE_TYPE, vector<string>>>& declares) {
+string IntermediateFileReader::read_vlib_common(StdCellDeclare& declares) {
     string name;
     fin >> name;
-    for (const auto& declare_type : STD_CELL_DECLARE_TYPES) {
+    for (auto& arg_bucket : declares.buckets) {
         int num_args;
         string s;
         fin >> s >> num_args;
-        vector<string> args;
         for (int i = 0; i < num_args; i++) {
             fin >> s;
-            args.push_back(s);
+            arg_bucket.push_back(s);
         }
-        declares.emplace_back(declare_type, args);
     }
     return name;
 }

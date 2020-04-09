@@ -17,46 +17,12 @@ using namespace std;
 
 class WaveSet {
 public:
-    WaveSet() {
-        values = (char*)malloc(sizeof(char) * n_stimulus * stimuli_size);
-        timestamps = new size_t[n_stimulus * stimuli_size];
-    };
+    WaveSet();
 
-    void summary() const {
-        printf("n_stimulus: %d, stimuli_size: %d\n", n_stimulus, stimuli_size);
-        printf("values:\n");
-        for (int i = 0; i < n_stimulus; i++) {
-            for (int j = 0; j < stimuli_size; j++) {
-                cout << (int)values[stimuli_size * i + j] << " ";
-            }
-            cout << endl;
-        }
-        cout << endl;
-    }
-
-    char* get_values_cuda() {
-        cudaError_t result;
-        result = cudaMalloc((void**) &device_values, sizeof(char) * n_stimulus * stimuli_size);
-        if (result != cudaSuccess)
-            throw std::runtime_error("failed to allocate device memory");
-
-        result = cudaMemcpy(device_values, values, sizeof(char) * n_stimulus * stimuli_size, cudaMemcpyHostToDevice);
-        if (result != cudaSuccess)
-            throw std::runtime_error("failed to copy to device memory");
-        return device_values;
-    }
-
-    char* get_values_cpu() const {
-        cudaError_t result;
-        result = cudaMemcpy(values, device_values, sizeof(char) * n_stimulus * stimuli_size, cudaMemcpyDeviceToHost);
-        if (result != cudaSuccess)
-            throw std::runtime_error("failed to copy to device memory");
-        return values;
-    }
-
-    int size() const {
-        return n_stimulus * stimuli_size;
-    }
+    void summary() const;
+    char* get_values_cuda();
+    char* get_values_cpu() const;
+    int size() const;
 
     char* values = nullptr;
     char* device_values = nullptr;
@@ -71,68 +37,86 @@ public:
 class Gate {
 public:
     // computes output for single stimuli
-    __device__ void compute(
+    __device__ virtual void compute(
             char** inputs, char** outputs,
             int num_inputs, int num_outputs, int stimuli_size
-    ) const;
-    // TODO
+    ) const = 0;
+};
+
+class ANDGate : public Gate {
+    __device__ void compute(
+        char** inputs, char** outputs,
+        int num_inputs, int num_outputs, int stimuli_size
+    ) const override {};
+};
+
+class ORGate : public Gate {
+    __device__ void compute(
+        char** inputs, char** outputs,
+        int num_inputs, int num_outputs, int stimuli_size
+    ) const override {};
+};
+
+class NOTGate : public Gate {
+    __device__ void compute(
+        char** inputs, char** outputs,
+        int num_inputs, int num_outputs, int stimuli_size
+    ) const override {};
+};
+
+class NORGate : public Gate {
+    __device__ void compute(
+        char** inputs, char** outputs,
+        int num_inputs, int num_outputs, int stimuli_size
+    ) const override {};
+};
+
+class XORGate : public Gate {
+    __device__ void compute(
+        char** inputs, char** outputs,
+        int num_inputs, int num_outputs, int stimuli_size
+    ) const override {};
+};
+
+class XNORGate : public Gate {
+    __device__ void compute(
+        char** inputs, char** outputs,
+        int num_inputs, int num_outputs, int stimuli_size
+    ) const override {};
+};
+
+class NANDGate : public Gate {
+    __device__ void compute(
+        char** inputs, char** outputs,
+        int num_inputs, int num_outputs, int stimuli_size
+    ) const override {};
+};
+
+class BUFGate : public Gate {
+    __device__ void compute(
+        char** inputs, char** outputs,
+        int num_inputs, int num_outputs, int stimuli_size
+    ) const override {};
 };
 
 class Primitive: public Gate {
 public:
-    Primitive(const vector<string>& vector_table, int input_size, int output_size)
-            :input_size(input_size), output_size(output_size) {
-        table_rows = vector_table.size();
-        char host_table[(input_size + output_size) * table_rows];
-        int i = 0;
-        for(const auto& row : vector_table) {
-            for(const auto& c : row) {
-                host_table[i] = c;
-                i++;
-            }
-        }
-        cudaError_t result;
-        result = cudaMalloc((void**) &table, sizeof(char) * (input_size + output_size) * table_rows);
-        if (result != cudaSuccess)
-            throw std::runtime_error("failed to allocate device memory");
+    Primitive(const vector<string> &vector_table, int input_size, int output_size);
+    Primitive* cuda();
 
-        result = cudaMemcpy(table, host_table, sizeof(char) * (input_size + output_size) * table_rows, cudaMemcpyHostToDevice);
-        if (result != cudaSuccess)
-            throw std::runtime_error("failed to copy to device memory");
-    }
-
-    Primitive* cuda() {
-        cudaError_t result;
-        Primitive* device_primitive;
-        result = cudaMalloc((void**) &device_primitive, sizeof(Primitive));
-        if (result != cudaSuccess)
-            throw std::runtime_error("failed to allocate device memory");
-
-        result = cudaMemcpy(device_primitive, this, sizeof(Primitive), cudaMemcpyHostToDevice);
-        if (result != cudaSuccess)
-            throw std::runtime_error("failed to copy to device memory");
-
-        return device_primitive;
-    }
+    __device__ void compute(
+        char **inputs, char **outputs,
+        int num_inputs, int num_outputs, int stimuli_size
+    ) const override {
+    };
 
     char* table{};    // on device
-    int table_rows;
-    int input_size, output_size;
+    int table_rows{};
 };
-
 
 class Module {
 public:
-    explicit Module(const vector<pair<Primitive*, vector<int>>>& schedule) {
-        num_submodules = schedule.size();
-        submodule_schedule = new Primitive*[num_submodules];
-        submodule_input_sizes = new int[num_submodules];
-        submodule_output_sizes = new int[num_submodules];
-        for (int i = 0; i < num_submodules; i++) {
-            submodule_schedule[i] = schedule[i].first;
-            submodule_input_sizes[i] = schedule[i].second.size();
-        }
-    }
+    explicit Module(const vector<pair<Gate*, vector<int>>>& schedule);
 
     // computes output for single stimuli
     __device__ void compute(char** data_schedule) const {
@@ -155,9 +139,9 @@ public:
             delete[] inputs;
             delete[] outputs;
         }
-    }
+    };
 
-    Primitive** submodule_schedule;
+    Gate** submodule_schedule;
     int num_submodules;
     int* submodule_input_sizes;
     int* submodule_output_sizes;

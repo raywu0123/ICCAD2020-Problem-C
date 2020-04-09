@@ -6,7 +6,6 @@ set(HEADER_FILES
         file_readers/intermediate_file_reader.h
         file_readers/vcd_reader.h
         specs/timing_spec.h
-        specs/standard_cell.h
         specs/gv_cell.h
         specs/sdf_cell.h
         data_containers.h)
@@ -17,7 +16,6 @@ set(SOURCE_FILES
         circuit_model/circuit.cu
         file_readers/intermediate_file_reader.cu
         file_readers/vcd_reader.cu
-        specs/standard_cell.cu
         specs/timing_spec.cu
         specs/gv_cell.cu
         specs/sdf_cell.cu

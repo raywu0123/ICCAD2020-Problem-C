@@ -3,7 +3,7 @@
 #include "src/circuit_model/circuit.h"
 #include "src/file_readers/vcd_reader.h"
 #include "src/input_waveforms.h"
-#include "src/file_readers/vcd_reader.h"
+#include "simulator/module_registry.h"
 #include "src/simulation_result.h"
 #include "simulator/simulator.h"
 
@@ -43,9 +43,11 @@ int main(int argc, char* argv[]) {
 
     Circuit c;
     TimingSpec timing_spec;
-    IntermediateFileReader intermediate_file_reader(c, timing_spec);
+    ModuleRegistry module_registry;
+    IntermediateFileReader intermediate_file_reader(c, timing_spec, module_registry);
     intermediate_file_reader.read(inter_repr_file);
     intermediate_file_reader.summary();
+    module_registry.summary();
 
     InputWaveforms input_waveforms;
     VCDReader vcd_reader(input_waveforms, c);

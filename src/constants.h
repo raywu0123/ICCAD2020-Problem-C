@@ -35,4 +35,7 @@ const STD_CELL_DECLARE_TYPE STD_CELL_DECLARE_TYPES[] = {
     STD_CELL_INPUT, STD_CELL_OUTPUT, STD_CELL_WIRE, STD_CELL_SUPPLY1, STD_CELL_SUPPLY0
 };
 
+struct StdCellDeclare {
+    vector<vector<string>> buckets{5};
+};
 #endif //ICCAD2020_CONSTANTS_H
