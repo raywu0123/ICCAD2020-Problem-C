@@ -3,6 +3,7 @@ from typing import List, Tuple, Dict
 
 BIT_INDEX_TYPE = int
 SINGLE_BIT_INDEX = 0
+WireKey = Tuple[str, BIT_INDEX_TYPE]
 
 BITWIDTH_TYPE = Tuple[int, int]
 

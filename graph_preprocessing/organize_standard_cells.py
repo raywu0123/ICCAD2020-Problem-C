@@ -3,12 +3,6 @@ from itertools import chain, product
 from graph_preprocessing.graph import Graph
 
 
-class Gate:
-
-    def __init__(self, idd):
-        self.idd = idd
-
-
 class StandardCellOrganizer:
 
     def __init__(self, std_cell_info):
@@ -28,10 +22,10 @@ class StandardCellOrganizer:
         for gate_idx, gate in enumerate(module_declares['gates']):
             assert len(gate) == 2
             # (gate_type, args) -> (gate_type, gate_id, args)
-            module_declares['gates'][gate_idx] = (gate[0], gate_idx, gate[1])
+            module_declares['gates'][gate_idx] = (gate[0], gate_idx, list(gate[1]))
 
-        all_gates = lambda : chain(module_declares['gates'], module_declares['submodules'])
-        all_wires = lambda : chain(module_declares['wire'], module_declares['supply1'], module_declares['supply0'])
+        all_gates = lambda: chain(module_declares['gates'], module_declares['submodules'])
+        all_wires = lambda: chain(module_declares['wire'], module_declares['supply1'], module_declares['supply0'])
 
         tuple_to_gate = {}
         for gate in all_gates():

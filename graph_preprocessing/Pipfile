@@ -5,8 +5,13 @@ name = "pypi"
 
 [packages]
 pyparsing = "*"
+tqdm = "*"
 
 [dev-packages]
+ipdb = "*"
+pytest = "*"
+pytest-cov = "*"
+pytest-dependency = "*"
 
 [requires]
 python_version = "3.6"

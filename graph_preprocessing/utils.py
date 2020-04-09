@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from .constants import UNDEF_USAGE_BITWIDTH, BITWIDTH_TYPE
+from .constants import UNDEF_USAGE_BITWIDTH, BITWIDTH_TYPE, WireKey, BIT_INDEX_TYPE
 
 
 def is_single_bit(bitwidth: BITWIDTH_TYPE):
@@ -21,3 +21,7 @@ def extract_bitwidth(s: str) -> (str, Tuple[int, int]):
             raise ValueError(f"Unrecognized format: {s}")
     else:
         raise ValueError(f"Invalid argument: {s}")
+
+
+def make_wire_key(wire_name: str, bit_index: BIT_INDEX_TYPE) -> WireKey:
+    return wire_name, bit_index
