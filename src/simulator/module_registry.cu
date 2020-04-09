@@ -13,14 +13,14 @@ void ModuleRegistry::summary() const {
 }
 
 void ModuleRegistry::register_primitives() {
-    name_to_gate["and"] = new ANDGate();
-    name_to_gate["or"] = new ORGate();
-    name_to_gate["not"] = new NOTGate();
-    name_to_gate["nor"] = new NORGate();
-    name_to_gate["xor"] = new XORGate();
-    name_to_gate["xnor"] = new XNORGate();
-    name_to_gate["nand"] = new NANDGate();
-    name_to_gate["buf"] = new BUFGate();
+    name_to_gate["and"] = ANDGate().cuda();
+    name_to_gate["or"] = ORGate().cuda();
+    name_to_gate["not"] = NOTGate().cuda();
+    name_to_gate["nor"] = NORGate().cuda();
+    name_to_gate["xor"] = XORGate().cuda();
+    name_to_gate["xnor"] = XNORGate().cuda();
+    name_to_gate["nand"] = NANDGate().cuda();
+    name_to_gate["buf"] = BUFGate().cuda();
 }
 
 void ModuleRegistry::register_user_defined_primitive(
@@ -30,8 +30,8 @@ void ModuleRegistry::register_user_defined_primitive(
     if (name_to_gate.find(name) != name_to_gate.end()) {
         throw runtime_error("Duplicate primitive names: " + name);
     }
-    Primitive* p = Primitive(table, input_size, output_size).cuda();
-    name_to_gate[name] = p;
+    Gate* g = Primitive(table, input_size, output_size).cuda();
+    name_to_gate[name] = g;
 }
 
 Gate *ModuleRegistry::get_gate(const string &name) const {

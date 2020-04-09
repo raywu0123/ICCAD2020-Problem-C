@@ -37,77 +37,82 @@ public:
 class Gate {
 public:
     // computes output for single stimuli
-    __device__ virtual void compute(
+    __device__ void compute(
             char** inputs, char** outputs,
             int num_inputs, int num_outputs, int stimuli_size
-    ) const = 0;
+    ) const {
+        printf("jjj\n");
+    };
+
+    Gate* cuda() const;
 };
 
 class ANDGate : public Gate {
     __device__ void compute(
         char** inputs, char** outputs,
         int num_inputs, int num_outputs, int stimuli_size
-    ) const override {};
+    ) const {
+        printf("qwerqwer\n");
+    };
 };
 
 class ORGate : public Gate {
     __device__ void compute(
         char** inputs, char** outputs,
         int num_inputs, int num_outputs, int stimuli_size
-    ) const override {};
+    ) const  {};
 };
 
 class NOTGate : public Gate {
     __device__ void compute(
         char** inputs, char** outputs,
         int num_inputs, int num_outputs, int stimuli_size
-    ) const override {};
+    ) const  {};
 };
 
 class NORGate : public Gate {
     __device__ void compute(
         char** inputs, char** outputs,
         int num_inputs, int num_outputs, int stimuli_size
-    ) const override {};
+    ) const  {};
 };
 
 class XORGate : public Gate {
     __device__ void compute(
         char** inputs, char** outputs,
         int num_inputs, int num_outputs, int stimuli_size
-    ) const override {};
+    ) const  {};
 };
 
 class XNORGate : public Gate {
     __device__ void compute(
         char** inputs, char** outputs,
         int num_inputs, int num_outputs, int stimuli_size
-    ) const override {};
+    ) const  {};
 };
 
 class NANDGate : public Gate {
     __device__ void compute(
         char** inputs, char** outputs,
         int num_inputs, int num_outputs, int stimuli_size
-    ) const override {};
+    ) const  {};
 };
 
 class BUFGate : public Gate {
     __device__ void compute(
         char** inputs, char** outputs,
         int num_inputs, int num_outputs, int stimuli_size
-    ) const override {};
+    ) const  {};
 };
 
 class Primitive: public Gate {
 public:
     Primitive(const vector<string> &vector_table, int input_size, int output_size);
-    Primitive* cuda();
 
     __device__ void compute(
         char **inputs, char **outputs,
         int num_inputs, int num_outputs, int stimuli_size
-    ) const override {
+    ) const  {
     };
 
     char* table{};    // on device

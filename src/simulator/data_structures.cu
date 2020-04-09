@@ -82,13 +82,14 @@ Primitive::Primitive(const vector<string> &vector_table, int input_size, int out
     check_cuda_memcpy(result);
 }
 
-Primitive *Primitive::cuda() {
+
+Gate* Gate::cuda() const {
     cudaError_t result;
-    Primitive* device_primitive;
-    result = cudaMalloc((void**) &device_primitive, sizeof(Primitive));
+    Gate* device_ptr;
+    result = cudaMalloc((void**) &device_ptr, sizeof(Gate));
     check_cuda_malloc(result);
 
-    result = cudaMemcpy(device_primitive, this, sizeof(Primitive), cudaMemcpyHostToDevice);
+    result = cudaMemcpy(device_ptr, this, sizeof(Gate), cudaMemcpyHostToDevice);
     check_cuda_memcpy(result);
-    return device_primitive;
+    return device_ptr;
 }
