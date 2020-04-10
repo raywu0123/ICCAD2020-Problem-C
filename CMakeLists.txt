@@ -14,8 +14,8 @@ set_target_properties(
         PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
 )
+
 target_link_libraries(GPUSimulator mylib)
 
-enable_testing()
 add_subdirectory(tests)
-
+enable_testing()

@@ -37,12 +37,7 @@ void IntermediateFileReader::read_vlib_primitive() {
     string name = read_vlib_common(declares);
     vector<string> table;
     read_vlib_table(table);
-    module_registry.register_user_defined_primitive(
-            name,
-            table,
-            declares.buckets[STD_CELL_INPUT].size(),
-            declares.buckets[STD_CELL_OUTPUT].size()
-    );
+    module_registry.register_user_defined_primitive(name, table);
 }
 
 void IntermediateFileReader::read_vlib_table(vector<string>& table) {
@@ -70,12 +65,15 @@ void IntermediateFileReader::read_vlib_module() {
     vector<pair<string, vector<int>>> submodules;
     fin >> num_submodules;
     for (int i = 0; i < num_submodules; i++) {
-        string submod_type, submod_id, arg;
+        string submod_type, submod_id;
         int num_args;
         vector<int> args;
         fin >> submod_type >> submod_type >> submod_id >> num_args;
         for (int i_arg = 0; i_arg < num_args; i_arg++) {
+            string arg;
             fin >> arg;
+            if (arg_name_to_index.find(arg) == arg_name_to_index.end())
+                throw runtime_error("Arg index for " + arg + " not found in " + name + "\n");
             args.push_back(arg_name_to_index[arg]);
         }
         submodules.emplace_back(submod_type, args);

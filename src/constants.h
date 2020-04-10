@@ -38,4 +38,34 @@ const STD_CELL_DECLARE_TYPE STD_CELL_DECLARE_TYPES[] = {
 struct StdCellDeclare {
     vector<vector<string>> buckets{5};
 };
+
+
+typedef void (*GateFnPtr)(
+    char** const data,  // (n_stimuli_parallel * capacity, num_inputs + num_outputs)
+    int** const timestamps,
+    const int num_inputs,
+    const int num_outputs,
+    const char* table,
+    const int* capacities,
+    const int n_stimuli_parallel
+);
+
+
+struct ModuleSpec{
+    GateFnPtr* gate_schedule;
+    int schedule_size;
+    char** tables;
+    int* num_inputs;
+    int* num_outputs;
+};
+
+typedef void (*ModuleFnPtr)(
+    const ModuleSpec& module_spec,
+    char** const data_schedule,
+    int** const timestamp_schedule,
+    const int* data_schedule_offsets,  // offset to different gates' data
+    const int* capacities,  // capacity of each gates' input/output
+    const int* capacities_offsets,
+    const int n_stimuli_parallel  // # stimuli computing in parallel, the whole system shares this parameter
+);
 #endif //ICCAD2020_CONSTANTS_H

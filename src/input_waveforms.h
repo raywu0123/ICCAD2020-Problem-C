@@ -19,9 +19,8 @@ public:
     int timescale_num;
     string timescale_unit;
 
-    vector<
-        pair<Timestamp, vector<pair<string, string>>>
-    > dumps;
+    vector<pair<Timestamp, vector<pair<string, string>>>> dumps;
+    unordered_map<string, pair<string, BitWidth>> token_to_wire;
 };
 
 

@@ -8,7 +8,7 @@ set(HEADER_FILES
         specs/timing_spec.h
         specs/gv_cell.h
         specs/sdf_cell.h
-        data_containers.h)
+        data_containers.h simulator/builtin_gates.h)
 set(SOURCE_FILES
         input_waveforms.cu
         simulator/simulator.cu
