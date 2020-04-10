@@ -16,26 +16,16 @@ using namespace  std;
 
 class IntermediateFileReader {
 
-
 public:
-    IntermediateFileReader(Circuit& circuit, TimingSpec& timing_spec, ModuleRegistry& module_registry):
-        circuit(circuit), timing_spec(timing_spec), module_registry(module_registry) {};
-
-    void read(char*);
+    explicit IntermediateFileReader(TimingSpec& timing_spec, ifstream& fin): timing_spec(timing_spec), fin(fin) {};
     void summary() const;
-
-    void read_vlib();
-    string read_vlib_common(StdCellDeclare&);
-    void read_vlib_primitive();
-    void read_vlib_module();
-    void read_vlib_table(vector<string>&);
     void read_sdf();
 
-    Circuit& circuit;
-    TimingSpec& timing_spec;
-    ModuleRegistry& module_registry;
+private:
 
-    ifstream fin;
+
+    TimingSpec& timing_spec;
+    ifstream& fin;
 };
 
-#endif //ICCAD2020_INTERMEDIATE_FILE_READER_H
+#endif

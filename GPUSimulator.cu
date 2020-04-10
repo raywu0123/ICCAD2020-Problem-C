@@ -41,23 +41,29 @@ int main(int argc, char* argv[]) {
     char* saif_or_vcd_flag = argv[3];
     char* output_file = argv[4];
 
-    Circuit c;
-    TimingSpec timing_spec;
+    ifstream fin = ifstream(inter_repr_file);
     ModuleRegistry module_registry;
-    IntermediateFileReader intermediate_file_reader(c, timing_spec, module_registry);
-    intermediate_file_reader.read(inter_repr_file);
+    module_registry.read_file(fin);
+
+    Circuit circuit(module_registry);
+    circuit.read_file(fin);
+
+    TimingSpec timing_spec;
+    IntermediateFileReader intermediate_file_reader(timing_spec, fin);
+
+    intermediate_file_reader.read_sdf();
     intermediate_file_reader.summary();
     module_registry.summary();
 
     InputWaveforms input_waveforms;
-    VCDReader vcd_reader(input_waveforms, c);
+    VCDReader vcd_reader(input_waveforms, circuit);
     vcd_reader.read(input_vcd_file);
     vcd_reader.summary();
 
-    c.summary();
+    circuit.summary();
 
     SimulationResult simulation_result;
-    Simulator simulator(c, input_waveforms, simulation_result);
+    Simulator simulator(circuit, input_waveforms, simulation_result);
     simulator.run();
 
     simulation_result.write(output_file, saif_or_vcd_flag);

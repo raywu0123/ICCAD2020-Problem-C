@@ -47,8 +47,8 @@ class IntermediateFileWriter:
 
     def write_circuit(self, circuit: Circuit, design_name: str):
         self.print(design_name)
-        self.print(len(circuit.wire_inputs.keys()))
-        for wire_key in circuit.wire_inputs.keys():
+        self.print(sum([len(bucket) for bucket in circuit.io_buckets.values()]))
+        for wire_key in chain(*circuit.io_buckets.values()):
             self.print(f'{wire_key[0]} {wire_key[1]}')
 
         self.print(len(circuit.assigns))

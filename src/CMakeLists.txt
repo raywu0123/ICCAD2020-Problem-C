@@ -6,7 +6,6 @@ set(HEADER_FILES
         file_readers/intermediate_file_reader.h
         file_readers/vcd_reader.h
         specs/timing_spec.h
-        specs/gv_cell.h
         specs/sdf_cell.h
         data_containers.h simulator/builtin_gates.h)
 set(SOURCE_FILES
@@ -17,7 +16,6 @@ set(SOURCE_FILES
         file_readers/intermediate_file_reader.cu
         file_readers/vcd_reader.cu
         specs/timing_spec.cu
-        specs/gv_cell.cu
         specs/sdf_cell.cu
         data_containers.cu simulator/data_structures.cu simulator/data_structures.h simulator/module_registry.cu simulator/module_registry.h)
 add_library(mylib STATIC ${HEADER_FILES} ${SOURCE_FILES})

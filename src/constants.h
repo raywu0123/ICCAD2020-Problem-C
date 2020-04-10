@@ -9,6 +9,15 @@ using namespace std;
 typedef pair<int, int> BitWidth;
 typedef pair<string, int> Wirekey;
 
+const Wirekey SUPPLY1_WIREKEY = Wirekey{"1'b1", 0};
+const Wirekey SUPPLY0_WIREKEY = Wirekey{"1'b0", 0};
+
+struct SubmoduleSpec {
+    string name;
+    string type;
+    vector<string> args;
+};
+
 struct pair_hash {
     template<class T1, class T2>
     std:: size_t operator() (const std::pair<T1, T2>& pair) const {
@@ -33,10 +42,6 @@ enum STD_CELL_DECLARE_TYPE {
 
 const STD_CELL_DECLARE_TYPE STD_CELL_DECLARE_TYPES[] = {
     STD_CELL_INPUT, STD_CELL_OUTPUT, STD_CELL_WIRE, STD_CELL_SUPPLY1, STD_CELL_SUPPLY0
-};
-
-struct StdCellDeclare {
-    vector<vector<string>> buckets{5};
 };
 
 
