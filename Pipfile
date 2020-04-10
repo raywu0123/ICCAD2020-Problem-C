@@ -4,8 +4,6 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-"jinja2" = "*"
-pyverilog = "*"
 pyparsing = "*"
 tqdm = "*"
 

@@ -40,15 +40,24 @@ void VCDReader::read_vars() {
     string s;
     do { getline(fin, s); } while (s.find("$var") != 0 or s.find("$var") == string::npos);
     do {
-        string variable, id;
+        string token, id;
         int n_bits;
         auto ss = istringstream(s);
-        ss >> s >> s >> n_bits >> variable >> id;
+        ss >> s >> s >> n_bits >> token >> id;
 
         char c;
-        pair<int, int> bitwidth;
+        pair<int, int> bitwidth = {0, 0};
         if (n_bits > 1) ss >> c >> bitwidth.first >> c >> bitwidth.second;
-//        input_waveforms.token_to_wire.emplace(variable, new Wire(id, bitwidth));
+        input_waveforms.token_to_wire.emplace(token, make_pair(id, bitwidth));
+        for (
+            int bit_index = min(bitwidth.first, bitwidth.second);
+            bit_index <= max(bitwidth.first, bitwidth.second);
+            bit_index++
+        ) {
+            circuit.register_input_wire(make_pair(id, bit_index));
+        }
+
+
         getline(fin, s);
     } while(s.find("$var") == 0);
 

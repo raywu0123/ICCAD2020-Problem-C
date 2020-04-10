@@ -17,22 +17,18 @@ public:
     void register_primitives();
     void register_user_defined_primitive(
         const string& name,
-        const vector<string>& table,
-        int input_size, int output_size
+        const vector<string>& table
     );
     void register_module(const string& name, const vector<pair<string, vector<int>>>& submodules);
 
-    Gate* get_gate(const string& name) const;
-    Module* get_module(const string& name) const;
+    GateFnPtr get_gate_fn(const string& name, char*& table) const;
 
-    char** get_module_data() const {
-        return nullptr;
-    }
 
 private:
 
-    unordered_map<string, Gate*> name_to_gate{};
-    unordered_map<string, Module*> name_to_module{};
+    unordered_map<string, GateFnPtr> name_to_gate{};
+    unordered_map<string, char*> name_to_table{};
+    unordered_map<string, ModuleSpec> name_to_module_spec{};
 };
 
 #endif

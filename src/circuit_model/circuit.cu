@@ -91,4 +91,11 @@ void Circuit::summary() const {
     cout << "Num cells: " << cells.size() << endl;
     cout << "Num wires: " << wires.size() << endl;
     cout << "Num schedule layers: " << cell_schedule.size() << endl;
+    cout << "Num input wires: " << cell_schedule.size() << endl;
+}
+
+void Circuit::register_input_wire(const Wirekey& wirekey) {
+    if (input_wires.find(wirekey) != input_wires.end())
+        throw runtime_error("Duplicated input wire key: " + wirekey.first + "\n");
+    input_wires.insert(wirekey);
 }
