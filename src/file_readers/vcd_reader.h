@@ -11,8 +11,7 @@ using namespace std;
 
 class VCDReader {
 public:
-    explicit VCDReader(InputWaveforms& iw, Circuit& c):
-        input_waveforms(iw), circuit(c) {};
+    explicit VCDReader(InputWaveforms& iw): input_waveforms(iw) {};
 
     void read(char*);
     void summary();
@@ -27,7 +26,6 @@ public:
     ifstream fin;
 
     InputWaveforms& input_waveforms;
-    Circuit& circuit;
 };
 
 #endif //ICCAD2020_VCD_READER_H

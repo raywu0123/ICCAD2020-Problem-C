@@ -1,11 +1,12 @@
 #include <iostream>
-#include "src/file_readers/intermediate_file_reader.h"
 #include "src/circuit_model/circuit.h"
 #include "src/file_readers/vcd_reader.h"
 #include "src/input_waveforms.h"
 #include "simulator/module_registry.h"
 #include "src/simulation_result.h"
 #include "simulator/simulator.h"
+#include "src/utils.h"
+
 
 using namespace std;
 
@@ -41,25 +42,19 @@ int main(int argc, char* argv[]) {
     char* saif_or_vcd_flag = argv[3];
     char* output_file = argv[4];
 
-    ifstream fin = ifstream(inter_repr_file);
-    ModuleRegistry module_registry;
-    module_registry.read_file(fin);
-
-    Circuit circuit(module_registry);
-    circuit.read_file(fin);
-
-    TimingSpec timing_spec;
-    IntermediateFileReader intermediate_file_reader(timing_spec, fin);
-
-    intermediate_file_reader.read_sdf();
-    intermediate_file_reader.summary();
-    module_registry.summary();
-
     InputWaveforms input_waveforms;
-    VCDReader vcd_reader(input_waveforms, circuit);
+    VCDReader vcd_reader(input_waveforms);
     vcd_reader.read(input_vcd_file);
     vcd_reader.summary();
 
+    ifstream fin = ifstream(inter_repr_file);
+    ModuleRegistry module_registry;
+    module_registry.read_file(fin);
+    module_registry.summary();
+
+    Circuit circuit(module_registry);
+    circuit.read_file(fin, input_waveforms.timescale);
+    circuit.register_input_wires(input_waveforms.token_to_wire);
     circuit.summary();
 
     SimulationResult simulation_result;

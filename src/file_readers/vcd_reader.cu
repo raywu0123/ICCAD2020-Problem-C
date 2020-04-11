@@ -2,16 +2,16 @@
 #include <string>
 #include <sstream>
 #include <vector>
-#include "vcd_reader.h"
 
+#include "vcd_reader.h"
 
 using namespace std;
 
+extern double get_timescale(int, const string&);
 
 void VCDReader::summary() {
     cout << "Summary of VCD File" << endl;
-    cout << "Timescale: "
-         << input_waveforms.timescale_num << " " << input_waveforms.timescale_unit << endl;
+    cout << "Timescale: " << input_waveforms.timescale << "s" << endl;
     cout << "Number of time dumps: " << input_waveforms.dumps.size() << endl;
     cout << "Begin time: " << input_waveforms.dumps.front().first << endl;
     cout << "End time: " << input_waveforms.dumps.back().first << endl;
@@ -32,8 +32,10 @@ void VCDReader::ignore_header() {
 }
 
 void VCDReader::read_timescale() {
-    string s;
-    fin >> input_waveforms.timescale_num >> input_waveforms.timescale_unit >> s;
+    string s, timescale_unit;
+    int timescale_num;
+    fin >> timescale_num >> timescale_unit >> s;
+    input_waveforms.timescale = get_timescale(timescale_num, timescale_unit);
 }
 
 void VCDReader::read_vars() {
@@ -49,15 +51,6 @@ void VCDReader::read_vars() {
         pair<int, int> bitwidth = {0, 0};
         if (n_bits > 1) ss >> c >> bitwidth.first >> c >> bitwidth.second;
         input_waveforms.token_to_wire.emplace(token, make_pair(id, bitwidth));
-        for (
-            int bit_index = min(bitwidth.first, bitwidth.second);
-            bit_index <= max(bitwidth.first, bitwidth.second);
-            bit_index++
-        ) {
-            circuit.register_input_wire(make_pair(id, bit_index));
-        }
-
-
         getline(fin, s);
     } while(s.find("$var") == 0);
 

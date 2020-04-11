@@ -1,16 +1,20 @@
 #include <iostream>
+
 #include "circuit.h"
 #include "constants.h"
 
-
 using namespace std;
+
+extern double get_timescale(int, const string&);
+
 
 void Circuit::summary() const {
     cout << "Summary of Circuit" << endl;
     cout << "Num cells: " << cells.size() << endl;
     cout << "Num wires: " << wires.size() << endl;
     cout << "Num schedule layers: " << cell_schedule.size() << endl;
-    cout << "Num input wires: " << cell_schedule.size() << endl;
+    cout << "Num input wires: " << input_wires.size() << endl;
+    cout << endl;
 }
 
 const Wire* Circuit::get_wire(const Wirekey& wirekey) const {
@@ -20,17 +24,19 @@ const Wire* Circuit::get_wire(const Wirekey& wirekey) const {
     return it->second;
 }
 
-void Circuit::read_file(ifstream &fin) {
+void Circuit::read_file(ifstream &fin, double input_timescale) {
     fin >> design_name;
     read_wires(fin);
     read_assigns(fin);
     read_cells(fin);
     read_schedules(fin);
+    read_sdf(fin, input_timescale);
 }
 
 void Circuit::read_wires(ifstream& fin) {
-    int num_wires;
+    unsigned int num_wires;
     fin >> num_wires;
+    wires.reserve(num_wires);
     for (int i = 0; i < num_wires; i++) {
         string wire_name;
         int wire_index;
@@ -57,8 +63,10 @@ void Circuit::read_assigns(ifstream& fin) {
 }
 
 void Circuit::read_cells(ifstream& fin) {
-    int num_cells;
+    unsigned int num_cells;
     fin >> num_cells;
+    cells.reserve(num_cells);
+
     for (int i = 0; i < num_cells; i++) {
         string cell_name, cell_type;
         unsigned int num_args;
@@ -93,9 +101,10 @@ void Circuit::read_schedules(ifstream& fin) {
     wire_alloc_schedule.reserve(num_schedule_layers);
     wire_free_schedule.reserve(num_schedule_layers);
     for (int i = 0; i < num_schedule_layers; i++) {
-        int num_cell, num_alloc_wire, num_free_wire;
-        vector<string> cell_ids;
+        unsigned int num_cell, num_alloc_wire, num_free_wire;
         fin >> num_cell;
+        vector<string> cell_ids;
+        cell_ids.reserve(num_cell);
         for (int j = 0; j < num_cell; j++) {
             string cell_id;
             fin >> cell_id;
@@ -104,7 +113,7 @@ void Circuit::read_schedules(ifstream& fin) {
         cell_schedule.emplace_back(cell_ids);
 
         fin >> num_alloc_wire;
-        vector<Wirekey> alloc_wirekeys, free_wirekeys;
+        vector<Wirekey> alloc_wirekeys;
         alloc_wirekeys.reserve(num_alloc_wire);
         for (int j = 0; j < num_alloc_wire; j++) {
             string wire_name;
@@ -115,7 +124,8 @@ void Circuit::read_schedules(ifstream& fin) {
         wire_alloc_schedule.emplace_back(alloc_wirekeys);
 
         fin >> num_free_wire;
-        free_wirekeys.reserve(num_alloc_wire);
+        vector<Wirekey> free_wirekeys;
+        free_wirekeys.reserve(num_free_wire);
         for (int j = 0; j < num_free_wire; j++) {
             string wire_name;
             int wire_index;
@@ -129,6 +139,55 @@ void Circuit::read_schedules(ifstream& fin) {
 void Circuit::register_01_wires() {
     wires.emplace(make_pair("1'b1", 0), new ConstantWire('1'));
     wires.emplace(make_pair("1'b0", 0), new ConstantWire('0'));
+}
+
+void Circuit::read_sdf(ifstream &fin, double input_timescale) {
+    string s, timescale_unit;
+    int timescale_num;
+    fin >> s >> timescale_num >> timescale_unit;
+    double sdf_timescale = get_timescale(timescale_num, timescale_unit);
+
+    unsigned int num_cells;
+    fin >> num_cells;
+    for (int i_cell = 0; i_cell < num_cells; i_cell++) {
+        string type, name;
+        unsigned int num_paths;
+        fin >> type >> name >> num_paths;
+        vector<SDFPath> paths;
+        paths.reserve(num_paths);
+        for(int i_path = 0; i_path < num_paths; i_path++) {
+            SDFPath path;
+            double sdf_rising_delay, sdf_falling_delay;
+            fin >> path.in >> path.out >> sdf_rising_delay >> sdf_falling_delay;
+
+            path.rising_delay = (int)(sdf_rising_delay * sdf_timescale / input_timescale);
+            path.falling_delay = (int)(sdf_falling_delay * sdf_timescale / input_timescale);
+            paths.push_back(path);
+        }
+        bind_sdf_to_cell(name, paths);
+    }
+}
+
+void Circuit::bind_sdf_to_cell(const string& name, const vector<SDFPath>& paths) {
+    const auto& it = cells.find(name);
+    if (it == cells.end())
+        throw runtime_error("Cell " + name + " not found");
+
+    it->second->set_paths(paths);
+}
+
+void Circuit::register_input_wires(const unordered_map<string, pair<string, BitWidth>>& token_to_wire) {
+    for (const auto& token_wire_pair : token_to_wire) {
+        const string& id = token_wire_pair.second.first;
+        const BitWidth& bitwidth = token_wire_pair.second.second;
+        for (
+            int bit_index = min(bitwidth.first, bitwidth.second);
+            bit_index <= max(bitwidth.first, bitwidth.second);
+            bit_index++
+        ) {
+            register_input_wire(make_pair(id, bit_index));
+        }
+    }
 }
 
 void Circuit::register_input_wire(const Wirekey& wirekey) {

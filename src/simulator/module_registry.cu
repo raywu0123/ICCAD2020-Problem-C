@@ -11,6 +11,15 @@ ModuleRegistry::ModuleRegistry() {
 }
 
 
+void ModuleRegistry::summary() const {
+    cout << "Module Registry Summary: " << endl;
+    cout << "Num gates: " << name_to_gate.size() << endl;
+    cout << "Num UDP: " << name_to_table.size() << endl;
+    cout << "Num modules: " << name_to_module_spec.size() << endl;
+    cout << endl;
+}
+
+
 void ModuleRegistry::read_file(ifstream& fin) {
     int num_primitive_cells, num_modules;
     fin >> num_primitive_cells >> num_modules;
@@ -80,13 +89,6 @@ string ModuleRegistry::read_vlib_common(ifstream& fin, StdCellDeclare& declares)
         }
     }
     return name;
-}
-
-void ModuleRegistry::summary() const {
-    cout << "Module Registry Summary: " << endl;
-    cout << "Num gates: " << name_to_gate.size() << endl;
-    cout << "Num UDP: " << name_to_table.size() << endl;
-    cout << "Num modules: " << name_to_module_spec.size() << endl;
 }
 
 void ModuleRegistry::register_primitives() {
