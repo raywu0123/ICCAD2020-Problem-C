@@ -5,6 +5,9 @@
 
 using namespace std;
 
+const int N_GATE_PARALLEL = 32;
+const int N_STIMULI_PARALLEL = 32;
+
 
 typedef pair<int, int> BitWidth;
 typedef pair<string, int> Wirekey;

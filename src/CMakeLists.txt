@@ -6,7 +6,6 @@ set(HEADER_FILES
         simulator/builtin_gates.h
         simulation_result.h
         circuit_model/circuit.h
-        file_readers/vcd_reader.h
         utils.h
         )
 set(SOURCE_FILES
@@ -16,6 +15,5 @@ set(SOURCE_FILES
         simulator/module_registry.cu
         simulation_result.cu
         circuit_model/circuit.cu
-        file_readers/vcd_reader.cu
         )
 add_library(mylib STATIC ${HEADER_FILES} ${SOURCE_FILES})

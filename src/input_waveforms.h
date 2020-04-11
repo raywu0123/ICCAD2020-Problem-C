@@ -16,9 +16,24 @@ using namespace std;
 class InputWaveforms {
 
 public:
-    double timescale;
-    vector<pair<Timestamp, vector<pair<string, string>>>> dumps;
+    explicit InputWaveforms(char* path) { read(path); }
+    void read(char*);
+    void summary() const;
+
+    void ignore_header();
+    void read_timescale();
+    void read_vars();
+    void read_dump();
+    Timestamp read_single_time_dump(Timestamp);
+    void build_buckets();
+
+    static long long int time_tag_to_time(string& s);
+    ifstream fin;
+
+    double timescale{};
     unordered_map<string, pair<string, BitWidth>> token_to_wire;
+    unordered_map<string, vector<pair<Timestamp, string>>> buckets;
+    int n_dump = 0;
 };
 
 

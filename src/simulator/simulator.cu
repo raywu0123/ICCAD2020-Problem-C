@@ -4,6 +4,18 @@ void Simulator::run() {
 
 }
 
+void Simulator::simulate_batch(int batch_index) {
+
+}
+
+void Simulator::set_input(int batch_index) {
+
+}
+
+void Simulator::simulate_batch_gates(int gate_index) {
+
+}
+
 
 __global__ void simulate_batch(
         const ModuleFnPtr* modules_fn_ptrs, ModuleSpec* module_specs, int module_num,

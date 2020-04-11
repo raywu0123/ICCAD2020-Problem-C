@@ -1,6 +1,5 @@
 #include <iostream>
 #include "src/circuit_model/circuit.h"
-#include "src/file_readers/vcd_reader.h"
 #include "src/input_waveforms.h"
 #include "simulator/module_registry.h"
 #include "src/simulation_result.h"
@@ -42,10 +41,8 @@ int main(int argc, char* argv[]) {
     char* saif_or_vcd_flag = argv[3];
     char* output_file = argv[4];
 
-    InputWaveforms input_waveforms;
-    VCDReader vcd_reader(input_waveforms);
-    vcd_reader.read(input_vcd_file);
-    vcd_reader.summary();
+    InputWaveforms input_waveforms(input_vcd_file);
+    input_waveforms.summary();
 
     ifstream fin = ifstream(inter_repr_file);
     ModuleRegistry module_registry;

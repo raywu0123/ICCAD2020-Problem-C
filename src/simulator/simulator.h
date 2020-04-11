@@ -12,13 +12,19 @@
 class Simulator {
 public:
     Simulator(
-        const Circuit& c,
+        Circuit& c,
         InputWaveforms& iw,
         SimulationResult& sr
-    ): simulation_result(sr){};
+    ): circuit(c), simulation_result(sr), input_waveforms(iw) {};
 
     void run();
+    void set_input(int);
+    void simulate_batch(int);
+    void simulate_batch_gates(int);
+
+    Circuit& circuit;
     SimulationResult& simulation_result;
+    InputWaveforms& input_waveforms;
 };
 
 #endif //ICCAD2020_SIMULATOR_H
