@@ -7,7 +7,7 @@ set(HEADER_FILES
         simulation_result.h
         circuit_model/circuit.h
         utils.h
-        )
+        include/progress_bar.h)
 set(SOURCE_FILES
         input_waveforms.cu
         simulator/simulator.cu
@@ -15,5 +15,5 @@ set(SOURCE_FILES
         simulator/module_registry.cu
         simulation_result.cu
         circuit_model/circuit.cu
-        )
+        include/progress_bar.cu)
 add_library(mylib STATIC ${HEADER_FILES} ${SOURCE_FILES})

@@ -6,7 +6,7 @@
 using namespace std;
 
 const int N_GATE_PARALLEL = 32;
-const int N_STIMULI_PARALLEL = 32;
+const int N_STIMULI_PARALLEL = 1024;
 
 
 typedef pair<int, int> BitWidth;
@@ -76,4 +76,14 @@ typedef void (*ModuleFnPtr)(
     const int* capacities_offsets,
     const int n_stimuli_parallel  // # stimuli computing in parallel, the whole system shares this parameter
 );
+
+
+struct CellResource {
+
+};
+
+struct BatchResource {
+
+};
+
 #endif //ICCAD2020_CONSTANTS_H

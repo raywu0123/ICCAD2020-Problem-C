@@ -10,17 +10,12 @@
 
 #include "constants.h"
 #include "simulator/module_registry.h"
-#include "input_waveforms.h"
+#include "simulator/data_structures.h"
 
-
-using namespace std;
-
-struct CellResource {
-
-};
 
 class Wire {
-
+public:
+    void set_input(Timestamp, char);
 };
 
 class ConstantWire : public Wire {
@@ -78,7 +73,11 @@ public:
     };
 
     void register_01_wires(); // register 1'b1 1'b0 wires
-    const Wire* get_wire(const Wirekey&) const;
+    void register_input_wires(const vector<Bucket>&);
+
+    Wire* get_wire(const Wirekey&) const;
+    Cell* get_cell(const string& cell_id) const;
+
     void read_file(ifstream& fin, double input_timescale);
     void read_wires(ifstream& fin);
     void read_assigns(ifstream& fin);
@@ -86,25 +85,22 @@ public:
     Cell* create_cell(const string&, const vector<PinSpec>&);
 
     void read_schedules(ifstream& fin);
-    void read_sdf(ifstream& fin, double input_timescale);
-    void bind_sdf_to_cell(const string&, const vector<SDFPath>&);
+    void read_sdf(ifstream& fin, double input_timescale) const;
+    void bind_sdf_to_cell(const string&, const vector<SDFPath>&) const;
 
     void summary() const;
-
-    void register_input_wires(const unordered_map<string, pair<string, BitWidth>>& token_to_wire);
-    void register_input_wire(const Wirekey& wirekey);
 
     const ModuleRegistry& module_registry;
 
     string design_name;
 
-    unordered_set<Wirekey, pair_hash> input_wires;
-    unordered_map<Wirekey, const Wire*, pair_hash> wires;
+    unordered_map<Wirekey, Wire*, pair_hash> wires;
+    vector<Wire*> input_wires;
     unordered_map<string, Cell*> cells;
 
-    vector<vector<string>> cell_schedule;
-    vector<vector<Wirekey>> wire_alloc_schedule;
-    vector<vector<Wirekey>> wire_free_schedule;
+    vector<vector<Cell*>> cell_schedule;
+    vector<vector<Wire*>> wire_alloc_schedule;
+    vector<vector<Wire*>> wire_free_schedule;
 };
 
 #endif

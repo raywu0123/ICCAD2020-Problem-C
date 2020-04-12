@@ -12,7 +12,23 @@
 #include "constants.h"
 
 
-using namespace std;
+struct TokenInfo {
+    string wire_name;
+    BitWidth bitwidth;
+    size_t bucket_index;
+};
+
+struct Transition {
+    Timestamp timestamp;
+    char value;
+    Transition(Timestamp t, char v): timestamp(t), value(v) {};
+};
+
+struct Bucket {
+    Wirekey wirekey;
+    vector<Transition> transitions;
+    Bucket(const string& wire_name, int bit_index): wirekey(Wirekey{wire_name, bit_index}) {};
+};
 
 
 class WaveSet {

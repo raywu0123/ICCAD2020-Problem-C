@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
 
     Circuit circuit(module_registry);
     circuit.read_file(fin, input_waveforms.timescale);
-    circuit.register_input_wires(input_waveforms.token_to_wire);
+    circuit.register_input_wires(input_waveforms.buckets);
     circuit.summary();
 
     SimulationResult simulation_result;
