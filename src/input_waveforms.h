@@ -24,7 +24,9 @@ public:
     void read_vars();
     void read_dump();
     void read_single_time_dump(Timestamp);
+
     void emplace_transition(const string&, Timestamp, const string&);
+    void emplace_transition(const string&, Timestamp, const char&);
     void build_buckets();
 
     ifstream fin;

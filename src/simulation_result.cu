@@ -4,7 +4,7 @@
 VCDResult::VCDResult(Circuit &circuit) : SimulationResult(circuit) {
     for (const auto& it : circuit.wires) {
         const auto& accumulator = new VCDAccumulator();
-        it.second->accumulator = accumulator;
+        it->accumulator = accumulator;
         accumulators.push_back(accumulator);
     }
 }
@@ -17,7 +17,7 @@ void VCDResult::write(char *path) {
 SAIFResult::SAIFResult(Circuit &circuit) : SimulationResult(circuit) {
     for (const auto& it : circuit.wires) {
         const auto& accumulator = new SAIFAccumulator();
-        it.second->accumulator = accumulator;
+        it->accumulator = accumulator;
         accumulators.push_back(accumulator);
     }
 }

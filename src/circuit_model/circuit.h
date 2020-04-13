@@ -42,11 +42,13 @@ public:
         const vector<SubmoduleSpec>* submodule_specs,
         const StdCellDeclare* declare,
         unordered_map<string, const Wire*>  io_wires,
-        const Wire* supply1_wire, const Wire* supply0_wire
+        const Wire* supply1_wire, const Wire* supply0_wire,
+        vector<Wire*> alloc_wires, vector<Wire*> free_wires
     ) : module_spec(module_spec), submodule_specs(submodule_specs), declare(declare),
-        io_wires(std::move(io_wires)), supply1_wire(supply1_wire), supply0_wire(supply0_wire) {
-
-    };
+        io_wires(std::move(io_wires)), supply1_wire(supply1_wire), supply0_wire(supply0_wire),
+        alloc_wires(std::move(alloc_wires)), free_wires(std::move(free_wires)),
+        alloc_wires_size(alloc_wires.size()), free_wires_size(free_wires.size())
+    {};
 
     CellResource prepare_resource() {
         for (unsigned i = 0; i < alloc_wires_size; i++) {
@@ -82,7 +84,7 @@ private:
 struct PinSpec {
     string name;
     char type;
-    Wirekey wirekey;
+    Wire* wire;
 };
 
 
@@ -96,13 +98,15 @@ public:
     void register_input_wires(const vector<Bucket>&);
 
     Wire* get_wire(const Wirekey&) const;
+    Wire* get_wire(unsigned int) const;
+    void set_wire(unsigned int, Wire*);
     Cell* get_cell(const string& cell_id) const;
 
     void read_file(ifstream& fin, double input_timescale);
     void read_wires(ifstream& fin);
     void read_assigns(ifstream& fin);
     void read_cells(ifstream& fin);
-    Cell* create_cell(const string&, const vector<PinSpec>&);
+    Cell* create_cell(const string&, const vector<PinSpec>&, const vector<Wire*>&, const vector<Wire*>&);
 
     void read_schedules(ifstream& fin);
     void read_sdf(ifstream& fin, double input_timescale) const;
@@ -114,7 +118,9 @@ public:
 
     string design_name;
 
-    unordered_map<Wirekey, Wire*, pair_hash> wires;
+    vector<Wire*> wires;
+
+    unordered_map<Wirekey, unsigned int, pair_hash> wirekey_to_index;
     vector<Wire*> input_wires;
     unordered_map<string, Cell*> cells;
 

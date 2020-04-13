@@ -30,6 +30,7 @@ void InputWaveforms::summary() {
 }
 
 void InputWaveforms::read(char* path) {
+    cout << "Reading Input VCD file..." << endl;
     fin = ifstream(path);
     ignore_header();
     read_timescale();
@@ -40,7 +41,7 @@ void InputWaveforms::read(char* path) {
 
 void InputWaveforms::ignore_header() {
     string s;
-    do{fin >> s;} while(s != "$timescale");
+    do{ fin >> s; } while(s != "$timescale");
 }
 
 void InputWaveforms::read_timescale() {
@@ -71,6 +72,8 @@ void InputWaveforms::read_vars() {
 
 
 void InputWaveforms::build_buckets() {
+    buckets.reserve(token_to_wire.size());
+
     for (auto& it : token_to_wire) {
         auto& token_info = it.second;
         const BitWidth& bitwidth = token_info.bitwidth;
@@ -101,14 +104,15 @@ void InputWaveforms::read_single_time_dump(Timestamp timestamp) {
     char c;
     fin >> c;
     while (c != '#' and c != EOF and not fin.eof()) {
-        string value, token;
+        string token;
         if (c == 'b') {
+            string value;
             fin >> value >> token;
+            emplace_transition(token, timestamp, value);
         } else {
             fin >> token;
-            value = string{c};
+            emplace_transition(token, timestamp, c);
         }
-        emplace_transition(token, timestamp, value);
         fin >> c;
     }
 }
@@ -139,4 +143,12 @@ void InputWaveforms::emplace_transition(const string& token, Timestamp timestamp
         auto& bucket = buckets[token_info.bucket_index + bit_index];
         bucket.transitions.emplace_back(timestamp, bit_value);
     }
+}
+
+void InputWaveforms::emplace_transition(const string& token, Timestamp timestamp, const char& value) {
+    const auto& it = token_to_wire.find(token);
+    if (it == token_to_wire.end())
+        throw runtime_error("Token " + token + " not found\n");
+    const auto& token_info = it->second;
+    buckets[token_info.bucket_index].transitions.emplace_back(timestamp, value);
 }

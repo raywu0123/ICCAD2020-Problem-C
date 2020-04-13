@@ -2,6 +2,7 @@ from copy import deepcopy
 from itertools import chain
 
 from graph_preprocessing.circuit_model import Circuit
+from graph_preprocessing.constants import SINGLE_BIT_INDEX
 
 
 class IntermediateFileWriter:
@@ -47,28 +48,36 @@ class IntermediateFileWriter:
 
     def write_circuit(self, circuit: Circuit, design_name: str):
         self.print(design_name)
-        self.print(sum([len(bucket) for bucket in circuit.io_buckets.values()]))
-        for wire_key in chain(*circuit.io_buckets.values()):
-            self.print(f'{wire_key[0]} {wire_key[1]}')
+        all_wirekeys = list(chain(*circuit.io_buckets.values()))  # not including constant wires
+        wirekey_to_index = {
+            ("1'b0", SINGLE_BIT_INDEX): 0,
+            ("1'b1", SINGLE_BIT_INDEX): 1,
+            **{
+                wirekey: idx + 2 for idx, wirekey in enumerate(all_wirekeys)
+            }
+        }
+        self.print(len(all_wirekeys))
+        for wirekey in all_wirekeys:
+            self.print(f'{wirekey_to_index[wirekey]} {wirekey[0]} {wirekey[1]}')
 
         self.print(len(circuit.assigns))
         for assign in circuit.assigns:
-            self.print(f"{assign[0][0]} {assign[0][1]} {assign[1][0]} {assign[1][1]}")
+            self.print(f"{wirekey_to_index[assign[0]]} {wirekey_to_index[assign[1]]}")
 
         self.print(len(circuit.cells))  # filtered cells, stripped to only combinational
         for cell_id, cell in circuit.cells.items():
             self.print(f'{cell["type"]} {cell_id} {len(cell["parameters"])}')
-            for pin_name, pin_type, wire_key in cell["parameters"]:
-                self.print(f"{pin_name} {pin_type[0]} {wire_key[0]} {wire_key[1]}")
+            for pin_name, pin_type, wirekey in cell["parameters"]:
+                self.print(f"{pin_name} {pin_type[0]} {wirekey_to_index[wirekey]}")
+            wirekey_schedule = circuit.mem_schedule[cell_id]
+            for schedule in [wirekey_schedule["alloc"], wirekey_schedule["free"]]:
+                self.print(f'{len(schedule)}')
+                for wirekey in schedule:
+                    self.print(f'{wirekey_to_index[wirekey]}')
 
         self.print(len(circuit.schedule_layers))
-        for cell_ids, alloc_wire_keys, free_wire_keys in zip(
-                circuit.schedule_layers, circuit.mem_alloc_schedule, circuit.mem_free_schedule
-        ):
+        for cell_ids in circuit.schedule_layers:
             self.print(len(cell_ids), ' '.join(cell_ids))
-            self.print(len(alloc_wire_keys), ' '.join([f'{wire_key[0]} {wire_key[1]}' for wire_key in alloc_wire_keys]))
-            self.print(len(free_wire_keys), ' '.join([f'{wire_key[0]} {wire_key[1]}' for wire_key in free_wire_keys]))
-            self.print()
 
     def write_sdf(self, header, cells):
         self.print(f'timescale {header["TIMESCALE"]}')

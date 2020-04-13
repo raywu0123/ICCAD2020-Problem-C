@@ -1,4 +1,4 @@
-from typing import Set, Tuple
+from typing import Tuple, Dict
 from itertools import product
 
 from graph_preprocessing.graph import Graph
@@ -31,8 +31,8 @@ class Circuit:
         self.assigns = self.register_assigns(gv_info)
 
         self.graph = self.build_graph()
-        self.schedule_layers = self.graph.get_schedule_layers()
-        self.mem_alloc_schedule, self.mem_free_schedule = self.get_mem_schedules()
+        self.schedule_layers = [list(layer) for layer in self.graph.get_schedule_layers()]
+        self.mem_schedule = self.get_mem_schedules()
 
     def summary(self):
         print('Circuit summary:')
@@ -44,20 +44,8 @@ class Circuit:
         print(f"Num output keys: {len(self.io_buckets['output'])}")
 
         print(f"Num schedule layer: {len(self.schedule_layers)}")
-        all_cells_in_schedule_layers = set.union(*self.schedule_layers)
+        all_cells_in_schedule_layers = {cell for layer in self.schedule_layers for cell in layer}
         print(f"Num cells in schedule layers: {len(all_cells_in_schedule_layers)}")
-
-        all_wire_keys_in_mem_alloc_schedule = set.union(*self.mem_alloc_schedule)
-        print(f"Total Num keys in mem alloc schedule: {len(all_wire_keys_in_mem_alloc_schedule)}")
-        print(f"\tNum input keys in first mem alloc schedule: {len(self.mem_alloc_schedule[0].intersection(self.io_buckets['input']))}")
-        print(f"\tNum output keys in first mem alloc schedule: {len(self.mem_alloc_schedule[0].intersection(self.io_buckets['output']))}")
-        print(f"\tNum wire keys in first mem alloc schedule: {len(self.mem_alloc_schedule[0].intersection(self.io_buckets['wire']))}")
-
-        all_wire_keys_in_mem_free_schedule = set.union(*self.mem_free_schedule)
-        print(f"Num wire keys in mem free schedule: {len(all_wire_keys_in_mem_free_schedule)}")
-        print(f"\tNum input keys in last mem free schedule: {len(self.mem_free_schedule[-1].intersection(self.io_buckets['input']))}")
-        print(f"\tNum output keys in last mem free schedule: {len(self.mem_free_schedule[-1].intersection(self.io_buckets['output']))}")
-        print(f"\tNum wire keys in last mem free schedule: {len(self.mem_free_schedule[-1].intersection(self.io_buckets['wire']))}")
 
     def register_wires(self, gv_info):
         for io in gv_info.io:
@@ -168,29 +156,23 @@ class Circuit:
                 graph.add_edge(in_cell, out_cell)
         return graph
 
-    def get_mem_schedules(self):
-        used_wires_layers = [
-            set.union(*[
-                {
-                    self.from_parameter_string(p)[1]
-                    for p in self.cell_id_to_cell[cell_id].parameters
-                }
-                for cell_id in layer
-            ])
-            for layer in self.schedule_layers
-        ]
+    def get_mem_schedules(self) -> Dict[str, Dict[str, list]]:
+        schedule = {cell_id: {"alloc": set(), "free": set()} for cell_id in self.cells}
 
-        mem_alloc_schedule = []
-        alloced_wires = set()
-        for used_wires_layer in used_wires_layers:
-            mem_alloc_schedule.append(used_wires_layer.difference(alloced_wires))
-            alloced_wires.update(used_wires_layer)
+        alloc_discovered_wirekeys = set()
+        for layer in self.schedule_layers:
+            for cell_id in layer:
+                using_wirekeys = {self.from_parameter_string(p)[1] for p in self.cell_id_to_cell[cell_id].parameters}
+                using_wirekeys.difference_update(alloc_discovered_wirekeys)  # unallocated wirekeys
+                schedule[cell_id]["alloc"] = using_wirekeys
+                alloc_discovered_wirekeys.update(using_wirekeys)
 
-        mem_free_schedule = []
-        freed_wires = set()
-        for used_wires_layer in used_wires_layers[::-1]:
-            mem_free_schedule.append(used_wires_layer.difference(freed_wires))
-            freed_wires.update(used_wires_layer)
-        mem_free_schedule = mem_free_schedule[::-1]
+        free_discovered_wirekeys = set()
+        for layer in reversed(self.schedule_layers):
+            for cell_id in reversed(layer):
+                using_wirekeys = {self.from_parameter_string(p)[1] for p in self.cell_id_to_cell[cell_id].parameters}
+                using_wirekeys.difference_update(free_discovered_wirekeys)  # unfreed wirekeys
+                schedule[cell_id]['free'] = using_wirekeys
+                free_discovered_wirekeys.update(using_wirekeys)
 
-        return mem_alloc_schedule, mem_free_schedule
+        return schedule
