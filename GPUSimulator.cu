@@ -1,10 +1,11 @@
 #include <iostream>
 #include "src/circuit_model/circuit.h"
 #include "src/input_waveforms.h"
-#include "simulator/module_registry.h"
+#include "src/utils.h"
 #include "src/simulation_result.h"
 #include "simulator/simulator.h"
-#include "src/utils.h"
+#include "simulator/memory_manager.h"
+#include "simulator/module_registry.h"
 
 
 using namespace std;
@@ -38,7 +39,7 @@ int main(int argc, char* argv[]) {
 
     char* inter_repr_file = argv[1];
     char* input_vcd_file = argv[2];
-    char* saif_or_vcd_flag = argv[3];
+    string output_flag = string(argv[3]);
     char* output_file = argv[4];
 
     InputWaveforms input_waveforms(input_vcd_file);
@@ -54,9 +55,16 @@ int main(int argc, char* argv[]) {
     circuit.register_input_wires(input_waveforms.buckets);
     circuit.summary();
 
-    SimulationResult simulation_result;
+    SimulationResult* simulation_result;
+    if (output_flag == "SAIF") {
+        simulation_result = new SAIFResult(circuit);
+    } else {
+        simulation_result = new VCDResult(circuit);
+    }
+
+    MemoryManager::init();
     Simulator simulator(circuit, input_waveforms, simulation_result);
     simulator.run();
 
-    simulation_result.write(output_file, saif_or_vcd_flag);
+    simulation_result->write(output_file);
 }

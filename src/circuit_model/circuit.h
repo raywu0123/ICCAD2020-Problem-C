@@ -11,17 +11,22 @@
 #include "constants.h"
 #include "simulator/module_registry.h"
 #include "simulator/data_structures.h"
+#include "accumulators.h"
 
 
 class Wire {
 public:
-    void set_input(Timestamp, char);
+    void set_input(const vector<Transition>&, int start_index, int size);
+    void alloc() {};
+    void free() {
+        accumulator->update();
+    };
+    Accumulator* accumulator = nullptr;
 };
 
 class ConstantWire : public Wire {
 public:
     explicit ConstantWire(char value): value(value) {};
-
     char value;
 };
 
@@ -44,8 +49,19 @@ public:
     };
 
     CellResource prepare_resource() {
+        for (unsigned i = 0; i < alloc_wires_size; i++) {
+            const auto& wire_ptr = alloc_wires[i];
+            wire_ptr->alloc();
+        }
         return CellResource{};
     };
+
+    void free_resource() {
+        for (unsigned i = 0; i < free_wires_size; i++) {
+            const auto& wire_ptr = free_wires[i];
+            wire_ptr->free();
+        }
+    }
 
     void set_paths(const vector<SDFPath>& ps) { paths = ps; };
 
@@ -53,8 +69,12 @@ private:
     const ModuleSpec* module_spec;
     const vector<SubmoduleSpec>* submodule_specs;
     const StdCellDeclare* declare;
+
     unordered_map<string, const Wire*> io_wires;
     const Wire *supply1_wire, *supply0_wire;
+
+    vector<Wire*> alloc_wires, free_wires;
+    unsigned alloc_wires_size = 0, free_wires_size = 0;
 
     vector<SDFPath> paths;
 };

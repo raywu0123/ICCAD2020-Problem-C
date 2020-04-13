@@ -2,23 +2,22 @@
 #define ICCAD2020_CONSTANTS_H
 
 #include <vector>
-
-using namespace std;
+#include <string>
 
 const int N_GATE_PARALLEL = 32;
 const int N_STIMULI_PARALLEL = 1024;
 
 
-typedef pair<int, int> BitWidth;
-typedef pair<string, int> Wirekey;
+typedef std::pair<int, int> BitWidth;
+typedef std::pair<std::string, int> Wirekey;
 
 const Wirekey SUPPLY1_WIREKEY = Wirekey{"1'b1", 0};
 const Wirekey SUPPLY0_WIREKEY = Wirekey{"1'b0", 0};
 
 struct SubmoduleSpec {
-    string name;
-    string type;
-    vector<string> args;
+    std::string name;
+    std::string type;
+    std::vector<std::string> args;
 };
 
 struct pair_hash {
@@ -86,4 +85,4 @@ struct BatchResource {
 
 };
 
-#endif //ICCAD2020_CONSTANTS_H
+#endif

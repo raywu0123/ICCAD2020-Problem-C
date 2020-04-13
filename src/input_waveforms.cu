@@ -81,6 +81,7 @@ void InputWaveforms::build_buckets() {
         for (int bit_index = min_bit_index; bit_index <= max_bit_index; bit_index++) {
             buckets.emplace_back(token_info.wire_name, bit_index);
         }
+        num_buckets += max_bit_index - min_bit_index + 1;
     }
 }
 

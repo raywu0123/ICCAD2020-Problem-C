@@ -15,5 +15,5 @@ set(SOURCE_FILES
         simulator/module_registry.cu
         simulation_result.cu
         circuit_model/circuit.cu
-        include/progress_bar.cu)
+        include/progress_bar.cu accumulators.cu accumulators.h simulator/memory_manager.cu simulator/memory_manager.h)
 add_library(mylib STATIC ${HEADER_FILES} ${SOURCE_FILES})

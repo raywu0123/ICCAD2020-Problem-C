@@ -9,32 +9,31 @@
 #include "data_structures.h"
 
 
-class ResourceCollector {
+class Simulator {
 public:
-    void update(const CellResource&) {
+    Simulator(
+        Circuit& c,
+        InputWaveforms& iw,
+        SimulationResult* sr
+    ): circuit(c), simulation_result(sr), input_waveforms(iw) {};
+
+    void run();
+    void simulate_batch_stimuli(vector<unsigned long>& stimuli_indices);
+    void set_input(vector<unsigned long>& stimuli_indices) const;
+
+    void update_resource(const CellResource&) {
 //        TODO
     };
     BatchResource get_batch_data() const {
 //        TODO
         return BatchResource{};
     };
-};
-
-class Simulator {
-public:
-    Simulator(
-        Circuit& c,
-        InputWaveforms& iw,
-        SimulationResult& sr
-    ): circuit(c), simulation_result(sr), input_waveforms(iw) {};
-
-    void run();
-    void simulate_batch_stimuli(vector<int>& stimuli_indices) const;
-    void set_input(vector<int>& stimuli_indices) const;
 
     Circuit& circuit;
-    SimulationResult& simulation_result;
+    SimulationResult* simulation_result;
     InputWaveforms& input_waveforms;
+
+
 };
 
 #endif

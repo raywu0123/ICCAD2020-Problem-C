@@ -1,16 +1,33 @@
-//
-// Created by ray on 3/29/20.
-//
-
 #ifndef ICCAD2020_SIMULATION_RESULT_H
 #define ICCAD2020_SIMULATION_RESULT_H
 
 #include "input_waveforms.h"
+#include "circuit_model/circuit.h"
+#include "simulator/data_structures.h"
+#include "accumulators.h"
+
 
 class SimulationResult {
 public:
-    void write(char* path, char* mode);
+    explicit SimulationResult(Circuit& circuit): circuit(circuit) {};
+
+    virtual void write(char* path) = 0;
+
+    Circuit& circuit;
+    vector<Accumulator*> accumulators;
+};
+
+class VCDResult : public SimulationResult {
+public:
+    explicit VCDResult(Circuit& circuit);
+    void write(char* path) override;
+};
+
+class SAIFResult : public SimulationResult {
+public:
+    explicit SAIFResult(Circuit& circuit);
+    void write(char* path) override;
 };
 
 
-#endif //ICCAD2020_SIMULATION_RESULT_H
+#endif

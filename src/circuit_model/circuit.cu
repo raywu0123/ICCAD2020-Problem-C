@@ -183,6 +183,6 @@ void Circuit::register_input_wires(const vector<Bucket>& buckets) {
         input_wires.push_back(get_wire(bucket.wirekey));
 }
 
-void Wire::set_input(Timestamp, char) {
+void Wire::set_input(const vector<Transition>&, int start_index, int size) {
 
 }

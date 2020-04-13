@@ -32,6 +32,7 @@ public:
     double timescale{};
     unordered_map<string, TokenInfo> token_to_wire;
     vector<Bucket> buckets;
+    unsigned num_buckets = 0;
 
     int n_dump = 0;
     int max_transition_index{};
