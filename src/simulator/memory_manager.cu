@@ -4,10 +4,10 @@ void MemoryManager::init() {
 
 }
 
-WireData *MemoryManager::alloc(size_t size) {
+Transition* MemoryManager::alloc(size_t size) {
     return nullptr;
 }
 
-void MemoryManager::free(WireData *) {
+void MemoryManager::free(Transition*) {
 
 }

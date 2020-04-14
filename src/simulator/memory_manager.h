@@ -2,21 +2,17 @@
 #define ICCAD2020_MEMORY_MANAGER_H
 
 #include <constants.h>
-
-struct WireData {
-    char* values;
-    Timestamp* timestamps;
-};
+#include <simulator/data_structures.h>
 
 
 class MemoryManager {
 public:
     static void init();
-    static WireData* alloc(size_t size);
-    static void free(WireData*);
+    static Transition* alloc(size_t size);
+    static void free(Transition*);
 
 private:
-    static WireData* memory;
+    static Transition* memory;
 };
 
 

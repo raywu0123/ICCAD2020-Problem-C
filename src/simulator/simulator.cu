@@ -1,6 +1,7 @@
 #include "simulator/simulator.h"
 #include "include/progress_bar.h"
 
+using namespace std;
 
 __global__ void simulate_batch(
         BatchResource
@@ -52,7 +53,7 @@ void Simulator::simulate_batch_stimuli(vector<unsigned long>& stimuli_indices) {
         int layer_size = schedule_layer.size();
 
         for (int i_batch_gate = 0; i_batch_gate < n_batch_gate; i_batch_gate++) {
-            int cell_idx = i_batch_gate * N_GATE_PARALLEL;
+            unsigned int cell_idx = i_batch_gate * N_GATE_PARALLEL;
             for (; cell_idx < (i_batch_gate + 1) * N_GATE_PARALLEL and cell_idx < layer_size; cell_idx++) {
                 update_resource(schedule_layer[cell_idx]->prepare_resource());
             }
@@ -62,8 +63,9 @@ void Simulator::simulate_batch_stimuli(vector<unsigned long>& stimuli_indices) {
             ); // perform edge checking in the kernel
             cudaDeviceSynchronize();
 
-            for (int free_cell_idx = i_batch_gate * N_GATE_PARALLEL; free_cell_idx < cell_idx; free_cell_idx++) {
+            for (unsigned int free_cell_idx = i_batch_gate * N_GATE_PARALLEL; free_cell_idx < cell_idx; free_cell_idx++) {
                 schedule_layer[free_cell_idx]->free_resource();
+//              accumulators will collect results at this stage
             }
         }
     }
@@ -74,7 +76,9 @@ void Simulator::set_input(vector<unsigned long>& stimuli_indices) const {
         auto stimuli_start_index = stimuli_indices[i_wire];
         const auto& bucket = input_waveforms.buckets[i_wire];
         Wire* wire = circuit.input_wires[i_wire];
-        unsigned long size = min(stimuli_start_index + N_STIMULI_PARALLEL, bucket.transitions.size()) - stimuli_start_index;
+        unsigned int size = min(
+            stimuli_start_index + N_STIMULI_PARALLEL * wire->capacity, bucket.transitions.size()
+        ) - stimuli_start_index;
         wire->set_input(bucket.transitions, stimuli_start_index, size);
         stimuli_indices[i_wire] += size;
     }

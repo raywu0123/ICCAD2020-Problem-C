@@ -14,7 +14,7 @@ public:
     virtual void write(char* path) = 0;
 
     Circuit& circuit;
-    vector<Accumulator*> accumulators;
+    std::vector<Accumulator*> accumulators;
 };
 
 class VCDResult : public SimulationResult {

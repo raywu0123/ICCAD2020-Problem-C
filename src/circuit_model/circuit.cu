@@ -8,6 +8,25 @@ using namespace std;
 extern double get_timescale(int, const string&);
 
 
+Circuit::Circuit(const ModuleRegistry &module_registry): module_registry(module_registry) {
+    register_01_wires();
+};
+
+Circuit::~Circuit() {
+//        wires might duplicate because of assign syntax
+    unordered_set<Wire*> wire_ptr_set;
+    wire_ptr_set.reserve(wires.size());
+    for (auto& wire_ptr: wires) {
+        if (wire_ptr_set.find(wire_ptr) == wire_ptr_set.end()) {
+            delete wire_ptr;
+            wire_ptr_set.insert(wire_ptr);
+        }
+    }
+
+    for (auto& it: cells)
+        delete it.second;
+}
+
 void Circuit::summary() const {
     cout << "Summary of Circuit" << endl;
     cout << "Num cells: " << cells.size() << endl;
@@ -77,8 +96,9 @@ void Circuit::read_cells(ifstream& fin) {
 
         vector<PinSpec> args{num_args};
         for (auto& arg: args) {
+            char c;
             unsigned int wire_index;
-            fin >> arg.name >> arg.type >> wire_index;
+            fin >> arg.name >> c >> wire_index;
             arg.wire = get_wire(wire_index);
         }
 
@@ -112,18 +132,13 @@ Cell* Circuit::create_cell(
     const ModuleSpec* module_spec = module_registry.get_module_spec(cell_type);
     const vector<SubmoduleSpec>* submodule_specs = module_registry.get_submodule_specs(cell_type);
 
-    unordered_map<string, const Wire*> cell_wires;
-    for (const auto& pin_spec : pin_specs) {
-        cell_wires[pin_spec.name] = pin_spec.wire;
-    }
     const StdCellDeclare* declare = module_registry.get_module_declare(cell_type);
-    const Wire *supply1_wire = get_wire(SUPPLY1_WIREKEY), *supply0_wire = get_wire(SUPPLY0_WIREKEY);
-
+    Wire *supply1_wire = get_wire(SUPPLY1_WIREKEY), *supply0_wire = get_wire(SUPPLY0_WIREKEY);
     return new Cell(
         module_spec,
         submodule_specs,
         declare,
-        cell_wires, supply1_wire, supply0_wire,
+        pin_specs, supply1_wire, supply0_wire,
         alloc_wires, free_wires
     );
 }
@@ -199,8 +214,4 @@ void Circuit::set_wire(unsigned int idx, Wire* wire) {
     if (idx >= wires.size())
         throw runtime_error("Wire index " + to_string(idx) + " out of range");
     wires[idx] = wire;
-}
-
-void Wire::set_input(const vector<Transition>&, int start_index, int size) {
-
 }

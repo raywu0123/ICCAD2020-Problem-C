@@ -1,9 +1,11 @@
 #include <iostream>
 #include <string>
-#include <vector>
 #include <functional>
 
 #include "input_waveforms.h"
+
+
+using namespace std;
 
 extern double get_timescale(int, const string&);
 

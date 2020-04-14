@@ -25,15 +25,15 @@ public:
     void read_dump();
     void read_single_time_dump(Timestamp);
 
-    void emplace_transition(const string&, Timestamp, const string&);
-    void emplace_transition(const string&, Timestamp, const char&);
+    void emplace_transition(const std::string&, Timestamp, const std::string&);
+    void emplace_transition(const std::string&, Timestamp, const char&);
     void build_buckets();
 
-    ifstream fin;
+    std::ifstream fin;
 
     double timescale{};
-    unordered_map<string, TokenInfo> token_to_wire;
-    vector<Bucket> buckets;
+    std::unordered_map<std::string, TokenInfo> token_to_wire;
+    std::vector<Bucket> buckets;
     unsigned num_buckets = 0;
 
     int n_dump = 0;
