@@ -41,34 +41,30 @@ struct Bucket {
 };
 
 typedef void (*GateFnPtr)(
-        char** const data,  // (n_stimuli_parallel * capacity, num_inputs + num_outputs)
-        int** const timestamps,
-        const int num_inputs,
-        const int num_outputs,
-        const char* table,
-        const int* capacities,
-        const int n_stimuli_parallel
+    char** const data,  // (n_stimuli_parallel * capacity, num_inputs + num_outputs)
+    int** const timestamps,
+    const int num_inputs,
+    const int num_outputs,
+    const char* table,
+    const int* capacities,
+    const int n_stimuli_parallel
 );
 
 struct ModuleSpec{
     GateFnPtr* gate_schedule;
-    int schedule_size;
+    unsigned int schedule_size;
     char** tables;
-    int* num_inputs;
-    int* num_outputs;
+    unsigned int* num_inputs;  // how many inputs for every gate
+    unsigned int* num_outputs;  // how many outputs for every gate
 };
-
-typedef void (*ModuleFnPtr)(
-        const ModuleSpec& module_spec,
-        Transition** const data_schedule,
-        const int* data_schedule_offsets,  // offset to different gates' data
-        const int* capacities,  // capacity of each gates' input/output
-        const int* capacities_offsets,
-        const int n_stimuli_parallel  // # stimuli computing in parallel, the whole system shares this parameter
-);
 
 struct BatchResource {
-
+    const ModuleSpec** module_specs;
+    Transition** data_schedule;
+    unsigned int* capacities;
+    unsigned int* data_schedule_offsets; // offsets to each module
+    unsigned int num_modules;
 };
 
+typedef void (*ModuleFnPtr)(BatchResource);
 #endif

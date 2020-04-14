@@ -70,7 +70,12 @@ CellResource Cell::prepare_resource()  {
         const auto& wire_ptr = alloc_wires[i];
         wire_ptr->alloc();
     }
-    return CellResource{};
+    CellResource resource{device_resource};
+    for (const auto& wire : wire_schedule) {
+        resource.data_schedule.push_back(wire->data_ptr);
+        resource.capacities.push_back(wire->capacity);
+    }
+    return resource;
 }
 
 void Cell::free_resource() {

@@ -18,7 +18,12 @@ struct PinSpec {
 };
 
 struct CellResource {
+    const ModuleSpec* module_spec{};
+    std::vector<const Transition*> data_schedule{};
+    std::vector<unsigned int> capacities{};
 
+    explicit CellResource() = default;
+    explicit CellResource(const ModuleSpec* module_spec): module_spec(module_spec) {};
 };
 
 class Cell {
@@ -49,6 +54,7 @@ private:
         const std::unordered_map<std::string, Wire*>&  wire_map
     );
 
+    CellResource device_resource{module_spec};
     const ModuleSpec* module_spec;
     std::vector<const Wire*> wire_schedule;
 

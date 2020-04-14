@@ -42,7 +42,6 @@ private:
     void bind_sdf_to_cell(const std::string&, const std::vector<SDFPath>&) const;
     void register_01_wires(); // register 1'b1 1'b0 wires
 
-
     const ModuleRegistry& module_registry;
 
     std::unordered_map<Wirekey, unsigned int, pair_hash> wirekey_to_index;

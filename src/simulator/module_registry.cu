@@ -166,12 +166,12 @@ void ModuleRegistry::register_module(
 
     module_spec.gate_schedule = new GateFnPtr[submodules.size()];
     module_spec.tables = new char*[submodules.size()];
-    module_spec.num_inputs = new int[submodules.size()];
-    module_spec.num_outputs = new int[submodules.size()];
+    module_spec.num_inputs = new unsigned int[submodules.size()];
+    module_spec.num_outputs = new unsigned int[submodules.size()];
     for (int i = 0; i < submodules.size(); i++) {
         module_spec.gate_schedule[i] = get_gate_fn(submodules[i].type, module_spec.tables[i]);
         module_spec.num_outputs[i] = 1;
-        module_spec.num_inputs[i] = (int)submodules[i].args.size() - 1;
+        module_spec.num_inputs[i] = submodules[i].args.size() - 1;
     }
     name_to_module_spec[name] = module_spec;
 }

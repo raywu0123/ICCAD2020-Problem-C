@@ -11,6 +11,29 @@
 #include "data_structures.h"
 
 
+struct ResourceBuffer {
+    std::vector<const ModuleSpec*> module_specs;
+    std::vector<const Transition*> data_schedule;
+    std::vector<unsigned int> data_schedule_offsets;
+    std::vector<unsigned int> capacities;
+
+    void clear() {
+        module_specs.clear();
+        data_schedule.clear();
+        data_schedule_offsets.clear();
+        capacities.clear();
+    }
+
+    void push_back(const CellResource& resource) {
+        module_specs.push_back(resource.module_spec);
+        data_schedule.insert(data_schedule.end(), resource.data_schedule.begin(), resource.data_schedule.end());
+        data_schedule_offsets.push_back(data_schedule.size());
+        capacities.insert(capacities.end(), resource.capacities.begin(), resource.capacities.end());
+    }
+
+    int size() const { return module_specs.size(); }
+};
+
 class Simulator {
 public:
     Simulator(
@@ -23,19 +46,12 @@ public:
     void simulate_batch_stimuli(std::vector<unsigned long>& stimuli_indices);
     void set_input(std::vector<unsigned long>& stimuli_indices) const;
 
-    void update_resource(const CellResource&) {
-//        TODO
-    };
-    BatchResource get_batch_data() const {
-//        TODO
-        return BatchResource{};
-    };
+    BatchResource get_batch_data();
 
     Circuit& circuit;
     SimulationResult* simulation_result;
     InputWaveforms& input_waveforms;
-
-
+    ResourceBuffer resource_buffer;
 };
 
 #endif
