@@ -38,7 +38,7 @@ public:
     );
     ~Cell();
 
-    CellResource prepare_resource();
+    void prepare_resource(ResourceBuffer&);
     void free_resource();
 
     void set_paths(const std::vector<SDFPath>& ps) { paths = ps; };
@@ -54,7 +54,6 @@ private:
         const std::unordered_map<std::string, Wire*>&  wire_map
     );
 
-    CellResource device_resource{module_spec};
     const ModuleSpec* module_spec;
     std::vector<const Wire*> wire_schedule;
 

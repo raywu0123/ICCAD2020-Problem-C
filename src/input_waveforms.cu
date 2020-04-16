@@ -14,13 +14,12 @@ void InputWaveforms::summary() {
     cout << "Summary of Input Waveforms" << endl;
     cout << "Timescale: " << timescale << "s" << endl;
     cout << "Num dumps: " << n_dump << endl;
+    cout << "Num stimuli: " << num_stimuli << endl;
 
-    for (int i_bucket = 0; i_bucket < buckets.size(); i_bucket++) {
-        const auto& bucket = buckets[i_bucket];
+    for (auto & bucket : buckets) {
         sum_transition += bucket.transitions.size();
         if (bucket.transitions.size() > max_transition) {
             max_transition = bucket.transitions.size();
-            max_transition_index = i_bucket;
         }
         if (bucket.transitions.size() < min_transition)
             min_transition = bucket.transitions.size();
@@ -100,6 +99,7 @@ void InputWaveforms::read_dump() {
         read_single_time_dump(t);
         n_dump++;
     }
+    finalize_stimuli_edge_indices();
 }
 
 void InputWaveforms::read_single_time_dump(Timestamp timestamp) {
@@ -107,19 +107,21 @@ void InputWaveforms::read_single_time_dump(Timestamp timestamp) {
     fin >> c;
     while (c != '#' and c != EOF and not fin.eof()) {
         string token;
+        Bucket* bucket;
         if (c == 'b') {
             string value;
             fin >> value >> token;
-            emplace_transition(token, timestamp, value);
+            bucket = emplace_transition(token, timestamp, value);
         } else {
             fin >> token;
-            emplace_transition(token, timestamp, c);
+            bucket = emplace_transition(token, timestamp, c);
         }
+        update_stimuli_edge_indices(bucket);
         fin >> c;
     }
 }
 
-void InputWaveforms::emplace_transition(const string& token, Timestamp timestamp, const string& value) {
+Bucket* InputWaveforms::emplace_transition(const string& token, Timestamp timestamp, const string& value) {
     const auto& it = token_to_wire.find(token);
     if (it == token_to_wire.end())
         throw runtime_error("Token " + token + " not found\n");
@@ -145,12 +147,37 @@ void InputWaveforms::emplace_transition(const string& token, Timestamp timestamp
         auto& bucket = buckets[token_info.bucket_index + bit_index];
         bucket.transitions.emplace_back(timestamp, bit_value);
     }
+    return &buckets[token_info.bucket_index];
 }
 
-void InputWaveforms::emplace_transition(const string& token, Timestamp timestamp, const char& value) {
+Bucket* InputWaveforms::emplace_transition(const string& token, Timestamp timestamp, const char& value) {
     const auto& it = token_to_wire.find(token);
     if (it == token_to_wire.end())
         throw runtime_error("Token " + token + " not found\n");
     const auto& token_info = it->second;
-    buckets[token_info.bucket_index].transitions.emplace_back(timestamp, value);
+    auto& bucket = buckets[token_info.bucket_index];
+    bucket.transitions.emplace_back(timestamp, value);
+    return &bucket;
+}
+
+void InputWaveforms::update_stimuli_edge_indices(Bucket* bucket) {
+    if ((bucket->transitions.size() - bucket->stimuli_edge_indices.back()) % INITIAL_CAPACITY == 0) {
+        push_back_stimuli_edge_indices();
+    }
+}
+
+void InputWaveforms::finalize_stimuli_edge_indices() {
+    for (const auto& bucket: buckets) {
+        if (bucket.transitions.size() > bucket.stimuli_edge_indices.back()) {
+            push_back_stimuli_edge_indices();
+            break;
+        }
+    }
+}
+
+void InputWaveforms::push_back_stimuli_edge_indices() {
+    for (auto& all_bucket: buckets) {
+        all_bucket.stimuli_edge_indices.push_back(all_bucket.transitions.size());
+    }
+    num_stimuli++;
 }

@@ -3,30 +3,67 @@
 
 using namespace std;
 
-__global__ void simulate_batch(const BatchResource& batch_resource) {
-    printf("$ %d\n", batch_resource.num_modules);
+__device__ void simulate_gate_on_multiple_stimuli(
+    GateFnPtr gate_fn_ptr,
+    Transition** data,  //(n_stimuli * capacities[i_wire], num_inputs + num_outputs)
+    unsigned int* capacities,
+    char* table,
+    unsigned int num_inputs, unsigned int num_outputs
+) {
+    unsigned int stimuli_idx = threadIdx.x;
+    auto** stimuli_data = new Transition*[num_inputs + num_outputs]; // (capacities[i], num_inputs + num_outputs)
+    for (int i = 0; i < num_inputs + num_outputs; i++) {
+        stimuli_data[i] = data[i] + capacities[i] * stimuli_idx;
+    }
+    gate_fn_ptr(stimuli_data, capacities, table, num_inputs, num_outputs);
+    delete[] stimuli_data;
+}
+
+__device__ void simulate_module(const ModuleSpec* module_spec, Transition** data_schedule, unsigned int* capacities) {
+    unsigned int data_schedule_idx = 0;
+    for (int i = 0; i < module_spec->schedule_size; i++) {
+        const auto& gate_fn_ptr = module_spec->gate_schedule[i];
+        const auto& table = module_spec->tables[i];
+        const auto& num_inputs = module_spec->num_inputs[i];
+        const auto& num_outputs = module_spec->num_outputs[i];
+        simulate_gate_on_multiple_stimuli(
+            gate_fn_ptr,
+            data_schedule + data_schedule_idx,
+            capacities + data_schedule_idx,
+            table,
+            num_inputs, num_outputs
+        );
+        data_schedule_idx += num_inputs + num_outputs;
+    }
+}
+
+__global__ void simulate_batch(BatchResource batch_resource) {
+    if (blockIdx.x >= batch_resource.num_modules)
+        return;
+    const auto offset = batch_resource.data_schedule_offsets[blockIdx.x];
+    const auto& module_spec = batch_resource.module_specs[blockIdx.x];
+    auto module_data_schedule = &batch_resource.data_schedule[offset];
+    auto module_capacities = &batch_resource.capacities[offset];
+    simulate_module(module_spec, module_data_schedule, module_capacities);
 };
+
 
 void Simulator::run() {
     vector<unsigned long> stimuli_indices;
 
-    int num_input_wires = input_waveforms.buckets.size();
-    stimuli_indices.resize(num_input_wires);
 
-    ProgressBar bar(input_waveforms.max_transition, "Running Simulation");
-    bar.SetFrequencyUpdate(10000);
-
-    auto& progress = stimuli_indices[input_waveforms.max_transition_index];
-    while (progress < input_waveforms.max_transition ) {
-        simulate_batch_stimuli(stimuli_indices);
-        bar.Progressed(progress);
+    unsigned int num_batches = (int) ceil(double(input_waveforms.num_stimuli - 1) / double(N_STIMULI_PARALLEL));
+    ProgressBar bar(num_batches, "Running Simulation");
+    for (unsigned int i_batch = 0; i_batch < num_batches; i_batch++) {
+        simulate_batch_stimuli(i_batch);
+        bar.Progressed(i_batch);
     }
     cout << endl;
 }
 
 
-void Simulator::simulate_batch_stimuli(vector<unsigned long>& stimuli_indices) {
-    set_input(stimuli_indices);
+void Simulator::simulate_batch_stimuli(unsigned int& i_batch) {
+    set_input(i_batch);
 
     for (const auto& schedule_layer : circuit.cell_schedule) {
         int n_batch_gate = ceil(double(schedule_layer.size()) / double(N_GATE_PARALLEL));
@@ -34,13 +71,17 @@ void Simulator::simulate_batch_stimuli(vector<unsigned long>& stimuli_indices) {
 
         for (int i_batch_gate = 0; i_batch_gate < n_batch_gate; i_batch_gate++) {
             unsigned int cell_idx = i_batch_gate * N_GATE_PARALLEL;
+            resource_buffer.module_specs.reserve(N_GATE_PARALLEL);
+            resource_buffer.data_schedule_offsets.reserve(N_GATE_PARALLEL);
+            resource_buffer.data_schedule.reserve(N_GATE_PARALLEL * 3);
+            resource_buffer.capacities.reserve(N_GATE_PARALLEL * 3);
             for (; cell_idx < (i_batch_gate + 1) * N_GATE_PARALLEL and cell_idx < layer_size; cell_idx++) {
-                resource_buffer.push_back(schedule_layer[cell_idx]->prepare_resource());
+                schedule_layer[cell_idx]->prepare_resource(resource_buffer);
             }
 
-            simulate_batch<<<N_GATE_PARALLEL, N_STIMULI_PARALLEL>>> (
-                get_batch_data()
-            ); // perform edge checking in the kernel
+            const auto& batch_data = get_batch_data();
+            simulate_batch<<<N_GATE_PARALLEL, N_STIMULI_PARALLEL>>> (batch_data);
+            // perform edge checking in the kernel
             cudaDeviceSynchronize();
 
             for (unsigned int free_cell_idx = i_batch_gate * N_GATE_PARALLEL; free_cell_idx < cell_idx; free_cell_idx++) {
@@ -51,16 +92,20 @@ void Simulator::simulate_batch_stimuli(vector<unsigned long>& stimuli_indices) {
     }
 }
 
-void Simulator::set_input(vector<unsigned long>& stimuli_indices) const {
+void Simulator::set_input(unsigned int i_batch) const {
     for (int i_wire = 0; i_wire < input_waveforms.num_buckets; i_wire++) {
-        auto stimuli_start_index = stimuli_indices[i_wire];
+        Wire* wire_ptr = circuit.wires[i_wire];
         const auto& bucket = input_waveforms.buckets[i_wire];
-        Wire* wire = circuit.input_wires[i_wire];
-        unsigned int size = min(
-            stimuli_start_index + N_STIMULI_PARALLEL * wire->capacity, bucket.transitions.size()
-        ) - stimuli_start_index;
-        wire->set_input(bucket.transitions, stimuli_start_index, size);
-        stimuli_indices[i_wire] += size;
+        for (unsigned int i_stimuli = 0; i_stimuli < N_STIMULI_PARALLEL; i_stimuli++) {
+            unsigned int global_i_stimuli = i_batch * N_STIMULI_PARALLEL + i_stimuli;
+            if (global_i_stimuli >= input_waveforms.num_stimuli - 1) break;
+
+            wire_ptr->set_input(
+                bucket.transitions,
+                bucket.stimuli_edge_indices,
+                global_i_stimuli
+            );
+        }
     }
 }
 

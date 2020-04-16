@@ -25,8 +25,11 @@ public:
     void read_dump();
     void read_single_time_dump(Timestamp);
 
-    void emplace_transition(const std::string&, Timestamp, const std::string&);
-    void emplace_transition(const std::string&, Timestamp, const char&);
+    Bucket* emplace_transition(const std::string&, Timestamp, const std::string&);
+    Bucket* emplace_transition(const std::string&, Timestamp, const char&);
+    void update_stimuli_edge_indices(Bucket*);
+    void finalize_stimuli_edge_indices();
+    void push_back_stimuli_edge_indices();
     void build_buckets();
 
     std::ifstream fin;
@@ -34,10 +37,10 @@ public:
     double timescale{};
     std::unordered_map<std::string, TokenInfo> token_to_wire;
     std::vector<Bucket> buckets;
+    unsigned int num_stimuli = 0;
     unsigned num_buckets = 0;
 
     int n_dump = 0;
-    int max_transition_index{};
     size_t max_transition = 0;
     size_t min_transition = INT64_MAX;
     size_t sum_transition = 0;

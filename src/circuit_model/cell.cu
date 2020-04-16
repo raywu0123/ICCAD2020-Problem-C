@@ -65,17 +65,19 @@ void Cell::add_cell_wire(Wire *wire_ptr) {
     free_wires.push_back(wire_ptr);
 }
 
-CellResource Cell::prepare_resource()  {
+void Cell::prepare_resource(ResourceBuffer& resource_buffer)  {
     for (unsigned i = 0; i < alloc_wires_size; i++) {
         const auto& wire_ptr = alloc_wires[i];
         wire_ptr->alloc();
     }
-    CellResource resource{device_resource};
+    resource_buffer.module_specs.push_back(module_spec);
+    unsigned additional_size = wire_schedule.size();
+    unsigned new_buffer_size = resource_buffer.size() + additional_size;
+    resource_buffer.data_schedule_offsets.push_back(new_buffer_size);
     for (const auto& wire : wire_schedule) {
-        resource.data_schedule.push_back(wire->data_ptr);
-        resource.capacities.push_back(wire->capacity);
+        resource_buffer.data_schedule.push_back(wire->data_ptr);
+        resource_buffer.capacities.push_back(wire->capacity);
     }
-    return resource;
 }
 
 void Cell::free_resource() {

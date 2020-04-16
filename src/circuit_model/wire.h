@@ -10,7 +10,11 @@ class Wire {
 public:
 //    lifecycle: (set_input ->) alloc -> free
 
-    void set_input(const std::vector<Transition>& ts, unsigned int start_index, unsigned int size);
+    void set_input(
+        const std::vector<Transition>& ts,
+        const std::vector<unsigned int>& stimuli_edges,
+        unsigned int
+    );
     void alloc();
     void free();
     Transition* data_ptr = nullptr; // points to device memory

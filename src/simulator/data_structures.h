@@ -36,18 +36,16 @@ struct Transition {
 struct Bucket {
     Wirekey wirekey;
     std::vector<Transition> transitions;
+    std::vector<unsigned int> stimuli_edge_indices{0};
     Bucket(const std::string& wire_name, int bit_index): wirekey(Wirekey{wire_name, bit_index}) {};
     explicit Bucket(Wirekey  wirekey): wirekey(std::move(wirekey)) {};
 };
 
 typedef void (*GateFnPtr)(
-    char** const data,  // (n_stimuli_parallel * capacity, num_inputs + num_outputs)
-    int** const timestamps,
-    const int num_inputs,
-    const int num_outputs,
-    const char* table,
-    const int* capacities,
-    const int n_stimuli_parallel
+    Transition** data,  // (n_stimuli_parallel * capacity, num_inputs + num_outputs)
+    unsigned int* capacities,
+    char* table,
+    unsigned int num_inputs, unsigned int num_outputs
 );
 
 struct ModuleSpec{
@@ -66,5 +64,20 @@ struct BatchResource {
     unsigned int num_modules;
 };
 
-typedef void (*ModuleFnPtr)(BatchResource);
+struct ResourceBuffer {
+    std::vector<const ModuleSpec*> module_specs;
+    std::vector<const Transition*> data_schedule;
+    std::vector<unsigned int> data_schedule_offsets;
+    std::vector<unsigned int> capacities;
+
+    void clear() {
+        module_specs.clear();
+        data_schedule.clear();
+        data_schedule_offsets.clear();
+        capacities.clear();
+    }
+
+    int size() const { return module_specs.size(); }
+};
+
 #endif

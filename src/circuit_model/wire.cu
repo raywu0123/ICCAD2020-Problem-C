@@ -2,9 +2,20 @@
 
 using namespace std;
 
-void Wire::set_input(const vector<Transition> &ts, unsigned int start_index, unsigned int size) {
+void Wire::set_input(
+        const std::vector<Transition>& ts,
+        const std::vector<unsigned int>& stimuli_edges,
+        unsigned int i_stimuli
+) {
     alloc();
-    cudaMemcpy(data_ptr, &ts[0 + start_index], size * sizeof(Transition), cudaMemcpyHostToDevice);
+    unsigned int start_index = stimuli_edges[i_stimuli];
+    unsigned int end_index = stimuli_edges[i_stimuli + 1];
+    cudaMemcpy(
+        data_ptr + sizeof(Transition) * i_stimuli,
+        &ts[0 + start_index],
+        (end_index - start_index) * sizeof(Transition),
+        cudaMemcpyHostToDevice
+    );
 }
 
 void Wire::alloc() {

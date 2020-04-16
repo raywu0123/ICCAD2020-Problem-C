@@ -8,8 +8,8 @@
 
 
 const unsigned int N_GATE_PARALLEL = 32;
-const unsigned int N_STIMULI_PARALLEL = 1024;
-const unsigned int INITIAL_CAPACITY = 32;
+const unsigned int N_STIMULI_PARALLEL = 256;
+const unsigned int INITIAL_CAPACITY = 256;
 
 
 const Wirekey SUPPLY1_WIREKEY = Wirekey{"1'b1", 0};
