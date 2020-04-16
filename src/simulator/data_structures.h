@@ -48,6 +48,7 @@ typedef void (*GateFnPtr)(
     unsigned int num_inputs, unsigned int num_outputs
 );
 
+typedef char (*LogicFn)(Transition**, unsigned int, unsigned int*);
 struct ModuleSpec{
     GateFnPtr* gate_schedule;
     unsigned int schedule_size;
