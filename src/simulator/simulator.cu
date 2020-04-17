@@ -8,6 +8,7 @@ __device__ void simulate_gate_on_multiple_stimuli(
     Transition** data,  //(n_stimuli * capacities[i_wire], num_inputs + num_outputs)
     unsigned int* capacities,
     char* table,
+    unsigned int table_row_num,
     unsigned int num_inputs, unsigned int num_outputs
 ) {
     unsigned int stimuli_idx = threadIdx.x;
@@ -15,7 +16,7 @@ __device__ void simulate_gate_on_multiple_stimuli(
     for (int i = 0; i < num_inputs + num_outputs; i++) {
         stimuli_data[i] = data[i] + capacities[i] * stimuli_idx;
     }
-    gate_fn_ptr(stimuli_data, capacities, table, num_inputs, num_outputs);
+    gate_fn_ptr(stimuli_data, capacities, table, table_row_num, num_inputs, num_outputs);
     delete[] stimuli_data;
 }
 
@@ -24,6 +25,7 @@ __device__ void simulate_module(const ModuleSpec* module_spec, Transition** data
     for (int i = 0; i < module_spec->schedule_size; i++) {
         const auto& gate_fn_ptr = module_spec->gate_schedule[i];
         const auto& table = module_spec->tables[i];
+        const auto& table_row_num = module_spec->table_row_num[i];
         const auto& num_inputs = module_spec->num_inputs[i];
         const auto& num_outputs = module_spec->num_outputs[i];
         simulate_gate_on_multiple_stimuli(
@@ -31,6 +33,7 @@ __device__ void simulate_module(const ModuleSpec* module_spec, Transition** data
             data_schedule + data_schedule_idx,
             capacities + data_schedule_idx,
             table,
+            table_row_num,
             num_inputs, num_outputs
         );
         data_schedule_idx += num_inputs + num_outputs;

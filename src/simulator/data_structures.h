@@ -28,8 +28,9 @@ struct TokenInfo {
 };
 
 struct Transition {
-    Timestamp timestamp;
+    Timestamp timestamp ;
     char value;
+    explicit Transition(): timestamp(0), value(0) {};
     Transition(Timestamp t, char v): timestamp(t), value(v) {};
 };
 
@@ -43,16 +44,18 @@ struct Bucket {
 
 typedef void (*GateFnPtr)(
     Transition** data,  // (n_stimuli_parallel * capacity, num_inputs + num_outputs)
-    unsigned int* capacities,
+    const unsigned int* capacities,
     char* table,
+    unsigned int table_row_num,
     unsigned int num_inputs, unsigned int num_outputs
 );
 
-typedef char (*LogicFn)(Transition**, unsigned int, unsigned int*);
+typedef char (*LogicFn)(Transition**, unsigned int, const unsigned int*, char* table, unsigned int table_row_num);
 struct ModuleSpec{
     GateFnPtr* gate_schedule;
     unsigned int schedule_size;
     char** tables;
+    unsigned int* table_row_num;
     unsigned int* num_inputs;  // how many inputs for every gate
     unsigned int* num_outputs;  // how many outputs for every gate
 };

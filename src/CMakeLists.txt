@@ -3,17 +3,26 @@ set(HEADER_FILES
         simulator/simulator.h
         simulator/data_structures.h
         simulator/module_registry.h
+        simulator/memory_manager.h
         simulator/builtin_gates.h
         simulation_result.h
         circuit_model/circuit.h
-        utils.h
-        include/progress_bar.h)
+        circuit_model/cell.h
+        circuit_model/wire.h
+        accumulators.h
+        include/progress_bar.h
+        utils.h)
 set(SOURCE_FILES
         input_waveforms.cu
         simulator/simulator.cu
         simulator/data_structures.cu
         simulator/module_registry.cu
+        simulator/memory_manager.cu
         simulation_result.cu
         circuit_model/circuit.cu
-        include/progress_bar.cu accumulators.cu accumulators.h simulator/memory_manager.cu simulator/memory_manager.h circuit_model/cell.cu circuit_model/cell.h circuit_model/wire.cu circuit_model/wire.h)
+        circuit_model/cell.cu
+        circuit_model/wire.cu
+        accumulators.cu
+        include/progress_bar.cu
+        )
 add_library(mylib STATIC ${HEADER_FILES} ${SOURCE_FILES})

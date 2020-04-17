@@ -119,23 +119,26 @@ void ModuleRegistry::register_user_defined_primitive(
     name_to_declares[name] = declares;
 
     int row_size = table[0].size();
-    int num_rows = table.size();
-    char* char_table = new char[num_rows * row_size];
-    for(int i = 0; i < num_rows; i++) {
+    Table table_struct;
+    table_struct.num_rows = table.size();
+    table_struct.table = new char[table_struct.num_rows * row_size];
+//    TODO move char_table to device
+    for(int i = 0; i < table_struct.num_rows; i++) {
         for (int j = 0; j < row_size; j++) {
-            char_table[i * row_size + j] = table[i][j];
+            table_struct.table[i * row_size + j] = table[i][j];
         }
     }
-    name_to_table[name] = char_table;
+    name_to_table[name] = table_struct;
 }
 
-GateFnPtr ModuleRegistry::get_gate_fn(const string &name, char*& table) const {
+GateFnPtr ModuleRegistry::get_gate_fn(const string &name, char*& table, unsigned int& table_row_num) const {
     const auto& gate_it = name_to_gate.find(name);
     if (gate_it != name_to_gate.end()) return gate_it->second;
 
     const auto& table_it = name_to_table.find(name);
     if (table_it != name_to_table.end()) {
-        table = table_it->second;
+        table = table_it->second.table;
+        table_row_num = table_it->second.num_rows;
         return PrimitiveGate;
     }
 
@@ -166,10 +169,15 @@ void ModuleRegistry::register_module(
 
     module_spec.gate_schedule = new GateFnPtr[submodules.size()];
     module_spec.tables = new char*[submodules.size()];
+    module_spec.table_row_num = new unsigned int[submodules.size()];
     module_spec.num_inputs = new unsigned int[submodules.size()];
     module_spec.num_outputs = new unsigned int[submodules.size()];
     for (int i = 0; i < submodules.size(); i++) {
-        module_spec.gate_schedule[i] = get_gate_fn(submodules[i].type, module_spec.tables[i]);
+        module_spec.gate_schedule[i] = get_gate_fn(
+            submodules[i].type,
+            module_spec.tables[i],
+            module_spec.table_row_num[i]
+        );
         module_spec.num_outputs[i] = 1;
         module_spec.num_inputs[i] = submodules[i].args.size() - 1;
     }

@@ -12,6 +12,11 @@ struct StdCellDeclare {
     std::vector<std::vector<std::string>> buckets{5};
 };
 
+struct Table {
+    char* table = nullptr;
+    unsigned int num_rows = 0;
+};
+
 
 class ModuleRegistry {
 public:
@@ -19,7 +24,7 @@ public:
 
     void read_file(std::ifstream&);
     void summary() const;
-    GateFnPtr get_gate_fn(const std::string& name, char*& table) const;
+    GateFnPtr get_gate_fn(const std::string& name, char*& table, unsigned int& table_row_num) const;
     const ModuleSpec* get_module_spec(const std::string& cell_type) const;
     const std::vector<SubmoduleSpec>* get_submodule_specs(const std::string& cell_type) const;
     const StdCellDeclare* get_module_declare(const std::string& cell_type) const;
@@ -40,7 +45,7 @@ private:
     void register_module(const std::string& name, const std::vector<SubmoduleSpec>& submodules, const StdCellDeclare& declares);
 
     std::unordered_map<std::string, GateFnPtr> name_to_gate{};
-    std::unordered_map<std::string, char*> name_to_table{};
+    std::unordered_map<std::string, Table> name_to_table{};
     std::unordered_map<std::string, ModuleSpec> name_to_module_spec{};  // to be transferred to device
     std::unordered_map<std::string, StdCellDeclare> name_to_declares{};
     std::unordered_map<std::string, std::vector<SubmoduleSpec>> name_to_submodule_specs{};
