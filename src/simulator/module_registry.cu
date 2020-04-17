@@ -93,13 +93,13 @@ string ModuleRegistry::read_vlib_common(ifstream& fin, StdCellDeclare& declares)
 
 void ModuleRegistry::register_primitives() {
     name_to_gate["and"] = and_gate_fn_ptr;
-    name_to_gate["or"] = and_gate_fn_ptr;
-    name_to_gate["not"] = and_gate_fn_ptr;
-    name_to_gate["xor"] = and_gate_fn_ptr;
-    name_to_gate["xnor"] = and_gate_fn_ptr;
-    name_to_gate["nand"] = and_gate_fn_ptr;
-    name_to_gate["nor"] = and_gate_fn_ptr;
-    name_to_gate["buf"] = and_gate_fn_ptr;
+    name_to_gate["or"] = or_gate_fn_ptr;
+    name_to_gate["xor"] = xor_gate_fn_ptr;
+    name_to_gate["nand"] = nand_gate_fn_ptr;
+    name_to_gate["nor"] = nor_gate_fn_ptr;
+    name_to_gate["xnor"] = xnor_gate_fn_ptr;
+    name_to_gate["not"] = not_gate_fn_ptr;
+    name_to_gate["buf"] = buf_gate_fn_ptr;
 }
 
 void ModuleRegistry::register_user_defined_primitive(
