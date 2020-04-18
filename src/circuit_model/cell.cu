@@ -26,8 +26,7 @@ Cell::~Cell() {
     }
 }
 
-unordered_map<string, Wire *>
-Cell::build_wire_map(
+unordered_map<string, Wire *> Cell::build_wire_map(
     const StdCellDeclare* declare,
     const vector<PinSpec> &pin_specs,
     Wire *supply1_wire, Wire *supply0_wire)
@@ -36,7 +35,6 @@ Cell::build_wire_map(
     for (const auto& pin_spec: pin_specs) wire_map[pin_spec.name] = pin_spec.wire;
     for (const auto& arg: declare->buckets[STD_CELL_SUPPLY1]) wire_map[arg] = supply1_wire;
     for (const auto& arg: declare->buckets[STD_CELL_SUPPLY0]) wire_map[arg] = supply0_wire;
-
     return wire_map;
 }
 

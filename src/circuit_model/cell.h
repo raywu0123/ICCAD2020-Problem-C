@@ -17,15 +17,6 @@ struct PinSpec {
     PinSpec(std::string name, Wire* wire): name(std::move(name)), wire(wire) {};
 };
 
-struct CellResource {
-    const ModuleSpec* module_spec{};
-    std::vector<const Transition*> data_schedule{};
-    std::vector<unsigned int> capacities{};
-
-    explicit CellResource() = default;
-    explicit CellResource(const ModuleSpec* module_spec): module_spec(module_spec) {};
-};
-
 class Cell {
 public:
     Cell(

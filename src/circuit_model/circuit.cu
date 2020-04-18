@@ -153,11 +153,9 @@ void Circuit::read_schedules(ifstream& fin) {
     int num_schedule_layers;
     fin >> num_schedule_layers;
     cell_schedule.reserve(num_schedule_layers);
-    cout << "num schedule layers: " << num_schedule_layers << endl;
     for (int i = 0; i < num_schedule_layers; i++) {
         unsigned int num_cell;
         fin >> num_cell;
-        cout << "num cell: " << num_cell << endl;
         vector<Cell*> cell_ids;
         cell_ids.reserve(num_cell);
         for (int j = 0; j < num_cell; j++) {

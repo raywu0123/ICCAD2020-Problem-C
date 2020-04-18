@@ -28,11 +28,11 @@ __host__ __device__ void merge_sort_algorithm(
     Transition** data,  // (capacity, num_inputs + num_outputs)
     const unsigned int* capacities,
     char* table, unsigned int table_row_num,
-    unsigned int num_inputs, unsigned int num_outputs,
+    unsigned int num_inputs,
     LogicFn logic_fn
 );
 __host__ __device__ void single_input_algorithm(
-    Transition** data, const unsigned int* capacities, unsigned int num_inputs, char(*logic_fn)(char)
+    Transition** data, const unsigned int* capacities, char(*logic_fn)(char)
 );
 
 // Gates compute results on single stimuli
@@ -94,4 +94,5 @@ __host__ __device__ void PrimitiveGate(
     char* table, unsigned int table_row_num,
     unsigned int num_inputs, unsigned int num_outputs
 );
+
 #endif //ICCAD2020_BUILTIN_GATES_H

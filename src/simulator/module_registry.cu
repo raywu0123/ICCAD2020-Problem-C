@@ -91,15 +91,14 @@ string ModuleRegistry::read_vlib_common(ifstream& fin, StdCellDeclare& declares)
     return name;
 }
 
-
-__device__ GateFnPtr and_gate_fn_ptr = and_gate_fn;
-__device__ GateFnPtr or_gate_fn_ptr = or_gate_fn;
-__device__ GateFnPtr xor_gate_fn_ptr = xor_gate_fn;
-__device__ GateFnPtr nand_gate_fn_ptr = nand_gate_fn;
-__device__ GateFnPtr nor_gate_fn_ptr = nor_gate_fn;
-__device__ GateFnPtr xnor_gate_fn_ptr = xnor_gate_fn;
-__device__ GateFnPtr not_gate_fn_ptr = not_gate_fn;
-__device__ GateFnPtr buf_gate_fn_ptr = buf_gate_fn;
+extern __device__ GateFnPtr and_gate_fn_ptr;
+extern __device__ GateFnPtr or_gate_fn_ptr;
+extern __device__ GateFnPtr xor_gate_fn_ptr;
+extern __device__ GateFnPtr nand_gate_fn_ptr;
+extern __device__ GateFnPtr nor_gate_fn_ptr;
+extern __device__ GateFnPtr xnor_gate_fn_ptr;
+extern __device__ GateFnPtr not_gate_fn_ptr;
+extern __device__ GateFnPtr buf_gate_fn_ptr;
 void ModuleRegistry::register_primitives() {
     GateFnPtr host_and_gate_fn_ptr;
     GateFnPtr host_or_gate_fn_ptr;

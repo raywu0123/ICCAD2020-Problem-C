@@ -12,13 +12,6 @@ __device__ void simulate_gate_on_multiple_stimuli(
     unsigned int num_inputs, unsigned int num_outputs
 ) {
     unsigned int stimuli_idx = threadIdx.x;
-    if (stimuli_idx == 0 and blockIdx.x == 0) {
-        printf("%p %p %p %p %p\n", gate_fn_ptr, data, data[0], data[1], data[2]);
-        printf("0: %c %c %c %c\n", data[0][0].value, data[0][1].value, data[0][2].value, data[0][3].value);
-        printf("1: %c %c %c %c\n", data[1][0].value, data[1][1].value, data[1][2].value, data[1][3].value);
-        printf("2: %c %c %c %c\n", data[2][0].value, data[2][1].value, data[2][2].value, data[2][3].value);
-
-    }
     auto** stimuli_data = new Transition*[num_inputs + num_outputs]; // (capacities[i], num_inputs + num_outputs)
     for (int i = 0; i < num_inputs + num_outputs; i++) {
         stimuli_data[i] = data[i] + capacities[i] * stimuli_idx;
@@ -53,7 +46,6 @@ __global__ void simulate_batch(BatchResource batch_resource) {
         const auto& module_spec = batch_resource.module_specs[blockIdx.x];
         auto module_data_schedule = &batch_resource.data_schedule[offset];
         auto module_capacities = &batch_resource.capacities[offset];
-        printf("blockIdx: %d, threadIdx: %d, offset: %d\n", blockIdx.x, threadIdx.x, offset);
         simulate_module(module_spec, module_data_schedule, module_capacities);
     }
 };
@@ -87,7 +79,6 @@ void Simulator::simulate_batch_stimuli(unsigned int& i_batch) {
             }
 
             const auto& batch_data = get_batch_data();
-            cout << "simulate batch" << endl;
             simulate_batch<<<N_GATE_PARALLEL, N_STIMULI_PARALLEL>>> (batch_data);
             // perform edge checking in the kernel
             cudaDeviceSynchronize();
@@ -102,11 +93,12 @@ void Simulator::simulate_batch_stimuli(unsigned int& i_batch) {
 
 void Simulator::set_input(unsigned int i_batch) const {
     for (int i_wire = 0; i_wire < input_waveforms.num_buckets; i_wire++) {
-        Wire* wire_ptr = circuit.wires[i_wire];
+        Wire* wire_ptr = circuit.input_wires[i_wire];
         const auto& bucket = input_waveforms.buckets[i_wire];
+
         for (unsigned int i_stimuli = 0; i_stimuli < N_STIMULI_PARALLEL; i_stimuli++) {
             unsigned int global_i_stimuli = i_batch * N_STIMULI_PARALLEL + i_stimuli;
-            if (global_i_stimuli >= input_waveforms.num_stimuli - 1) break;
+            if (global_i_stimuli >= input_waveforms.num_stimuli) break;
 
             wire_ptr->set_input(
                 bucket.transitions,
