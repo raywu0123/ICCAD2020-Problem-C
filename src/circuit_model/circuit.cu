@@ -94,32 +94,38 @@ void Circuit::read_cells(ifstream& fin) {
         unsigned int num_args;
         fin >> cell_type >> cell_name >> num_args;
 
-        vector<PinSpec> args{num_args};
-        for (auto& arg: args) {
+        vector<PinSpec> args;
+        args.reserve(num_args);
+        for (int j = 0; j < num_args; j++) {
             char c;
             unsigned int wire_index;
-            fin >> arg.name >> c >> wire_index;
-            arg.wire = get_wire(wire_index);
+            PinSpec pin_spec;
+            fin >> pin_spec.name >> c >> wire_index;
+            pin_spec.wire = get_wire(wire_index);
+            args.push_back(pin_spec);
         }
 
         unsigned int num_alloc_wires;
         fin >> num_alloc_wires;
-        vector<Wire*> alloc_wires{num_alloc_wires};
-        for (auto& wire_ptr: alloc_wires) {
+        vector<Wire*> alloc_wires;
+        alloc_wires.reserve(num_alloc_wires);
+        for (int j = 0; j < num_alloc_wires; j++) {
             unsigned int wire_index;
             fin >> wire_index;
-            wire_ptr = get_wire(wire_index);
+            auto wire_ptr = get_wire(wire_index);
+            alloc_wires.push_back(wire_ptr);
         }
 
         unsigned int num_free_wires;
         fin >> num_free_wires;
-        vector<Wire*> free_wires{num_free_wires};
-        for (auto& wire_ptr: free_wires) {
+        vector<Wire*> free_wires;
+        free_wires.reserve(num_free_wires);
+        for (int j = 0; j < num_free_wires; j++) {
             unsigned int wire_index;
             fin >> wire_index;
-            wire_ptr = get_wire(wire_index);
+            auto wire_ptr = get_wire(wire_index);
+            free_wires.push_back(wire_ptr);
         }
-
         cells.emplace(cell_name, create_cell(cell_type, args, alloc_wires, free_wires));
     }
 }

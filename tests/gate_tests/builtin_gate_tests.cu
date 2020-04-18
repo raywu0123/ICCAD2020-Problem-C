@@ -26,17 +26,20 @@ TEST_P(BuiltinGateTestFixture, SimpleCases) {
     auto gate_fn = test_pair.gate_fn;
     auto expected_output = test_pair.expected_output;
 
-    auto** data_schedule = new Transition*[inputs.size() + 1];
-    vector<unsigned int> capacities;
-    for (int i = 0; i < inputs.size(); i++) {
-        data_schedule[i] = &(inputs[i][0]);
-        capacities.push_back(inputs[i].size());
-    }
     vector<Transition> output;
     output.insert(output.begin(), inputs[0].begin(), inputs[0].end());
+
+    vector<unsigned int> capacities;
     capacities.push_back(output.size());
-    data_schedule[inputs.size()] = &output[0];
-    gate_fn(data_schedule, &(capacities[0]), nullptr, 0, inputs.size(), 1);
+
+    auto** data_schedule = new Transition*[inputs.size() + 1];
+    data_schedule[0] = output.data();
+    for (int i = 0; i < inputs.size(); i++) {
+        data_schedule[i + 1] = inputs[i].data();
+        capacities.push_back(inputs[i].size());
+    }
+
+    gate_fn(data_schedule, capacities.data(), nullptr, 0, inputs.size(), 1);
 
     int error_num = 0;
     for (int i = 0; i < expected_output.size(); i++) {
@@ -120,15 +123,16 @@ TEST_P(PrimitiveGateTestFixture, SimpleCases) {
 
     auto** data_schedule = new Transition*[inputs.size() + 1];
     vector<unsigned int> capacities;
-    for (int i = 0; i < inputs.size(); i++) {
-        data_schedule[i] = &(inputs[i][0]);
-        capacities.push_back(inputs[i].size());
-    }
+
     vector<Transition> output;
     output.resize(8);
     capacities.push_back(output.size());
-    data_schedule[inputs.size()] = &output[0];
-    PrimitiveGate(data_schedule, &(capacities[0]), table, table_row_num, inputs.size(), 1);
+    data_schedule[0] = output.data();
+    for (int i = 0; i < inputs.size(); i++) {
+        data_schedule[i + 1] = inputs[i].data();
+        capacities.push_back(inputs[i].size());
+    }
+    PrimitiveGate(data_schedule, capacities.data(), table, table_row_num, inputs.size(), 1);
 
     int error_num = 0;
     for (int i = 0; i < expected_output.size(); i++) {

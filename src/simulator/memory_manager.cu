@@ -5,9 +5,12 @@ void MemoryManager::init() {
 }
 
 Transition* MemoryManager::alloc(size_t size) {
-    return nullptr;
+//    TODO buddy tree
+    Transition* p;
+    cudaMalloc((void**) &p, sizeof(Transition) * size);
+    return p;
 }
 
-void MemoryManager::free(Transition*) {
-
+void MemoryManager::free(Transition* p) {
+    cudaFree(p);
 }
