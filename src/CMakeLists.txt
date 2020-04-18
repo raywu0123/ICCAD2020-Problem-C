@@ -24,5 +24,6 @@ set(SOURCE_FILES
         circuit_model/wire.cu
         accumulators.cu
         include/progress_bar.cu
-        )
+        utils.cu simulator/builtin_gates.cu)
 add_library(mylib STATIC ${HEADER_FILES} ${SOURCE_FILES})
+set_target_properties(mylib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)

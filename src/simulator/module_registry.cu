@@ -9,7 +9,7 @@ using namespace std;
 ModuleRegistry::ModuleRegistry() {
     register_primitives();
 }
-
+//TODO destructor: free module_spec and char table
 
 void ModuleRegistry::summary() const {
     cout << "Module Registry Summary: " << endl;
@@ -91,15 +91,40 @@ string ModuleRegistry::read_vlib_common(ifstream& fin, StdCellDeclare& declares)
     return name;
 }
 
+
+__device__ GateFnPtr and_gate_fn_ptr = and_gate_fn;
+__device__ GateFnPtr or_gate_fn_ptr = or_gate_fn;
+__device__ GateFnPtr xor_gate_fn_ptr = xor_gate_fn;
+__device__ GateFnPtr nand_gate_fn_ptr = nand_gate_fn;
+__device__ GateFnPtr nor_gate_fn_ptr = nor_gate_fn;
+__device__ GateFnPtr xnor_gate_fn_ptr = xnor_gate_fn;
+__device__ GateFnPtr not_gate_fn_ptr = not_gate_fn;
+__device__ GateFnPtr buf_gate_fn_ptr = buf_gate_fn;
 void ModuleRegistry::register_primitives() {
-    name_to_gate["and"] = and_gate_fn_ptr;
-    name_to_gate["or"] = or_gate_fn_ptr;
-    name_to_gate["xor"] = xor_gate_fn_ptr;
-    name_to_gate["nand"] = nand_gate_fn_ptr;
-    name_to_gate["nor"] = nor_gate_fn_ptr;
-    name_to_gate["xnor"] = xnor_gate_fn_ptr;
-    name_to_gate["not"] = not_gate_fn_ptr;
-    name_to_gate["buf"] = buf_gate_fn_ptr;
+    GateFnPtr host_and_gate_fn_ptr;
+    GateFnPtr host_or_gate_fn_ptr;
+    GateFnPtr host_xor_gate_fn_ptr;
+    GateFnPtr host_nand_gate_fn_ptr;
+    GateFnPtr host_nor_gate_fn_ptr;
+    GateFnPtr host_xnor_gate_fn_ptr;
+    GateFnPtr host_not_gate_fn_ptr;
+    GateFnPtr host_buf_gate_fn_ptr;
+    cudaMemcpyFromSymbol(&host_and_gate_fn_ptr, and_gate_fn_ptr, sizeof(GateFnPtr));
+    cudaMemcpyFromSymbol(&host_or_gate_fn_ptr, or_gate_fn_ptr, sizeof(GateFnPtr));
+    cudaMemcpyFromSymbol(&host_xor_gate_fn_ptr, xor_gate_fn_ptr, sizeof(GateFnPtr));
+    cudaMemcpyFromSymbol(&host_nand_gate_fn_ptr, nand_gate_fn_ptr, sizeof(GateFnPtr));
+    cudaMemcpyFromSymbol(&host_nor_gate_fn_ptr, nor_gate_fn_ptr, sizeof(GateFnPtr));
+    cudaMemcpyFromSymbol(&host_xnor_gate_fn_ptr, xnor_gate_fn_ptr, sizeof(GateFnPtr));
+    cudaMemcpyFromSymbol(&host_not_gate_fn_ptr, not_gate_fn_ptr, sizeof(GateFnPtr));
+    cudaMemcpyFromSymbol(&host_buf_gate_fn_ptr, buf_gate_fn_ptr, sizeof(GateFnPtr));
+    name_to_gate["and"] = host_and_gate_fn_ptr;
+    name_to_gate["or"] = host_or_gate_fn_ptr;
+    name_to_gate["xor"] = host_xor_gate_fn_ptr;
+    name_to_gate["nand"] = host_nand_gate_fn_ptr;
+    name_to_gate["nor"] = host_nor_gate_fn_ptr;
+    name_to_gate["xnor"] = host_xnor_gate_fn_ptr;
+    name_to_gate["not"] = host_not_gate_fn_ptr;
+    name_to_gate["buf"] = host_buf_gate_fn_ptr;
 }
 
 void ModuleRegistry::register_user_defined_primitive(
@@ -121,25 +146,29 @@ void ModuleRegistry::register_user_defined_primitive(
     int row_size = table[0].size();
     Table table_struct;
     table_struct.num_rows = table.size();
-    table_struct.table = new char[table_struct.num_rows * row_size];
-//    TODO move char_table to device
+    table_struct.table = new char[table_struct.num_rows * row_size]; // temporary
+//    TODO move char_table to constant memory
     for(int i = 0; i < table_struct.num_rows; i++) {
         for (int j = 0; j < row_size; j++) {
             table_struct.table[i * row_size + j] = table[i][j];
         }
     }
+    char* device_char_table;
+    cudaMalloc((void**) &device_char_table, table_struct.num_rows * row_size);
+    cudaMemcpy(device_char_table, table_struct.table, sizeof(table_struct.num_rows) * row_size, cudaMemcpyHostToDevice);
+    delete[] table_struct.table;
+    table_struct.table = device_char_table;
     name_to_table[name] = table_struct;
 }
 
 GateFnPtr ModuleRegistry::get_gate_fn(const string &name, char*& table, unsigned int& table_row_num) const {
     const auto& gate_it = name_to_gate.find(name);
     if (gate_it != name_to_gate.end()) return gate_it->second;
-
     const auto& table_it = name_to_table.find(name);
     if (table_it != name_to_table.end()) {
         table = table_it->second.table;
         table_row_num = table_it->second.num_rows;
-        return PrimitiveGate;
+        return nullptr;
     }
 
     throw runtime_error("Gate " + name + " not found.\n");
@@ -163,16 +192,18 @@ void ModuleRegistry::register_module(
     name_to_declares[name] = declares;
 
     ModuleSpec module_spec{};
+//    TODO move module_spec to constant memory
     module_spec.schedule_size = submodules.size();
     if (submodules.empty())
         throw runtime_error("Empty module " + name + "\n");
-
-    module_spec.gate_schedule = new GateFnPtr[submodules.size()];
+    unsigned int schedule_size = submodules.size();
+//    temporary
+    module_spec.gate_schedule = new GateFnPtr[schedule_size];
     module_spec.tables = new char*[submodules.size()];
-    module_spec.table_row_num = new unsigned int[submodules.size()];
-    module_spec.num_inputs = new unsigned int[submodules.size()];
-    module_spec.num_outputs = new unsigned int[submodules.size()];
-    for (int i = 0; i < submodules.size(); i++) {
+    module_spec.table_row_num = new unsigned int[schedule_size];
+    module_spec.num_inputs = new unsigned int[schedule_size];
+    module_spec.num_outputs = new unsigned int[schedule_size];
+    for (int i = 0; i < schedule_size; i++) {
         module_spec.gate_schedule[i] = get_gate_fn(
             submodules[i].type,
             module_spec.tables[i],
@@ -181,14 +212,36 @@ void ModuleRegistry::register_module(
         module_spec.num_outputs[i] = 1;
         module_spec.num_inputs[i] = submodules[i].args.size() - 1;
     }
-    name_to_module_spec[name] = module_spec;
+    ModuleSpec device_module_spec_{};
+    device_module_spec_.schedule_size = schedule_size;
+    cudaMalloc((void**) &device_module_spec_.gate_schedule, sizeof(GateFnPtr) * schedule_size);
+    cudaMemcpy(device_module_spec_.gate_schedule, module_spec.gate_schedule, sizeof(GateFnPtr) * schedule_size, cudaMemcpyHostToDevice);
+    cudaMalloc((void**) &device_module_spec_.tables, sizeof(char*) * schedule_size);
+    cudaMemcpy(device_module_spec_.tables, module_spec.tables, sizeof(char*) * schedule_size, cudaMemcpyHostToDevice);
+    cudaMalloc((void**) &device_module_spec_.table_row_num, sizeof(unsigned int) * schedule_size);
+    cudaMemcpy(device_module_spec_.table_row_num, module_spec.table_row_num, sizeof(unsigned int) * schedule_size, cudaMemcpyHostToDevice);
+    cudaMalloc((void**) &device_module_spec_.num_inputs, sizeof(unsigned int) * schedule_size);
+    cudaMemcpy(device_module_spec_.num_inputs, module_spec.num_inputs, sizeof(unsigned int) * schedule_size, cudaMemcpyHostToDevice);
+    cudaMalloc((void**) &device_module_spec_.num_outputs, sizeof(unsigned int) * schedule_size);
+    cudaMemcpy(device_module_spec_.num_outputs, module_spec.num_outputs, sizeof(unsigned int) * schedule_size, cudaMemcpyHostToDevice);
+
+    ModuleSpec* device_module_spec;
+    cudaMalloc((void**) &device_module_spec, sizeof(ModuleSpec));
+    cudaMemcpy(device_module_spec, &device_module_spec_, sizeof(ModuleSpec), cudaMemcpyHostToDevice);
+    name_to_module_spec[name] = device_module_spec;
+
+    delete[] module_spec.gate_schedule;
+    delete[] module_spec.tables;
+    delete[] module_spec.table_row_num;
+    delete[] module_spec.num_inputs;
+    delete[] module_spec.num_outputs;
 }
 
 const ModuleSpec* ModuleRegistry::get_module_spec(const string &cell_type) const {
     const auto& it = name_to_module_spec.find(cell_type);
     if (it == name_to_module_spec.end())
         throw runtime_error("ModuleSpec for type " + cell_type + " not found.");
-    return &it->second;
+    return it->second;
 }
 
 const vector<SubmoduleSpec>* ModuleRegistry::get_submodule_specs(const string &cell_type) const {

@@ -1,22 +1,14 @@
 #ifndef ICCAD2020_CONSTANTS_H
 #define ICCAD2020_CONSTANTS_H
 
-#include <vector>
-#include <string>
-
 #include "simulator/data_structures.h"
 
-
 const unsigned int N_GATE_PARALLEL = 32;
-const unsigned int N_STIMULI_PARALLEL = 256;
-const unsigned int INITIAL_CAPACITY = 256;
-
+const unsigned int N_STIMULI_PARALLEL = 32;
+const unsigned int INITIAL_CAPACITY = 32;
 
 const Wirekey SUPPLY1_WIREKEY = Wirekey{"1'b1", 0};
 const Wirekey SUPPLY0_WIREKEY = Wirekey{"1'b0", 0};
-
-const int NUM_VALUES = 4;
-const char VALUES[NUM_VALUES] = {'0', '1', 'x', 'z'};
 
 enum STD_CELL_DECLARE_TYPE {
     STD_CELL_INPUT,

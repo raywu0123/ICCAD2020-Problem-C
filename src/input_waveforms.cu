@@ -3,11 +3,9 @@
 #include <functional>
 
 #include "input_waveforms.h"
-
+#include "utils.h"
 
 using namespace std;
-
-extern double get_timescale(int, const string&);
 
 
 void InputWaveforms::summary() {

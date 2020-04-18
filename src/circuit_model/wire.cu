@@ -20,7 +20,7 @@ void Wire::set_input(
 
 void Wire::alloc() {
 //        called by Cell::prepare_resource or Wire::set_input
-    if (data_ptr == nullptr)
+    if (data_ptr != nullptr) // prevent double-alloc
         return;
     data_ptr = MemoryManager::alloc(capacity * N_STIMULI_PARALLEL);
 }

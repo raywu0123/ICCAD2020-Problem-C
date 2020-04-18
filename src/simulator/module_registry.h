@@ -7,7 +7,6 @@
 
 #include "data_structures.h"
 
-
 struct StdCellDeclare {
     std::vector<std::vector<std::string>> buckets{5};
 };
@@ -35,7 +34,6 @@ private:
     static std::string read_vlib_common(std::ifstream&, StdCellDeclare&);
     static void read_vlib_table(std::ifstream&, std::vector<std::string>&);
 
-
     void register_primitives();
     void register_user_defined_primitive(
         const std::string& name,
@@ -44,11 +42,11 @@ private:
     );
     void register_module(const std::string& name, const std::vector<SubmoduleSpec>& submodules, const StdCellDeclare& declares);
 
-    std::unordered_map<std::string, GateFnPtr> name_to_gate{};
     std::unordered_map<std::string, Table> name_to_table{};
-    std::unordered_map<std::string, ModuleSpec> name_to_module_spec{};  // to be transferred to device
+    std::unordered_map<std::string, ModuleSpec*> name_to_module_spec{};  // to be transferred to device
     std::unordered_map<std::string, StdCellDeclare> name_to_declares{};
     std::unordered_map<std::string, std::vector<SubmoduleSpec>> name_to_submodule_specs{};
+    std::unordered_map<std::string, GateFnPtr> name_to_gate{};
 };
 
 #endif

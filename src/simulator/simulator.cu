@@ -12,6 +12,13 @@ __device__ void simulate_gate_on_multiple_stimuli(
     unsigned int num_inputs, unsigned int num_outputs
 ) {
     unsigned int stimuli_idx = threadIdx.x;
+    if (stimuli_idx == 0 and blockIdx.x == 0) {
+        printf("%p %p %p %p %p\n", gate_fn_ptr, data, data[0], data[1], data[2]);
+        printf("0: %c %c %c %c\n", data[0][0].value, data[0][1].value, data[0][2].value, data[0][3].value);
+        printf("1: %c %c %c %c\n", data[1][0].value, data[1][1].value, data[1][2].value, data[1][3].value);
+        printf("2: %c %c %c %c\n", data[2][0].value, data[2][1].value, data[2][2].value, data[2][3].value);
+
+    }
     auto** stimuli_data = new Transition*[num_inputs + num_outputs]; // (capacities[i], num_inputs + num_outputs)
     for (int i = 0; i < num_inputs + num_outputs; i++) {
         stimuli_data[i] = data[i] + capacities[i] * stimuli_idx;
@@ -41,21 +48,19 @@ __device__ void simulate_module(const ModuleSpec* module_spec, Transition** data
 }
 
 __global__ void simulate_batch(BatchResource batch_resource) {
-    if (blockIdx.x >= batch_resource.num_modules)
-        return;
-    const auto offset = batch_resource.data_schedule_offsets[blockIdx.x];
-    const auto& module_spec = batch_resource.module_specs[blockIdx.x];
-    auto module_data_schedule = &batch_resource.data_schedule[offset];
-    auto module_capacities = &batch_resource.capacities[offset];
-    simulate_module(module_spec, module_data_schedule, module_capacities);
+    if (blockIdx.x < batch_resource.num_modules) {
+        const auto& offset = batch_resource.data_schedule_offsets[blockIdx.x];
+        const auto& module_spec = batch_resource.module_specs[blockIdx.x];
+        auto module_data_schedule = &batch_resource.data_schedule[offset];
+        auto module_capacities = &batch_resource.capacities[offset];
+        printf("blockIdx: %d, threadIdx: %d, offset: %d\n", blockIdx.x, threadIdx.x, offset);
+        simulate_module(module_spec, module_data_schedule, module_capacities);
+    }
 };
 
-
 void Simulator::run() {
-    vector<unsigned long> stimuli_indices;
-
-
-    unsigned int num_batches = (int) ceil(double(input_waveforms.num_stimuli - 1) / double(N_STIMULI_PARALLEL));
+    unsigned int num_batches = (int) ceil(double(input_waveforms.num_stimuli) / double(N_STIMULI_PARALLEL));
+    cout << "Total " << num_batches << " batches" << endl;
     ProgressBar bar(num_batches, "Running Simulation");
     for (unsigned int i_batch = 0; i_batch < num_batches; i_batch++) {
         simulate_batch_stimuli(i_batch);
@@ -63,7 +68,6 @@ void Simulator::run() {
     }
     cout << endl;
 }
-
 
 void Simulator::simulate_batch_stimuli(unsigned int& i_batch) {
     set_input(i_batch);
@@ -83,6 +87,7 @@ void Simulator::simulate_batch_stimuli(unsigned int& i_batch) {
             }
 
             const auto& batch_data = get_batch_data();
+            cout << "simulate batch" << endl;
             simulate_batch<<<N_GATE_PARALLEL, N_STIMULI_PARALLEL>>> (batch_data);
             // perform edge checking in the kernel
             cudaDeviceSynchronize();
@@ -118,14 +123,14 @@ BatchResource Simulator::get_batch_data() {
     batch_resource.num_modules = num_modules;
 
     cudaMalloc((void**) &batch_resource.module_specs, sizeof(ModuleSpec*) * num_modules);
-    cudaMalloc((void**) &batch_resource.data_schedule, sizeof(Transition*) * num_modules);
+    cudaMalloc((void**) &batch_resource.data_schedule, sizeof(Transition*) * resource_buffer.data_schedule.size());
     cudaMalloc((void**) &batch_resource.data_schedule_offsets, sizeof(unsigned int) * num_modules);
-    cudaMalloc((void**) &batch_resource.capacities, sizeof(unsigned int*) * num_modules);
+    cudaMalloc((void**) &batch_resource.capacities, sizeof(unsigned int) * resource_buffer.capacities.size());
 
-    cudaMemcpy(batch_resource.module_specs, &resource_buffer.module_specs[0], sizeof(ModuleSpec*) * num_modules, cudaMemcpyHostToDevice);
-    cudaMemcpy(batch_resource.data_schedule, &resource_buffer.data_schedule[0], sizeof(Transition*) * num_modules, cudaMemcpyHostToDevice);
-    cudaMemcpy(batch_resource.data_schedule_offsets, &resource_buffer.data_schedule_offsets[0], sizeof(unsigned int) * num_modules, cudaMemcpyHostToDevice);
-    cudaMemcpy(batch_resource.capacities, &resource_buffer.capacities[0], sizeof(unsigned int*) * num_modules, cudaMemcpyHostToDevice);
+    cudaMemcpy(batch_resource.module_specs, resource_buffer.module_specs.data(), sizeof(ModuleSpec*) * num_modules, cudaMemcpyHostToDevice);
+    cudaMemcpy(batch_resource.data_schedule, resource_buffer.data_schedule.data(), sizeof(Transition*) * resource_buffer.data_schedule.size(), cudaMemcpyHostToDevice);
+    cudaMemcpy(batch_resource.data_schedule_offsets, resource_buffer.data_schedule_offsets.data(), sizeof(unsigned int) * num_modules, cudaMemcpyHostToDevice);
+    cudaMemcpy(batch_resource.capacities, resource_buffer.capacities.data(), sizeof(unsigned int) * resource_buffer.capacities.size(), cudaMemcpyHostToDevice);
     resource_buffer.clear();
 
     return batch_resource;

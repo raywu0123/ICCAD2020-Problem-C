@@ -25,6 +25,7 @@ public:
     std::vector<std::vector<Cell*>> cell_schedule;
     std::vector<Wire*> input_wires;
     std::vector<Wire*> wires;
+    const ModuleRegistry& module_registry;
 
 private:
     Wire* get_wire(const Wirekey&) const;
@@ -42,7 +43,6 @@ private:
     void bind_sdf_to_cell(const std::string&, const std::vector<SDFPath>&) const;
     void register_01_wires(); // register 1'b1 1'b0 wires
 
-    const ModuleRegistry& module_registry;
 
     std::unordered_map<Wirekey, unsigned int, pair_hash> wirekey_to_index;
     std::unordered_map<std::string, Cell*> cells;

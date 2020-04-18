@@ -1,14 +1,10 @@
 #ifndef ICCAD2020_SIMULATOR_H
 #define ICCAD2020_SIMULATOR_H
 
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-
 #include <vector>
 
 #include "circuit_model/circuit.h"
 #include "simulation_result.h"
-#include "data_structures.h"
 
 
 class Simulator {
