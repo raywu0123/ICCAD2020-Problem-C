@@ -25,11 +25,6 @@ bool arguments_valid(int argc, char* argv[1]) {
         print_usage();
         return false;
     }
-    string argv3(argv[3]);
-    if (argv3 != string("SAIF") and argv3 != "VCD") {
-        cerr << "The third argument should be either 'SAIF' or 'VCD'" << endl;
-        return false;
-    }
     return true;
 }
 
@@ -57,9 +52,12 @@ int main(int argc, char* argv[]) {
 
     SimulationResult* simulation_result;
     if (output_flag == "SAIF") {
-        simulation_result = new SAIFResult(circuit);
+        simulation_result = new SAIFResult(circuit, input_waveforms.scopes, input_waveforms.timescale_pair);
+    } else if (output_flag == "VCD") {
+        simulation_result = new VCDResult(circuit, input_waveforms.scopes, input_waveforms.timescale_pair);
     } else {
-        simulation_result = new VCDResult(circuit);
+        cerr << "The third argument should be either 'SAIF' or 'VCD'" << endl;
+        return -1;
     }
 
     MemoryManager::init();

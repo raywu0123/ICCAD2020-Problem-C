@@ -20,6 +20,7 @@ public:
     Transition* data_ptr = nullptr; // points to device memory
     unsigned int capacity = INITIAL_CAPACITY;
     Accumulator* accumulator = nullptr;
+    Transition previous_transition{0, 'x'};
 };
 
 
