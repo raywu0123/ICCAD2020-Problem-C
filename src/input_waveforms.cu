@@ -11,6 +11,11 @@ using namespace std;
 void InputWaveforms::summary() {
     cout << "Summary of Input Waveforms" << endl;
     cout << "Timescale: " << timescale << "s" << endl;
+
+    cout << "Scopes: ";
+    for (const auto& s : scopes) cout << s << " ";
+    cout << endl;
+
     cout << "Num dumps: " << n_dump << endl;
     cout << "Num stimuli: " << num_stimuli << endl;
 
@@ -33,7 +38,7 @@ void InputWaveforms::read(char* path) {
     fin = ifstream(path);
     ignore_header();
     read_timescale();
-    read_vars();
+    read_vars_and_scopes();
     build_buckets();
     read_dump();
 }
@@ -44,16 +49,20 @@ void InputWaveforms::ignore_header() {
 }
 
 void InputWaveforms::read_timescale() {
-    string s, timescale_unit;
-    int timescale_num;
-    fin >> timescale_num >> timescale_unit >> s;
-    timescale = get_timescale(timescale_num, timescale_unit);
+    string s;
+    fin >> timescale_pair.first >> timescale_pair.second >> s;
+    timescale = get_timescale(timescale_pair.first, timescale_pair.second);
 }
 
-void InputWaveforms::read_vars() {
+void InputWaveforms::read_vars_and_scopes() {
     string s;
-    fin >> s;
-    while (s != "$var") fin >> s;
+    while (s != "$var") {
+        fin >> s;
+        if (s == "$scope") {
+            fin >> s >> s;
+            scopes.push_back(s);
+        }
+    }
 
     while (s.find("$var") == 0) {
         string token, id;
@@ -178,4 +187,10 @@ void InputWaveforms::push_back_stimuli_edge_indices() {
         all_bucket.stimuli_edge_indices.push_back(all_bucket.transitions.size());
     }
     num_stimuli++;
+}
+
+void InputWaveforms::get_input_wires(const Circuit &circuit) {
+    for (auto& bucket : buckets) {
+        bucket.wire_ptr = circuit.get_wire(bucket.wirekey);
+    }
 }

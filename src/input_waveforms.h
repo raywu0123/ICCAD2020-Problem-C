@@ -18,10 +18,11 @@ public:
     explicit InputWaveforms(char* path) { read(path); }
     void read(char*);
     void summary();
+    void get_input_wires(const Circuit& circuit);
 
     void ignore_header();
     void read_timescale();
-    void read_vars();
+    void read_vars_and_scopes();
     void read_dump();
     void read_single_time_dump(Timestamp);
 
@@ -34,7 +35,10 @@ public:
 
     std::ifstream fin;
 
+    std::pair<int, std::string> timescale_pair;
     double timescale{};
+    std::vector<std::string> scopes;
+
     std::unordered_map<std::string, TokenInfo> token_to_wire;
     std::vector<Bucket> buckets;
     unsigned int num_stimuli = 0;

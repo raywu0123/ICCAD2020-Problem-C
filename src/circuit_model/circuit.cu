@@ -1,4 +1,5 @@
 #include <iostream>
+#include "sstream"
 
 #include "circuit.h"
 #include "constants.h"
@@ -8,9 +9,7 @@ using namespace std;
 extern double get_timescale(int, const string&);
 
 
-Circuit::Circuit(const ModuleRegistry &module_registry): module_registry(module_registry) {
-    register_01_wires();
-};
+Circuit::Circuit(const ModuleRegistry &module_registry): module_registry(module_registry) {}
 
 Circuit::~Circuit() {
 //        wires might duplicate because of assign syntax
@@ -42,6 +41,18 @@ Wire* Circuit::get_wire(const Wirekey& wirekey) const {
     return get_wire(it->second);
 }
 
+Wire* Circuit::get_wire(const unsigned int idx) const {
+    if (idx >= wires.size())
+        throw runtime_error("Wire index " + to_string(idx) + " out of range");
+    return wires[idx];
+}
+
+void Circuit::set_wire(unsigned int idx, Wire* wire) {
+    if (idx >= wires.size())
+        throw runtime_error("Wire index " + to_string(idx) + " out of range");
+    wires[idx] = wire;
+}
+
 Cell* Circuit::get_cell(const string& name) const {
     const auto& it = cells.find(name);
     if (it == cells.end())
@@ -49,26 +60,98 @@ Cell* Circuit::get_cell(const string& name) const {
     return it->second;
 }
 
-void Circuit::read_file(ifstream &fin, double input_timescale) {
+void Circuit::read_file(ifstream &fin, double input_timescale, BusManager& bus_manager, const string& output_flag) {
     fin >> design_name;
-    read_wires(fin);
+    bus_manager.read(fin);
+    register_01_wires(output_flag);
+    read_wires(fin, output_flag);
     read_assigns(fin);
     read_cells(fin);
     read_schedules(fin);
     read_sdf(fin, input_timescale);
 }
 
-void Circuit::read_wires(ifstream& fin) {
+void Circuit::register_01_wires(const string& output_flag) {
+    wirekey_to_index.emplace(make_pair("1'b0", 0), 0);
+    wirekey_to_index.emplace(make_pair("1'b1", 0), 1);
+    wires.push_back(new ConstantWire('0', output_flag));
+    wires.push_back(new ConstantWire('1', output_flag));
+}
+
+void BusManager::read(ifstream& fin) {
+    int num_buses;
+    fin >> num_buses;
+    buses.resize(num_buses);
+    index_to_identifier_map.resize(num_buses);
+    for (int i = 0; i < num_buses; i++ ) {
+        unsigned int bus_index;
+        fin >> bus_index;
+        string name;
+        BitWidth bitwidth;
+        fin >> name >> bitwidth.first >> bitwidth.second;
+        buses[bus_index].init(name, bitwidth);
+        index_to_identifier_map[bus_index] = index_to_identifier(bus_index);
+    }
+}
+
+string BusManager::index_to_identifier(unsigned int index) {
+//    TODO more similar to sample output format
+    stringstream ss;
+    ss << hex << index;
+    return ss.str();
+}
+
+std::string BusManager::dumps_token_to_bus_map() const {
+    stringstream ss;
+    for (unsigned int bus_index = 0; bus_index < buses.size(); bus_index++) {
+        const auto& bus = buses[bus_index];
+        const auto& identifier = index_to_identifier_map[bus_index];
+        unsigned int bits = abs(bus.bitwidth.first - bus.bitwidth.second) + 1;
+        ss << "$var wire " << bits << " " << identifier << " " << bus.name;
+        if (bus.bitwidth != make_pair(0, 0)) {
+            ss << " [" << bus.bitwidth.first << ":" << bus.bitwidth.second << "]";
+        }
+        ss << " $end" << endl;
+    }
+    return ss.str();
+}
+
+void BusManager::add_transition(const vector<WireInfo>& wire_infos, const Transition& transition) {
+    for (const auto& wire_info: wire_infos) {
+        auto& bus = buses[wire_info.bus_index];
+        bus.update(transition, wire_info.wirekey.second);
+        used_buses_in_current_time.emplace(&bus, wire_info.bus_index);
+    }
+}
+
+std::string BusManager::dumps_result() {
+    stringstream ss;
+    for (const auto& p : used_buses_in_current_time) {
+        const auto* bus = p.first;
+        const auto& bus_index = p.second;
+        const auto& bus_identifier = index_to_identifier_map[bus_index];
+        if (bus->bitwidth.first == bus->bitwidth.second) {
+            ss << bus->state << bus_identifier << endl;
+        } else {
+            ss << "b" << bus->state << " " << bus_identifier << endl;
+        }
+    }
+    used_buses_in_current_time.clear();
+    return ss.str();
+}
+
+void Circuit::read_wires(ifstream& fin, const string& output_flag) {
     unsigned int num_wires;
     fin >> num_wires;
-    wires.reserve(num_wires);
+    wires.resize(2 + num_wires);  // plus two for constant wires
     for (unsigned int i = 0; i < num_wires; i++) {
         string wire_name;
         unsigned int bucket_index;
-        int wire_index;
-        fin >> bucket_index >> wire_name >> wire_index;
-        wirekey_to_index.emplace(make_pair(wire_name, wire_index), bucket_index),
-        wires.emplace_back(new Wire());
+        int wire_index, bus_index;
+        fin >> bucket_index >> wire_name >> wire_index >> bus_index;
+        auto wirekey = make_pair(wire_name, wire_index);
+        wirekey_to_index.emplace(wirekey, bucket_index),
+        wires[bucket_index] = new Wire(WireInfo{wirekey, bus_index}, output_flag);
     }
 }
 
@@ -79,6 +162,7 @@ void Circuit::read_assigns(ifstream& fin) {
         unsigned int lhs_wire_index, rhs_wire_index;
         fin >> lhs_wire_index >> rhs_wire_index;
         auto lhs_wire_ptr = get_wire(lhs_wire_index), rhs_wire_ptr = get_wire(rhs_wire_index);
+        rhs_wire_ptr->assign(*lhs_wire_ptr);
         delete lhs_wire_ptr;
         set_wire(lhs_wire_index, rhs_wire_ptr);  // both wirekeys now share the same Wire instance
     }
@@ -167,13 +251,6 @@ void Circuit::read_schedules(ifstream& fin) {
     }
 }
 
-void Circuit::register_01_wires() {
-    wirekey_to_index.emplace(make_pair("1'b0", 0), 0);
-    wirekey_to_index.emplace(make_pair("1'b1", 0), 1);
-    wires.push_back(new ConstantWire('0'));
-    wires.push_back(new ConstantWire('1'));
-}
-
 void Circuit::read_sdf(ifstream &fin, double input_timescale) const {
     string s, timescale_unit;
     int timescale_num;
@@ -205,19 +282,22 @@ void Circuit::bind_sdf_to_cell(const string& name, const vector<SDFPath>& paths)
     get_cell(name)->set_paths(paths);
 }
 
-void Circuit::register_input_wires(const vector<Bucket>& buckets) {
-    for(const auto& bucket: buckets)
-        input_wires.push_back(get_wire(bucket.wirekey));
+void Bus::init(const string& name_param, const BitWidth& bitwidth_param) {
+    name = name_param;
+    bitwidth = bitwidth_param;
+    int max_bit_index = max(bitwidth.first, bitwidth.second);
+    int min_bit_index = min(bitwidth.first, bitwidth.second);
+    state.reserve(max_bit_index - min_bit_index + 1);
+    for (int i = min_bit_index; i <= max_bit_index; i++) {
+        state.push_back('x');
+    }
 }
 
-Wire* Circuit::get_wire(const unsigned int idx) const {
-    if (idx >= wires.size())
-        throw runtime_error("Wire index " + to_string(idx) + " out of range");
-    return wires[idx];
-}
-
-void Circuit::set_wire(unsigned int idx, Wire* wire) {
-    if (idx >= wires.size())
-        throw runtime_error("Wire index " + to_string(idx) + " out of range");
-    wires[idx] = wire;
+void Bus::update(const Transition &transition, int index) {
+//  convert bus index to array index
+//  in convenience of dumping out values, array starts from MSB
+    unsigned int array_index = abs(index - bitwidth.first);
+    if (array_index >= state.size())
+        throw runtime_error("Array index " + to_string(array_index) + " out of bounds.");
+    state[array_index] = transition.value;
 }

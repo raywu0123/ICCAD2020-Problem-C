@@ -93,8 +93,8 @@ void Simulator::simulate_batch_stimuli(unsigned int& i_batch) {
 
 void Simulator::set_input(unsigned int i_batch) const {
     for (int i_wire = 0; i_wire < input_waveforms.num_buckets; i_wire++) {
-        Wire* wire_ptr = circuit.input_wires[i_wire];
         const auto& bucket = input_waveforms.buckets[i_wire];
+        auto& wire_ptr = bucket.wire_ptr;
 
         for (unsigned int i_stimuli = 0; i_stimuli < N_STIMULI_PARALLEL; i_stimuli++) {
             unsigned int global_i_stimuli = i_batch * N_STIMULI_PARALLEL + i_stimuli;
