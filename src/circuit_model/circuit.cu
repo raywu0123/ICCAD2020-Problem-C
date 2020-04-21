@@ -70,7 +70,6 @@ void Circuit::read_wires(ifstream& fin, BusManager&, const string& output_flag) 
     unsigned int num_wires;
     fin >> num_wires;
     wires.resize(num_wires);
-    wire_buses.resize(num_wires);
     for (unsigned int i = 0; i < num_wires; i++) {
         string wire_name;
         unsigned int bucket_index;
@@ -228,10 +227,24 @@ void BusManager::read(ifstream& fin) {
     for (int i = 0; i < num_buses; i++ ) {
         unsigned int bus_index;
         fin >> bus_index;
-        fin >> buses[bus_index].name >> buses[bus_index].bitwidth.first >> buses[bus_index].bitwidth.second;
+        string name;
+        BitWidth bitwidth;
+        fin >> name >> bitwidth.first >> bitwidth.second;
+        buses[bus_index].init(name, bitwidth);
     }
 }
 
-void BusManager::add_transition(unsigned int wire_index, const Transition &transition) {
+void BusManager::add_transition(const std::vector<WireInfo>& wire_infos, const Transition &transition) {
 
+}
+
+void Bus::init(const string& name_param, const BitWidth& bitwidth_param) {
+    name = name_param;
+    bitwidth = bitwidth_param;
+    int max_bit_index = max(bitwidth.first, bitwidth.second);
+    int min_bit_index = min(bitwidth.first, bitwidth.second);
+    state.reserve(max_bit_index - min_bit_index + 1);
+    for (int i = min_bit_index; i <= max_bit_index; i++) {
+        state.push_back('x');
+    }
 }

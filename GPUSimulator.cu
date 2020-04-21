@@ -59,13 +59,13 @@ int main(int argc, char* argv[]) {
     SimulationResult* simulation_result;
     if (output_flag == "SAIF") {
         simulation_result = new SAIFResult(
-            circuit,
+            circuit.wires,
             input_waveforms.scopes,
             input_waveforms.timescale_pair
         );
     } else if (output_flag == "VCD") {
         simulation_result = new VCDResult(
-            circuit,
+            circuit.wires,
             input_waveforms.scopes,
             input_waveforms.timescale_pair
         );

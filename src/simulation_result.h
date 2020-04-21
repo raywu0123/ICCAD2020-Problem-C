@@ -13,12 +13,12 @@
 class SimulationResult {
 public:
     explicit SimulationResult(
-        Circuit& circuit, std::vector<std::string>& scopes, std::pair<int, std::string>& timescale_pair
-    ): circuit(circuit), scopes(scopes), timescale_pair(timescale_pair) {};
+        const std::vector<Wire*>& wires, std::vector<std::string>& scopes, std::pair<int, std::string>& timescale_pair
+    ): wires(wires), scopes(scopes), timescale_pair(timescale_pair) {};
 
     virtual void write(char* path);
 
-    Circuit& circuit;
+    const std::vector<Wire*>& wires;
     std::vector<std::string>& scopes;
     std::pair<int, std::string>& timescale_pair;
     std::ofstream f_out;
@@ -27,23 +27,23 @@ public:
 class VCDResult : public SimulationResult {
 public:
     explicit VCDResult(
-        Circuit& circuit, std::vector<std::string>& scopes, std::pair<int, std::string>& timescale_pair
+        const std::vector<Wire*>& wires, std::vector<std::string>& scopes, std::pair<int, std::string>& timescale_pair
     );
     void write(char* path) override;
+    static void group_timestamps(const std::vector<Timestamp>&, std::vector<std::pair<Timestamp, int>>&);
 
 private:
-    void merge_sort();
-    std::vector<VCDAccumulator*> accumulators;
+    void merge_sort(std::vector<std::pair<unsigned int, unsigned int>>&, std::vector<Timestamp>&);
+    void flush_result(){};
     BusManager bus_manager;
 };
 
 class SAIFResult : public SimulationResult {
 public:
     explicit SAIFResult(
-        Circuit& circuit, std::vector<std::string>& scopes, std::pair<int, std::string>& timescale_pair
+        const std::vector<Wire*>& wires, std::vector<std::string>& scopes, std::pair<int, std::string>& timescale_pair
     );
     void write(char* path) override;
-    std::vector<SAIFAccumulator*> accumulators;
 };
 
 

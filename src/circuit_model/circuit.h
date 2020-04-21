@@ -13,17 +13,21 @@
 
 class Bus {
 public:
+    void init(const std::string&, const BitWidth&);
+
+private:
     std::string name;
     BitWidth bitwidth;
+    std::vector<char> state;
 };
 
 class BusManager {
 public:
     void read(std::ifstream&);
-    void add_transition(unsigned int wire_index, const Transition& transition);
+    void add_transition(const std::vector<WireInfo>& wire_infos, const Transition& transition);
 
+private:
     std::vector<Bus> buses;
-    std::vector<Bus*> wire_buses;
 };
 
 
@@ -40,9 +44,6 @@ public:
     std::vector<std::vector<Cell*>> cell_schedule;
     std::vector<Wire*> wires;
     const ModuleRegistry& module_registry;
-
-    std::vector<Bus> buses;
-    std::vector<Bus*> wire_buses;
 
 private:
     Wire* get_wire(unsigned int) const;
