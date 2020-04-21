@@ -12,8 +12,11 @@ void SimulationResult::write(char *path) {
 }
 
 VCDResult::VCDResult(
-    const std::vector<Wire*>& wires, vector<string>& scopes, pair<int, string>& timescale_pair
-): SimulationResult(wires, scopes, timescale_pair) {}
+    const std::vector<Wire*>& wires,
+    vector<string>& scopes,
+    pair<int, string>& timescale_pair,
+    BusManager& bus_manager
+): SimulationResult(wires, scopes, timescale_pair), bus_manager(bus_manager) {}
 
 void VCDResult::write(char *path) {
     SimulationResult::write(path);
@@ -21,6 +24,7 @@ void VCDResult::write(char *path) {
     for (const auto& scope : scopes) {
         f_out << "$scope module " << scope << " $end" << endl;
     }
+    f_out << bus_manager.dumps_token_to_bus_map();
     for (const auto& scope: scopes) {
         f_out << "$upscope" << endl;
     }
@@ -35,12 +39,18 @@ void VCDResult::write(char *path) {
     int buffer_index = 0;
     for (const auto& group : timestamp_groups) {
         const auto& timestamp = group.first;
-        cout << timestamp << endl;
+        f_out << "#" << timestamp << endl;
         const auto& num_transitions = group.second;
         for (int i = 0; i < num_transitions; i++) {
-//            TODO
+            const auto& wire_index = buffer[buffer_index].first;
+            const auto& transition_index = buffer[buffer_index].second;
+            const auto* accumulator = (VCDAccumulator*) wires[wire_index]->accumulator;
+            const auto& transition = accumulator->transitions[transition_index];
+            const auto& wire_infos = wires[wire_index]->wire_infos;
+            bus_manager.add_transition(wire_infos, transition);
             buffer_index++;
         }
+        f_out << bus_manager.dumps_result();
     }
 }
 

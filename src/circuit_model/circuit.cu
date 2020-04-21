@@ -1,5 +1,4 @@
 #include <iostream>
-#include <simulation_result.h>
 
 #include "circuit.h"
 #include "constants.h"
@@ -10,13 +9,6 @@ extern double get_timescale(int, const string&);
 
 
 Circuit::Circuit(const ModuleRegistry &module_registry): module_registry(module_registry) {}
-
-void Circuit::register_01_wires(const string& output_flag) {
-    wirekey_to_index.emplace(make_pair("1'b0", 0), 0);
-    wirekey_to_index.emplace(make_pair("1'b1", 0), 1);
-    wires.push_back(new ConstantWire('0', output_flag));
-    wires.push_back(new ConstantWire('1', output_flag));
-}
 
 Circuit::~Circuit() {
 //        wires might duplicate because of assign syntax
@@ -59,14 +51,35 @@ void Circuit::read_file(ifstream &fin, double input_timescale, BusManager& bus_m
     fin >> design_name;
     bus_manager.read(fin);
     register_01_wires(output_flag);
-    read_wires(fin, bus_manager, output_flag);
+    read_wires(fin, output_flag);
     read_assigns(fin);
     read_cells(fin);
     read_schedules(fin);
     read_sdf(fin, input_timescale);
 }
 
-void Circuit::read_wires(ifstream& fin, BusManager&, const string& output_flag) {
+void Circuit::register_01_wires(const string& output_flag) {
+    wirekey_to_index.emplace(make_pair("1'b0", 0), 0);
+    wirekey_to_index.emplace(make_pair("1'b1", 0), 1);
+    wires.push_back(new ConstantWire('0', output_flag));
+    wires.push_back(new ConstantWire('1', output_flag));
+}
+
+void BusManager::read(ifstream& fin) {
+    int num_buses;
+    fin >> num_buses;
+    buses.resize(num_buses);
+    for (int i = 0; i < num_buses; i++ ) {
+        unsigned int bus_index;
+        fin >> bus_index;
+        string name;
+        BitWidth bitwidth;
+        fin >> name >> bitwidth.first >> bitwidth.second;
+        buses[bus_index].init(name, bitwidth);
+    }
+}
+
+void Circuit::read_wires(ifstream& fin, const string& output_flag) {
     unsigned int num_wires;
     fin >> num_wires;
     wires.resize(num_wires);
@@ -218,24 +231,6 @@ void Circuit::set_wire(unsigned int idx, Wire* wire) {
     if (idx >= wires.size())
         throw runtime_error("Wire index " + to_string(idx) + " out of range");
     wires[idx] = wire;
-}
-
-void BusManager::read(ifstream& fin) {
-    int num_buses;
-    fin >> num_buses;
-    buses.resize(num_buses);
-    for (int i = 0; i < num_buses; i++ ) {
-        unsigned int bus_index;
-        fin >> bus_index;
-        string name;
-        BitWidth bitwidth;
-        fin >> name >> bitwidth.first >> bitwidth.second;
-        buses[bus_index].init(name, bitwidth);
-    }
-}
-
-void BusManager::add_transition(const std::vector<WireInfo>& wire_infos, const Transition &transition) {
-
 }
 
 void Bus::init(const string& name_param, const BitWidth& bitwidth_param) {

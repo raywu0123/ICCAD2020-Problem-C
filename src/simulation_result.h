@@ -27,15 +27,17 @@ public:
 class VCDResult : public SimulationResult {
 public:
     explicit VCDResult(
-        const std::vector<Wire*>& wires, std::vector<std::string>& scopes, std::pair<int, std::string>& timescale_pair
+        const std::vector<Wire*>& wires,
+        std::vector<std::string>& scopes,
+        std::pair<int, std::string>& timescale_pair,
+        BusManager& bus_manager
     );
     void write(char* path) override;
     static void group_timestamps(const std::vector<Timestamp>&, std::vector<std::pair<Timestamp, int>>&);
 
 private:
     void merge_sort(std::vector<std::pair<unsigned int, unsigned int>>&, std::vector<Timestamp>&);
-    void flush_result(){};
-    BusManager bus_manager;
+    BusManager& bus_manager;
 };
 
 class SAIFResult : public SimulationResult {

@@ -67,7 +67,8 @@ int main(int argc, char* argv[]) {
         simulation_result = new VCDResult(
             circuit.wires,
             input_waveforms.scopes,
-            input_waveforms.timescale_pair
+            input_waveforms.timescale_pair,
+            bus_manager
         );
     }
 

@@ -23,13 +23,13 @@ private:
 
 class BusManager {
 public:
+//    TODO
     void read(std::ifstream&);
-    void add_transition(const std::vector<WireInfo>& wire_infos, const Transition& transition);
-
-private:
+    std::string dumps_token_to_bus_map() const { return ""; };
+    void add_transition(const std::vector<WireInfo>&, const Transition&) {};
+    std::string dumps_result() const { return ""; };
     std::vector<Bus> buses;
 };
-
 
 class Circuit {
 public:
@@ -51,7 +51,7 @@ private:
     Cell* get_cell(const std::string& cell_id) const;
 
     void register_01_wires(const std::string& output_flag); // register 1'b1 1'b0 wires
-    void read_wires(std::ifstream& fin, BusManager&, const std::string&);
+    void read_wires(std::ifstream& fin, const std::string&);
     void read_assigns(std::ifstream& fin);
     void read_cells(std::ifstream& fin);
     Cell* create_cell(const std::string&, const std::vector<PinSpec>&, const std::vector<Wire*>&, const std::vector<Wire*>&);
