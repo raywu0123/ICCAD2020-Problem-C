@@ -49,6 +49,7 @@ void Cell::create_wire_schedule(
             if (it != wire_map.end()) {
                 wire_schedule.push_back(it->second);
             } else {
+                // create cell wire
                 Wire* wire_ptr = new Wire();
                 wire_schedule.push_back(wire_ptr);
                 add_cell_wire(wire_ptr);

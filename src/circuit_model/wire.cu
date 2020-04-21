@@ -3,6 +3,23 @@
 
 using namespace std;
 
+Wire::Wire(const string& output_flag) {
+    if (output_flag == "SAIF") {
+        accumulator =  new SAIFAccumulator();
+    } else if (output_flag == "VCD") {
+        accumulator = new VCDAccumulator();
+    }
+}
+
+
+Wire::~Wire() {
+    delete accumulator;
+}
+
+Wire::Wire(const WireInfo& wire_info, const string& output_flag) : Wire(output_flag) {
+    wire_infos.push_back(wire_info);
+}
+
 // memory pattern
 //      0                   1   2   3  ...    C
 // 0   previous_transition t00 t01 t02 ... t0(c-1)
@@ -62,8 +79,11 @@ void Wire::free()  {
     data_ptr = nullptr;
 }
 
+void Wire::assign(const Wire& other_wire) {
+    wire_infos.insert(wire_infos.end(), other_wire.wire_infos.begin(), other_wire.wire_infos.end());
+}
 
-ConstantWire::ConstantWire(char value): value(value) {
+ConstantWire::ConstantWire(char value, const string& output_flag): Wire(output_flag), value(value) {
     alloc();
     Transition t{0, value};
     cudaMemcpy(data_ptr, &t, sizeof(Transition), cudaMemcpyHostToDevice);

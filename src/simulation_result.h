@@ -7,7 +7,7 @@
 #include "input_waveforms.h"
 #include "circuit_model/circuit.h"
 #include "simulator/data_structures.h"
-#include "accumulators.h"
+#include "circuit_model/accumulators.h"
 
 
 class SimulationResult {
@@ -32,8 +32,9 @@ public:
     void write(char* path) override;
 
 private:
-    std::vector<Transition*> merge_sort();
+    void merge_sort();
     std::vector<VCDAccumulator*> accumulators;
+    BusManager bus_manager;
 };
 
 class SAIFResult : public SimulationResult {

@@ -188,3 +188,9 @@ void InputWaveforms::push_back_stimuli_edge_indices() {
     }
     num_stimuli++;
 }
+
+void InputWaveforms::get_input_wires(const Circuit &circuit) {
+    for (auto& bucket : buckets) {
+        bucket.wire_ptr = circuit.get_wire(bucket.wirekey);
+    }
+}

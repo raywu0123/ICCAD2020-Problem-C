@@ -11,7 +11,7 @@ class Circuit:
     def __init__(self, gv_info, std_cell_info):
         self.std_cell_info = std_cell_info
 
-        self.buses = set()
+        self.buses = {}
         self.io_buckets = {
             'input': set(),
             'output': set(),
@@ -50,7 +50,7 @@ class Circuit:
     def register_wires(self, gv_info):
         for io in gv_info.io:
             if 'bitwidth' in io:
-                self.buses.add(io.id)
+                self.buses[io.id] = io.bitwidth
                 for index in range(min(io.bitwidth), max(io.bitwidth) + 1):
                     wire_key = self.make_wire_key(io.id, index)
                     self.register_wire(wire_key)

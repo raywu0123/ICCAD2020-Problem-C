@@ -13,13 +13,7 @@ void SimulationResult::write(char *path) {
 
 VCDResult::VCDResult(
     Circuit& circuit, vector<string>& scopes, pair<int, string>& timescale_pair
-): SimulationResult(circuit, scopes, timescale_pair) {
-    for (const auto& it : circuit.wires) {
-        const auto& accumulator = new VCDAccumulator();
-        it->accumulator = accumulator;
-        accumulators.push_back(accumulator);
-    }
-}
+): SimulationResult(circuit, scopes, timescale_pair) {}
 
 void VCDResult::write(char *path) {
     SimulationResult::write(path);
@@ -30,19 +24,17 @@ void VCDResult::write(char *path) {
     for (const auto& scope: scopes) {
         f_out << "$upscope" << endl;
     }
-    const auto& buffer = merge_sort();
+    merge_sort();
 }
 
-vector<Transition *> VCDResult::merge_sort() {
+void VCDResult::merge_sort() {
     vector<unsigned int> indices;
-    const auto num_wires = circuit.wires.size();
+    const auto num_wires = accumulators.size();
     unsigned int num_finished = 0;
     for (auto& acc: accumulators) {
         if (acc->transitions.empty()) num_finished++;
     }
     indices.resize(num_wires);
-
-    vector<Transition*> buffer;
     while (num_finished < num_wires) {
         unsigned int min_index;
         Timestamp min_timestamp = LONG_LONG_MAX;
@@ -54,22 +46,15 @@ vector<Transition *> VCDResult::merge_sort() {
                 min_index = i;
             }
         }
-        buffer.push_back(&(accumulators[min_index]->transitions[indices[min_index]]));
+        bus_manager.add_transition(min_index, accumulators[min_index]->transitions[indices[min_index]]);
         indices[min_index]++;
         if (indices[min_index] >= accumulators[min_index]->transitions.size()) num_finished++;
     }
-    return buffer;
 }
 
 SAIFResult::SAIFResult(
     Circuit& circuit, vector<string>& scopes, pair<int, string>& timescale_pair
-) : SimulationResult(circuit, scopes, timescale_pair) {
-    for (const auto& it : circuit.wires) {
-        const auto& accumulator = new SAIFAccumulator();
-        it->accumulator = accumulator;
-        accumulators.push_back(accumulator);
-    }
-}
+) : SimulationResult(circuit, scopes, timescale_pair) {}
 
 void SAIFResult::write(char *path) {
     SimulationResult::write(path);

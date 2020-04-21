@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 
+
 typedef std::pair<int, int> BitWidth;
 typedef std::pair<std::string, int> Wirekey;
 typedef long long int Timestamp;
@@ -32,14 +33,6 @@ struct Transition {
     char value;
     explicit Transition(): timestamp(0), value(0) {};
     Transition(Timestamp t, char v): timestamp(t), value(v) {};
-};
-
-struct Bucket {
-    Wirekey wirekey;
-    std::vector<Transition> transitions;
-    std::vector<unsigned int> stimuli_edge_indices{0};
-    Bucket(const std::string& wire_name, int bit_index): wirekey(Wirekey{wire_name, bit_index}) {};
-    explicit Bucket(Wirekey  wirekey): wirekey(std::move(wirekey)) {};
 };
 
 typedef void (*GateFnPtr)(

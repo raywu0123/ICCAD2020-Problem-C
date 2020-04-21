@@ -18,6 +18,7 @@ public:
     explicit InputWaveforms(char* path) { read(path); }
     void read(char*);
     void summary();
+    void get_input_wires(const Circuit& circuit);
 
     void ignore_header();
     void read_timescale();

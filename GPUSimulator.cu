@@ -25,6 +25,11 @@ bool arguments_valid(int argc, char* argv[1]) {
         print_usage();
         return false;
     }
+    string output_flag = string(argv[3]);
+    if (output_flag != "SAIF" and output_flag != "VCD") {
+        cerr << "The third argument should be either 'SAIF' or 'VCD'" << endl;
+        return false;
+    }
     return true;
 }
 
@@ -45,20 +50,27 @@ int main(int argc, char* argv[]) {
     module_registry.read_file(fin);
     module_registry.summary();
 
+    BusManager bus_manager;
     Circuit circuit(module_registry);
-    circuit.read_file(fin, input_waveforms.timescale);
-    circuit.register_input_wires(input_waveforms.buckets);
+    circuit.read_file(fin, input_waveforms.timescale, bus_manager, output_flag);
+    input_waveforms.get_input_wires(circuit);
     circuit.summary();
 
     SimulationResult* simulation_result;
     if (output_flag == "SAIF") {
-        simulation_result = new SAIFResult(circuit, input_waveforms.scopes, input_waveforms.timescale_pair);
+        simulation_result = new SAIFResult(
+            circuit,
+            input_waveforms.scopes,
+            input_waveforms.timescale_pair
+        );
     } else if (output_flag == "VCD") {
-        simulation_result = new VCDResult(circuit, input_waveforms.scopes, input_waveforms.timescale_pair);
-    } else {
-        cerr << "The third argument should be either 'SAIF' or 'VCD'" << endl;
-        return -1;
+        simulation_result = new VCDResult(
+            circuit,
+            input_waveforms.scopes,
+            input_waveforms.timescale_pair
+        );
     }
+
 
     MemoryManager::init();
     Simulator simulator(circuit, input_waveforms, simulation_result);

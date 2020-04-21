@@ -7,6 +7,7 @@
 
 class Accumulator {
 public:
+    virtual ~Accumulator() = default;
     virtual void update(Transition*, unsigned int, unsigned int) = 0;
 };
 
