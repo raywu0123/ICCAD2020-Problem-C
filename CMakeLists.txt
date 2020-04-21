@@ -19,5 +19,5 @@ target_link_libraries(GPUSimulator mylib)
 
 set(CMAKE_CUDA_FLAGS "-O0")
 
-add_subdirectory(tests)
 enable_testing()
+add_subdirectory(tests)
