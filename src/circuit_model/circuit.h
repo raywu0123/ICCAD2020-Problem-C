@@ -14,21 +14,26 @@
 class Bus {
 public:
     void init(const std::string&, const BitWidth&);
+    void update(const Transition& transition, int index);
 
-private:
-    std::string name;
     BitWidth bitwidth;
-    std::vector<char> state;
+    std::string name;
+    std::string state;
 };
 
 class BusManager {
 public:
 //    TODO
     void read(std::ifstream&);
-    std::string dumps_token_to_bus_map() const { return ""; };
-    void add_transition(const std::vector<WireInfo>&, const Transition&) {};
-    std::string dumps_result() const { return ""; };
+    std::string dumps_token_to_bus_map() const;
+    void add_transition(const std::vector<WireInfo>&, const Transition&);
+    std::string dumps_result();
+    static std::string index_to_identifier(unsigned int);
+
+private:
     std::vector<Bus> buses;
+    std::vector<std::string> index_to_identifier_map;
+    std::unordered_set<std::pair<Bus*, unsigned int>, pair_hash> used_buses_in_current_time;
 };
 
 class Circuit {

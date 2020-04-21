@@ -28,6 +28,8 @@ void VCDResult::write(char *path) {
     for (const auto& scope: scopes) {
         f_out << "$upscope" << endl;
     }
+    f_out << "$enddefinitions $end" << endl;
+    f_out << "$dumpvars" << endl;
 
     vector<pair<unsigned int, unsigned int>> buffer;
     vector<Timestamp> timestamps;
@@ -39,7 +41,6 @@ void VCDResult::write(char *path) {
     int buffer_index = 0;
     for (const auto& group : timestamp_groups) {
         const auto& timestamp = group.first;
-        f_out << "#" << timestamp << endl;
         const auto& num_transitions = group.second;
         for (int i = 0; i < num_transitions; i++) {
             const auto& wire_index = buffer[buffer_index].first;
@@ -47,11 +48,14 @@ void VCDResult::write(char *path) {
             const auto* accumulator = (VCDAccumulator*) wires[wire_index]->accumulator;
             const auto& transition = accumulator->transitions[transition_index];
             const auto& wire_infos = wires[wire_index]->wire_infos;
+
             bus_manager.add_transition(wire_infos, transition);
             buffer_index++;
         }
+        f_out << "#" << timestamp << endl;
         f_out << bus_manager.dumps_result();
     }
+    f_out.close();
 }
 
 void VCDResult::merge_sort(vector<pair<unsigned int, unsigned int>>& buffer, vector<Timestamp>& timestamps) {

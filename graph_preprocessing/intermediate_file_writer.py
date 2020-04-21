@@ -48,12 +48,12 @@ class IntermediateFileWriter:
 
     def write_circuit(self, circuit: Circuit, design_name: str):
         self.print(design_name)
-        self.print(len(circuit.buses))
-        bus_to_index = {
-            bus: idx for idx, bus in enumerate(circuit.buses)
+        identifier_to_index = {
+            identifier: idx for idx, identifier in enumerate(circuit.identifiers)
         }
-        for bus, bitwidth in circuit.buses.items():
-            self.print(f'{bus_to_index[bus]} {bus} {bitwidth[0]} {bitwidth[1]}')
+        self.print(len(circuit.identifiers))
+        for identifier, bitwidth in circuit.identifiers.items():
+            self.print(f'{identifier_to_index[identifier]} {identifier} {bitwidth[0]} {bitwidth[1]}')
 
         all_wirekeys = list(chain(*circuit.io_buckets.values()))  # not including constant wires
         wirekey_to_index = {
@@ -65,7 +65,7 @@ class IntermediateFileWriter:
         }
         self.print(len(all_wirekeys))
         for wirekey in all_wirekeys:
-            bus_index = bus_to_index[wirekey[0]] if wirekey[0] in bus_to_index else -1
+            bus_index = identifier_to_index[wirekey[0]]
             self.print(f'{wirekey_to_index[wirekey]} {wirekey[0]} {wirekey[1]} {bus_index}')
 
         self.print(len(circuit.assigns))

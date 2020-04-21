@@ -11,7 +11,6 @@ class Circuit:
     def __init__(self, gv_info, std_cell_info):
         self.std_cell_info = std_cell_info
 
-        self.buses = {}
         self.io_buckets = {
             'input': set(),
             'output': set(),
@@ -26,7 +25,7 @@ class Circuit:
             ("1'b0", SINGLE_BIT_INDEX): [],
         }
 
-        self.register_wires(gv_info)
+        self.buses, self.identifiers = self.register_wires(gv_info)
         self.cells, self.cell_id_to_cell = self.register_cells(gv_info)
         self.assigns = self.register_assigns(gv_info)
 
@@ -48,18 +47,23 @@ class Circuit:
         print(f"Num cells in schedule layers: {len(all_cells_in_schedule_layers)}")
 
     def register_wires(self, gv_info):
+        buses = {}
+        identifiers = {}
         for io in gv_info.io:
             if 'bitwidth' in io:
-                self.buses[io.id] = io.bitwidth
+                buses[io.id] = io.bitwidth
+                identifiers[io.id] = io.bitwidth
                 for index in range(min(io.bitwidth), max(io.bitwidth) + 1):
                     wire_key = self.make_wire_key(io.id, index)
                     self.register_wire(wire_key)
                     self.io_buckets[io.type].add(wire_key)
             else:
                 for idd in io.ids:
+                    identifiers[idd] = (0, 0)
                     wire_key = self.make_wire_key(idd, SINGLE_BIT_INDEX)
                     self.register_wire(wire_key)
                     self.io_buckets[io.type].add(wire_key)
+        return buses, identifiers
 
     @staticmethod
     def make_wire_key(wire_name: str, bit_index: BIT_INDEX_TYPE) -> Tuple[str, BIT_INDEX_TYPE]:
