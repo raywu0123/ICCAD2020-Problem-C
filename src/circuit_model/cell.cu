@@ -16,8 +16,38 @@ Cell::Cell(
 {
     alloc_wires_size = alloc_wires.size();
     free_wires_size = free_wires.size();
-    const auto& wire_map = build_wire_map(declare, pin_specs, supply1_wire, supply0_wire);
-    create_wire_schedule(submodule_specs, wire_map);
+    build_wire_map(declare, pin_specs, supply1_wire, supply0_wire);
+    create_wire_schedule(submodule_specs);
+}
+
+void Cell::set_paths(const vector<SDFPath>& ps) {
+    vector<char> edge_types;
+    vector<unsigned int> pin_indices;
+    vector<int> rising_delays, falling_delays;
+
+    for (const auto& path : ps) {
+        const auto& it = wire_map.find(path.in);
+        if (it == wire_map.end()) throw runtime_error("Pin " + path.in + " not found.");
+        edge_types.push_back(path.edge_type);
+        pin_indices.push_back(it->second.second);
+        rising_delays.push_back(path.rising_delay);
+        falling_delays.push_back(path.falling_delay);
+    }
+
+    SDFSpec host_sdf_spec{};
+    auto num_rows = ps.size();
+    host_sdf_spec.num_rows = num_rows;
+    cudaMalloc((void**) &host_sdf_spec.edge_type, sizeof(char) * num_rows);
+    cudaMalloc((void**) &host_sdf_spec.pin_index, sizeof(int) * num_rows);
+    cudaMalloc((void**) &host_sdf_spec.rising_delay, sizeof(int) * num_rows);
+    cudaMalloc((void**) &host_sdf_spec.falling_delay, sizeof(int) * num_rows);
+    cudaMemcpy(host_sdf_spec.edge_type, edge_types.data(), sizeof(char) * num_rows, cudaMemcpyHostToDevice);
+    cudaMemcpy(host_sdf_spec.pin_index, pin_indices.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
+    cudaMemcpy(host_sdf_spec.rising_delay, rising_delays.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
+    cudaMemcpy(host_sdf_spec.falling_delay, falling_delays.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
+
+    cudaMalloc((void**) &sdf_spec, sizeof(SDFSpec));
+    cudaMemcpy(sdf_spec, &host_sdf_spec, sizeof(SDFSpec), cudaMemcpyHostToDevice);
 }
 
 Cell::~Cell() {
@@ -26,32 +56,34 @@ Cell::~Cell() {
     }
 }
 
-unordered_map<string, Wire *> Cell::build_wire_map(
+void Cell::build_wire_map(
     const StdCellDeclare* declare,
     const vector<PinSpec> &pin_specs,
-    Wire *supply1_wire, Wire *supply0_wire)
+    Wire *supply1_wire, Wire *supply0_wire
+)
 {
-    unordered_map<string, Wire*> wire_map;
-    for (const auto& pin_spec: pin_specs) wire_map[pin_spec.name] = pin_spec.wire;
-    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY1]) wire_map[arg] = supply1_wire;
-    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY0]) wire_map[arg] = supply0_wire;
-    return wire_map;
+    if (not wire_map.empty()) throw runtime_error("wire_map not empty.");
+
+    for (const auto& pin_spec: pin_specs) wire_map[pin_spec.name] = make_pair(pin_spec.wire, wire_map.size());
+    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY1]) wire_map[arg] = make_pair(supply1_wire, wire_map.size());
+    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY0]) wire_map[arg] = make_pair(supply0_wire, wire_map.size());
 }
 
 
 void Cell::create_wire_schedule(
-    const vector<SubmoduleSpec>* submodule_specs,
-    const unordered_map<string, Wire*>& wire_map
+    const vector<SubmoduleSpec>* submodule_specs
 )  {
     for(const auto& submodule_spec: *submodule_specs) {
         for (const auto& arg: submodule_spec.args) {
             const auto& it = wire_map.find(arg);
             if (it != wire_map.end()) {
-                wire_schedule.push_back(it->second);
+                wire_schedule.push_back(it->second.first);
+                wire_schedule_indices.push_back(it->second.second);
             } else {
                 // create cell wire
                 Wire* wire_ptr = new Wire();
                 wire_schedule.push_back(wire_ptr);
+                wire_schedule_indices.push_back(-1);
                 add_cell_wire(wire_ptr);
             }
         }
@@ -72,6 +104,8 @@ void Cell::prepare_resource(ResourceBuffer& resource_buffer)  {
         wire_ptr->alloc();
     }
     resource_buffer.module_specs.push_back(module_spec);
+    resource_buffer.sdf_specs.push_back(sdf_spec);
+
     resource_buffer.data_schedule_offsets.push_back(resource_buffer.data_schedule_offsets.size());
     for (const auto& wire : wire_schedule) {
         resource_buffer.data_schedule.push_back(wire->data_ptr);

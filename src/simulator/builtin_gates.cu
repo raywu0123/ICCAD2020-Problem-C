@@ -104,29 +104,47 @@ __host__ __device__ void merge_sort_algorithm(
     auto* indices = new unsigned int[num_inputs + 1];
     indices[0] = 1;     // output index starts from 1
     for (int i = 1; i < num_inputs + 1; i++) indices[i] = 0;
+
     while (num_finished < num_inputs) {
-        unsigned min_i_input;
         Timestamp min_timestamp = LONG_LONG_MAX;
+        unsigned int num_advancing_outputs = 0;
+
+        // find min timestamp
         for (int i = 1; i < num_inputs + 1; i++) {
             if (indices[i] + 1 >= capacities[i]) continue;     // out of bound
             if (data[i][indices[i] + 1].value == 0) continue;  // is padding
 
             const auto& transition = data[i][indices[i] + 1];
-            if (transition.timestamp < min_timestamp) {
-                min_timestamp = transition.timestamp;
-                min_i_input = i;
+            if (transition.timestamp < min_timestamp) min_timestamp = transition.timestamp;
+        }
+
+        // find advancing inputs
+        for (int i = 1; i < num_inputs + 1; i++) {
+            if (indices[i] + 1 >= capacities[i]) continue;     // out of bound
+            if (data[i][indices[i] + 1].value == 0) continue;  // is padding
+
+            const auto& transition = data[i][indices[i] + 1];
+            if (transition.timestamp == min_timestamp) {
+                num_advancing_outputs++;
+                indices[i]++;
+                if (indices[i] >= capacities[i] - 1 or data[i][indices[i] + 1].value == 0) num_finished++;
             }
         }
-        indices[min_i_input]++;
-
-        data[0][indices[0]].timestamp = data[min_i_input][indices[min_i_input]].timestamp;
-        data[0][indices[0]].value = logic_fn(data, num_inputs, indices, table, table_row_num);
-        indices[0]++;
-        if (indices[0] >= capacities[0]) break; // TODO handle overflow
-        if (indices[min_i_input] >= capacities[min_i_input] - 1 or
-            data[min_i_input][indices[min_i_input] + 1].value == 0
-        ) num_finished++;
+        const char& output_value = logic_fn(data, num_inputs, indices, table, table_row_num);
+        bool overflow = false;
+        for (int i = 0; i < num_advancing_outputs; i++) {
+            data[0][indices[0]].timestamp = min_timestamp;
+            data[0][indices[0]].value = output_value;
+            indices[0]++;
+            if (indices[0] >= capacities[0]) {
+                overflow = true;
+//                TODO
+                break;
+            }
+        }
+        if (overflow) break;
     }
+
     delete[] indices;
 }
 __host__ __device__ void single_input_algorithm(

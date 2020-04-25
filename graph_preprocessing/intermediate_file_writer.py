@@ -98,8 +98,9 @@ class IntermediateFileWriter:
                 assert len(path) == 3 or len(path) == 4  # (in out delay) or (posedge in out delay)
                 if len(path) == 4:
                     assert path[0] == 'posedge' or path[0] == 'negedge'
-                    sign = '+' if path[0] == 'posedge' else '-'
-                    path = [f'{sign}{path[1]}', path[2], path[3]]
+                    path[0] = '+' if path[0] == 'posedge' else '-'
+                else:
+                    path.insert(0, 'x')
 
                 rising_delay = path[-1][0]
                 if len(path[-1]) < 4:

@@ -22,6 +22,13 @@ struct SubmoduleSpec {
     std::vector<std::string> args;
 };
 
+struct SDFSpec {
+    unsigned int num_rows;
+    int* pin_index;
+    char* edge_type;
+    int *rising_delay, *falling_delay;
+};
+
 struct TokenInfo {
     std::string wire_name;
     BitWidth bitwidth;
@@ -63,12 +70,14 @@ struct BatchResource {
 
 struct ResourceBuffer {
     std::vector<const ModuleSpec*> module_specs;
+    std::vector<const SDFSpec*> sdf_specs;
     std::vector<const Transition*> data_schedule;
     std::vector<unsigned int> data_schedule_offsets;
     std::vector<unsigned int> capacities;
 
     void clear() {
         module_specs.clear();
+        sdf_specs.clear();
         data_schedule.clear();
         data_schedule_offsets.clear();
         capacities.clear();
