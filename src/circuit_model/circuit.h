@@ -63,7 +63,6 @@ private:
 
     void read_schedules(std::ifstream& fin);
     void read_sdf(std::ifstream& fin, double input_timescale) const;
-    void bind_sdf_to_cell(const std::string&, const std::vector<SDFPath>&) const;
 
     std::unordered_map<Wirekey, unsigned int, pair_hash> wirekey_to_index;
     std::unordered_map<std::string, Cell*> cells;

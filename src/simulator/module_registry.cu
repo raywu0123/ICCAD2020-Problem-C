@@ -219,6 +219,7 @@ void ModuleRegistry::register_module(
     ModuleSpec device_module_spec_{};
     device_module_spec_.schedule_size = schedule_size;
     device_module_spec_.num_module_input = declares.buckets[0].size();
+    device_module_spec_.num_module_output = declares.buckets[1].size();
     device_module_spec_.data_schedule_size = data_schedule_indices.size();
     cudaMalloc((void**) &device_module_spec_.data_schedule_indices, sizeof(unsigned int) * data_schedule_indices.size());
     cudaMemcpy(device_module_spec_.data_schedule_indices, data_schedule_indices.data(), sizeof(unsigned int) * data_schedule_indices.size(), cudaMemcpyHostToDevice);

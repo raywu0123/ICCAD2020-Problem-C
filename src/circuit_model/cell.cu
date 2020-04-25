@@ -22,11 +22,12 @@ Cell::Cell(
 
 void Cell::set_paths(const vector<SDFPath>& ps) {
     vector<char> edge_types;
-    vector<unsigned int> pin_indices;
+    vector<unsigned int> input_indices, output_indices;
     vector<int> rising_delays, falling_delays;
 
     for (const auto& path : ps) {
-        pin_indices.push_back(path.in);
+        input_indices.push_back(path.in);
+        output_indices.push_back(path.out);
         edge_types.push_back(path.edge_type);
         rising_delays.push_back(path.rising_delay);
         falling_delays.push_back(path.falling_delay);
@@ -36,11 +37,13 @@ void Cell::set_paths(const vector<SDFPath>& ps) {
     auto num_rows = ps.size();
     host_sdf_spec.num_rows = num_rows;
     cudaMalloc((void**) &host_sdf_spec.edge_type, sizeof(char) * num_rows);
-    cudaMalloc((void**) &host_sdf_spec.pin_index, sizeof(int) * num_rows);
+    cudaMalloc((void**) &host_sdf_spec.input_index, sizeof(int) * num_rows);
+    cudaMalloc((void**) &host_sdf_spec.output_index, sizeof(int) * num_rows);
     cudaMalloc((void**) &host_sdf_spec.rising_delay, sizeof(int) * num_rows);
     cudaMalloc((void**) &host_sdf_spec.falling_delay, sizeof(int) * num_rows);
     cudaMemcpy(host_sdf_spec.edge_type, edge_types.data(), sizeof(char) * num_rows, cudaMemcpyHostToDevice);
-    cudaMemcpy(host_sdf_spec.pin_index, pin_indices.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
+    cudaMemcpy(host_sdf_spec.input_index, input_indices.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
+    cudaMemcpy(host_sdf_spec.output_index, output_indices.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
     cudaMemcpy(host_sdf_spec.rising_delay, rising_delays.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
     cudaMemcpy(host_sdf_spec.falling_delay, falling_delays.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
 

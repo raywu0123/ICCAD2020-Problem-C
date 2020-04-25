@@ -274,12 +274,8 @@ void Circuit::read_sdf(ifstream &fin, double input_timescale) const {
             path.falling_delay = (int)(sdf_falling_delay * sdf_timescale / input_timescale);
             paths.push_back(path);
         }
-        bind_sdf_to_cell(name, paths);
+        get_cell(name)->set_paths(paths);
     }
-}
-
-void Circuit::bind_sdf_to_cell(const string& name, const vector<SDFPath>& paths) const {
-    get_cell(name)->set_paths(paths);
 }
 
 void Bus::init(const string& name_param, const BitWidth& bitwidth_param) {
