@@ -6,15 +6,16 @@
 #include "simulator/module_registry.h"
 
 struct SDFPath {
-    std::string in, out;
+    unsigned int in, out;
+    char edge_type;
     int rising_delay, falling_delay;
 };
 
 struct PinSpec {
-    std::string name;
+    unsigned int index{};
     Wire* wire{};
     PinSpec() = default;
-    PinSpec(std::string name, Wire* wire): name(std::move(name)), wire(wire) {};
+    PinSpec(unsigned int index, Wire* wire): index(index), wire(wire) {};
 };
 
 class Cell {
@@ -32,27 +33,27 @@ public:
     void prepare_resource(ResourceBuffer&);
     void free_resource();
 
-    void set_paths(const std::vector<SDFPath>& ps) { paths = ps; };
+    void set_paths(const std::vector<SDFPath>& ps);
 
 private:
-    static std::unordered_map<std::string, Wire*> build_wire_map(
+    void build_wire_map(
         const StdCellDeclare* declare, const std::vector<PinSpec>& pin_specs,
         Wire* supply1_wire, Wire* supply0_wire
     );
     void add_cell_wire(Wire* wire_ptr);
     void create_wire_schedule(
-        const std::vector<SubmoduleSpec>* submodule_specs,
-        const std::unordered_map<std::string, Wire*>&  wire_map
+        const std::vector<SubmoduleSpec>* submodule_specs
     );
 
     const ModuleSpec* module_spec;
     std::vector<const Wire*> wire_schedule;
+    std::unordered_map<unsigned int, Wire*> wire_map;
 
     std::vector<Wire*> cell_wires;
     std::vector<Wire*> alloc_wires, free_wires;
     unsigned alloc_wires_size, free_wires_size;
 
-    std::vector<SDFPath> paths;
+    SDFSpec* sdf_spec = nullptr;
 };
 
 #endif

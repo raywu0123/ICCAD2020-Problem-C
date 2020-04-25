@@ -9,7 +9,6 @@ using namespace std;
 struct TestPair {
     GateFnPtr gate_fn;
     vector<Transition> expected_output;
-    int output_capacity;
 };
 
 class BuiltinGateTestFixture: public ::testing::TestWithParam<TestPair>
@@ -26,7 +25,7 @@ TEST_P(BuiltinGateTestFixture, SimpleCases) {
     auto test_pair = GetParam();
     auto gate_fn = test_pair.gate_fn;
     auto expected_output = test_pair.expected_output;
-    auto output_capacity = test_pair.output_capacity;
+    auto output_capacity = expected_output.size();
 
     vector<Transition> output;
     output.resize(output_capacity);
@@ -61,53 +60,44 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         TestPair{
             and_gate_fn,
-            vector<Transition>{ Transition{0, 0}, Transition{1, '0'}, Transition{2, '0'}, Transition{2, 'x'} },
-            4
+            vector<Transition>{ Transition{0, 0}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'} }
         },
         TestPair{
             or_gate_fn,
-            vector<Transition>{ Transition{0, 0}, Transition{1, '1'}, Transition{2, '1'}, Transition{2, '1'} },
-            4
+            vector<Transition>{ Transition{0, 0}, Transition{1, '1'}, Transition{2, '1'}, Transition{2, '1'} }
         },
         TestPair{
             xor_gate_fn,
-            vector<Transition>{ Transition{0, 0}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'} },
-            4
+            vector<Transition>{ Transition{0, 0}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'} }
         },
         TestPair{
             nand_gate_fn,
-            vector<Transition>{ Transition{0, 0}, Transition{1, '1'}, Transition{2, '1'}, Transition{2, 'x'} },
-            4
+            vector<Transition>{ Transition{0, 0}, Transition{1, '1'}, Transition{2, 'x'}, Transition{2, 'x'} }
         },
         TestPair{
             nor_gate_fn,
-            vector<Transition>{ Transition{0, 0}, Transition{1, '0'}, Transition{2, '0'}, Transition{2, '0'} },
-            4
+            vector<Transition>{ Transition{0, 0}, Transition{1, '0'}, Transition{2, '0'}, Transition{2, '0'} }
         },
         TestPair{
             xnor_gate_fn,
-            vector<Transition>{ Transition{0, 0}, Transition{1, '1'}, Transition{2, 'x'}, Transition{2, 'x'} },
-            4
+            vector<Transition>{ Transition{0, 0}, Transition{1, '1'}, Transition{2, 'x'}, Transition{2, 'x'} }
         },
         TestPair{
             not_gate_fn,
-            vector<Transition>{ Transition{0, 0}, Transition{1, '0'}, Transition{2, 'x'}, Transition{3, 'x'} },
-            4
+            vector<Transition>{ Transition{0, 0}, Transition{1, '0'}, Transition{2, 'x'}, Transition{3, 'x'} }
         },
         TestPair{
             buf_gate_fn,
-            vector<Transition>{ Transition{0, 0}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, 'x'} },
-            4
+            vector<Transition>{ Transition{0, 0}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, 'x'} }
         },
         // capacity larger than needed
         TestPair{
             and_gate_fn,
             vector<Transition>{
-                Transition{0, 0}, Transition{1, '0'}, Transition{2, '0'}, Transition{2, 'x'},
+                Transition{0, 0}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'},
                 Transition{3, 'x'}, Transition{3, 'x'}, Transition{4, 'x'}, Transition{5, '0'},
                 Transition{6, 'x'}, Transition{7, 'x'}, Transition{0, 0}, Transition{0, 0}
-            },
-            12
+            }
         }
     )
 );
@@ -122,9 +112,9 @@ class PrimitiveGateTestFixture: public ::testing::TestWithParam<PrimitiveTestPai
 {
 protected:
     vector<vector<Transition>> inputs {
-            { Transition{0, '0'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, 'z'} },
-            { Transition{0, '0'}, Transition{2, '1'}, Transition{3, '1'}, Transition{4, '1'} },
-            { Transition{0, '1'}, Transition{5, '0'}, Transition{6, 'z'}, Transition{7, 'x'} }
+        { Transition{0, '0'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, 'z'} },
+        { Transition{0, '0'}, Transition{2, '1'}, Transition{3, '1'}, Transition{4, '1'} },
+        { Transition{0, '1'}, Transition{5, '0'}, Transition{6, 'z'}, Transition{7, 'x'} }
     };
 };
 
@@ -172,7 +162,7 @@ INSTANTIATE_TEST_SUITE_P(
         PrimitiveTestPair{
             vector<string>{"1?01", "0?00", "?111", "?010", "00x0", "11x1"},
             vector<Transition>{
-                Transition{0, 0  }, Transition{1, '0'}, Transition{2, '0'}, Transition{2, '1'},
+                Transition{0,  0 }, Transition{1, '0'}, Transition{2, '1'}, Transition{2, '1'},
                 Transition{3, '1'}, Transition{3, '1'}, Transition{4, '1'}, Transition{5, 'x'}
             }
         }

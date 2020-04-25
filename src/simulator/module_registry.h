@@ -8,7 +8,7 @@
 #include "data_structures.h"
 
 struct StdCellDeclare {
-    std::vector<std::vector<std::string>> buckets{5};
+    std::vector<std::vector<unsigned int>> buckets{5};
 };
 
 struct Table {

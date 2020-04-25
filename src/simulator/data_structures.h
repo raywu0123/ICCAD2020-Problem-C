@@ -19,7 +19,14 @@ struct pair_hash {
 struct SubmoduleSpec {
     std::string name;
     std::string type;
-    std::vector<std::string> args;
+    std::vector<unsigned int> args;
+};
+
+struct SDFSpec {
+    unsigned int num_rows;
+    unsigned int *input_index, *output_index;
+    char* edge_type;
+    int *rising_delay, *falling_delay;
 };
 
 struct TokenInfo {
@@ -46,15 +53,19 @@ typedef void (*GateFnPtr)(
 typedef char (*LogicFn)(Transition**, unsigned int, const unsigned int*, char* table, unsigned int table_row_num);
 struct ModuleSpec{
     GateFnPtr* gate_schedule;
-    unsigned int schedule_size;
+    unsigned int schedule_size; // number of gates
+    unsigned int data_schedule_size = 0;  // number of wires in the whole schedule
+    unsigned int* data_schedule_indices;
+    unsigned int num_module_input, num_module_output;
     char** tables;
     unsigned int* table_row_num;
     unsigned int* num_inputs;  // how many inputs for every gate
-    unsigned int* num_outputs;  // how many outputs for every gate
+    unsigned int* num_outputs;  // how many outputs for every gate, currently assume its always 1
 };
 
 struct BatchResource {
     const ModuleSpec** module_specs;
+    const SDFSpec** sdf_specs;
     Transition** data_schedule;
     unsigned int* capacities;
     unsigned int* data_schedule_offsets; // offsets to each module
@@ -63,12 +74,14 @@ struct BatchResource {
 
 struct ResourceBuffer {
     std::vector<const ModuleSpec*> module_specs;
+    std::vector<const SDFSpec*> sdf_specs;
     std::vector<const Transition*> data_schedule;
     std::vector<unsigned int> data_schedule_offsets;
     std::vector<unsigned int> capacities;
 
     void clear() {
         module_specs.clear();
+        sdf_specs.clear();
         data_schedule.clear();
         data_schedule_offsets.clear();
         capacities.clear();

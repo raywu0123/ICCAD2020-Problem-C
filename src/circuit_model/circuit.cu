@@ -8,6 +8,51 @@ using namespace std;
 
 extern double get_timescale(int, const string&);
 
+string BusManager::index_to_identifier(unsigned int index) {
+//    TODO more similar to sample output format
+    stringstream ss;
+    ss << hex << index;
+    return ss.str();
+}
+
+std::string BusManager::dumps_token_to_bus_map() const {
+    stringstream ss;
+    for (unsigned int bus_index = 0; bus_index < buses.size(); bus_index++) {
+        const auto& bus = buses[bus_index];
+        const auto& identifier = index_to_identifier_map[bus_index];
+        unsigned int bits = abs(bus.bitwidth.first - bus.bitwidth.second) + 1;
+        ss << "$var wire " << bits << " " << identifier << " " << bus.name;
+        if (bus.bitwidth != make_pair(0, 0)) {
+            ss << " [" << bus.bitwidth.first << ":" << bus.bitwidth.second << "]";
+        }
+        ss << " $end" << endl;
+    }
+    return ss.str();
+}
+
+void BusManager::add_transition(const vector<WireInfo>& wire_infos, const Transition& transition) {
+    for (const auto& wire_info: wire_infos) {
+        auto& bus = buses[wire_info.bus_index];
+        bus.update(transition, wire_info.wirekey.second);
+        used_buses_in_current_time.emplace(&bus, wire_info.bus_index);
+    }
+}
+
+std::string BusManager::dumps_result() {
+    stringstream ss;
+    for (const auto& p : used_buses_in_current_time) {
+        const auto* bus = p.first;
+        const auto& bus_index = p.second;
+        const auto& bus_identifier = index_to_identifier_map[bus_index];
+        if (bus->bitwidth.first == bus->bitwidth.second) {
+            ss << bus->state << bus_identifier << endl;
+        } else {
+            ss << "b" << bus->state << " " << bus_identifier << endl;
+        }
+    }
+    used_buses_in_current_time.clear();
+    return ss.str();
+}
 
 Circuit::Circuit(const ModuleRegistry &module_registry): module_registry(module_registry) {}
 
@@ -94,52 +139,6 @@ void BusManager::read(ifstream& fin) {
     }
 }
 
-string BusManager::index_to_identifier(unsigned int index) {
-//    TODO more similar to sample output format
-    stringstream ss;
-    ss << hex << index;
-    return ss.str();
-}
-
-std::string BusManager::dumps_token_to_bus_map() const {
-    stringstream ss;
-    for (unsigned int bus_index = 0; bus_index < buses.size(); bus_index++) {
-        const auto& bus = buses[bus_index];
-        const auto& identifier = index_to_identifier_map[bus_index];
-        unsigned int bits = abs(bus.bitwidth.first - bus.bitwidth.second) + 1;
-        ss << "$var wire " << bits << " " << identifier << " " << bus.name;
-        if (bus.bitwidth != make_pair(0, 0)) {
-            ss << " [" << bus.bitwidth.first << ":" << bus.bitwidth.second << "]";
-        }
-        ss << " $end" << endl;
-    }
-    return ss.str();
-}
-
-void BusManager::add_transition(const vector<WireInfo>& wire_infos, const Transition& transition) {
-    for (const auto& wire_info: wire_infos) {
-        auto& bus = buses[wire_info.bus_index];
-        bus.update(transition, wire_info.wirekey.second);
-        used_buses_in_current_time.emplace(&bus, wire_info.bus_index);
-    }
-}
-
-std::string BusManager::dumps_result() {
-    stringstream ss;
-    for (const auto& p : used_buses_in_current_time) {
-        const auto* bus = p.first;
-        const auto& bus_index = p.second;
-        const auto& bus_identifier = index_to_identifier_map[bus_index];
-        if (bus->bitwidth.first == bus->bitwidth.second) {
-            ss << bus->state << bus_identifier << endl;
-        } else {
-            ss << "b" << bus->state << " " << bus_identifier << endl;
-        }
-    }
-    used_buses_in_current_time.clear();
-    return ss.str();
-}
-
 void Circuit::read_wires(ifstream& fin, const string& output_flag) {
     unsigned int num_wires;
     fin >> num_wires;
@@ -184,7 +183,7 @@ void Circuit::read_cells(ifstream& fin) {
             char c;
             unsigned int wire_index;
             PinSpec pin_spec;
-            fin >> pin_spec.name >> c >> wire_index;
+            fin >> pin_spec.index >> c >> wire_index;
             pin_spec.wire = get_wire(wire_index);
             args.push_back(pin_spec);
         }
@@ -266,20 +265,17 @@ void Circuit::read_sdf(ifstream &fin, double input_timescale) const {
         vector<SDFPath> paths;
         paths.reserve(num_paths);
         for(int i_path = 0; i_path < num_paths; i_path++) {
-            SDFPath path;
+            SDFPath path{};
             double sdf_rising_delay, sdf_falling_delay;
-            fin >> path.in >> path.out >> sdf_rising_delay >> sdf_falling_delay;
+            fin >> path.edge_type >> path.in >> path.out >> sdf_rising_delay >> sdf_falling_delay;
 
+            // convert to VCD specified time unit
             path.rising_delay = (int)(sdf_rising_delay * sdf_timescale / input_timescale);
             path.falling_delay = (int)(sdf_falling_delay * sdf_timescale / input_timescale);
             paths.push_back(path);
         }
-        bind_sdf_to_cell(name, paths);
+        get_cell(name)->set_paths(paths);
     }
-}
-
-void Circuit::bind_sdf_to_cell(const string& name, const vector<SDFPath>& paths) const {
-    get_cell(name)->set_paths(paths);
 }
 
 void Bus::init(const string& name_param, const BitWidth& bitwidth_param) {
