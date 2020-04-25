@@ -27,6 +27,7 @@ void Cell::set_paths(const vector<SDFPath>& ps) {
 
     for (const auto& path : ps) {
         pin_indices.push_back(path.in);
+        edge_types.push_back(path.edge_type);
         rising_delays.push_back(path.rising_delay);
         falling_delays.push_back(path.falling_delay);
     }

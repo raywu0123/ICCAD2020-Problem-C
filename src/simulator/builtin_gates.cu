@@ -104,7 +104,7 @@ __host__ __device__ void merge_sort_algorithm(
     auto* indices = new unsigned int[num_inputs + 1];
     indices[0] = 1;     // output index starts from 1
     for (int i = 1; i < num_inputs + 1; i++) indices[i] = 0;
-
+// TODO shorter implementation
     while (num_finished < num_inputs) {
         Timestamp min_timestamp = LONG_LONG_MAX;
         unsigned int num_advancing_outputs = 0;

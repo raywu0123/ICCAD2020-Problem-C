@@ -3,6 +3,89 @@
 
 using namespace std;
 
+extern __host__ __device__ int lookup_delay(
+    Transition* wire_data,
+    unsigned int wire_index,
+    unsigned int transition_index,
+    const SDFSpec* sdf_spec
+) {
+    char edge_type;
+    if (wire_data[transition_index].value == '1' or wire_data[transition_index - 1].value == '0') {
+        edge_type = '+';
+    } else if (wire_data[transition_index].value == '0' or wire_data[transition_index - 1].value == '1') {
+        edge_type = '-';
+    } else {
+        edge_type = 'x';
+    }
+    int delay = 0;
+    for (int i_row = 0; i_row < sdf_spec->num_rows; i_row++) {
+        if (sdf_spec->pin_index[i_row] == wire_index) {
+            if (sdf_spec->edge_type[i_row] == 'x' or sdf_spec->edge_type[i_row] == edge_type) {
+//                TODO assuming rising_delay == falling_delay
+                delay += sdf_spec->rising_delay[i_row];
+            }
+        }
+    }
+    return delay;
+}
+
+extern __host__ __device__ void compute_delay(
+    Transition** data,
+    unsigned int data_schedule_size,
+    unsigned int* capacities,
+    unsigned int* data_schedule_indices,
+    unsigned int num_inputs,
+    const SDFSpec* sdf_spec
+) {
+    int output_index;
+    for (int i = 0; i < data_schedule_size; i++) {
+        if (data_schedule_indices[i] == num_inputs) {
+            output_index = i;
+            break;
+        }
+    }
+    printf("output_index: %d\n", output_index);
+    auto indices = new unsigned int[data_schedule_size];
+    unsigned int num_finished = 0;
+    for (int i = 0; i < data_schedule_size; i++) {
+        if (   data_schedule_indices[i] >= num_inputs
+            or data[i][1].value == 0
+            or capacities[i] == 0) num_finished++;
+        indices[i] = 0;
+    }
+    indices[output_index] = 1;
+
+    while(num_finished < data_schedule_size) {
+        Timestamp min_timestamp = LONG_LONG_MAX;
+        unsigned int min_index;
+        // find min timestamp
+        for (int i = 0; i < data_schedule_size; i++) {
+            if (data_schedule_indices[i] >= num_inputs) continue; // not an input wire
+            if (indices[i] + 1 >= capacities[i]) continue;     // out of bound
+            if (data[i][indices[i] + 1].value == 0) continue;  // is padding
+
+            const auto& transition = data[i][indices[i] + 1];
+            if (transition.timestamp < min_timestamp) {
+                min_timestamp = transition.timestamp;
+                min_index = i;
+            }
+        }
+        indices[min_index]++;
+        data[output_index][indices[output_index]].timestamp += lookup_delay(
+            data[min_index],
+            data_schedule_indices[min_index],
+            indices[min_index],
+            sdf_spec
+        );
+        if (   indices[min_index] >= capacities[min_index] - 1
+            or data[min_index][indices[min_index] + 1].value == 0) {
+            num_finished++;
+        }
+        indices[output_index]++;
+        if (indices[output_index] >= capacities[output_index]) break;
+    }
+}
+
 __device__ void simulate_gate_on_multiple_stimuli(
     GateFnPtr gate_fn_ptr,
     Transition** data,  //(n_stimuli * capacities[i_wire], num_inputs + num_outputs)
@@ -17,6 +100,29 @@ __device__ void simulate_gate_on_multiple_stimuli(
         stimuli_data[i] = data[i] + capacities[i] * stimuli_idx;
     }
     gate_fn_ptr(stimuli_data, capacities, table, table_row_num, num_inputs, num_outputs);
+    delete[] stimuli_data;
+}
+
+__device__ void compute_delay_on_multiple_stimuli(
+    Transition** data_schedule,
+    unsigned int* capacities,
+    const ModuleSpec* module_spec,
+    const SDFSpec* sdf_spec
+) {
+    unsigned int stimuli_idx = threadIdx.x;
+    const auto& data_schedule_size = module_spec->data_schedule_size;
+    auto** stimuli_data = new Transition*[data_schedule_size]; // (capacities[i], num_inputs + num_outputs)
+    for (int i = 0; i < data_schedule_size; i++) {
+        stimuli_data[i] = data_schedule[i] + capacities[i] * stimuli_idx;
+    }
+    compute_delay(
+        stimuli_data,
+        data_schedule_size,
+        capacities,
+        module_spec->data_schedule_indices,
+        module_spec->num_module_input,
+        sdf_spec
+    );
     delete[] stimuli_data;
 }
 
@@ -43,16 +149,7 @@ __device__ void simulate_module(
         );
         data_schedule_idx += num_inputs + num_outputs;
     }
-    if (threadIdx.x == 0) {
-        for (int i = 0; i < sdf_spec->num_rows; i++) {
-            printf("edge_type: %c, pin_index: %d, rising_delay: %d, falling_delay %d",
-                sdf_spec->edge_type[i],
-                sdf_spec->pin_index[i],
-                sdf_spec->rising_delay[i],
-                sdf_spec->falling_delay[i]
-            );
-        }
-    }
+    compute_delay_on_multiple_stimuli(data_schedule, capacities, module_spec, sdf_spec);
 }
 
 __global__ void simulate_batch(BatchResource batch_resource) {

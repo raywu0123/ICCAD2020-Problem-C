@@ -56,6 +56,7 @@ struct ModuleSpec{
     unsigned int schedule_size; // number of gates
     unsigned int data_schedule_size = 0;  // number of wires in the whole schedule
     unsigned int* data_schedule_indices;
+    unsigned int num_module_input;
     char** tables;
     unsigned int* table_row_num;
     unsigned int* num_inputs;  // how many inputs for every gate
