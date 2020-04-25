@@ -20,7 +20,12 @@ __device__ void simulate_gate_on_multiple_stimuli(
     delete[] stimuli_data;
 }
 
-__device__ void simulate_module(const ModuleSpec* module_spec, Transition** data_schedule, unsigned int* capacities) {
+__device__ void simulate_module(
+    const ModuleSpec* module_spec,
+    const SDFSpec* sdf_spec,
+    Transition** data_schedule,
+    unsigned int* capacities
+) {
     unsigned int data_schedule_idx = 0;
     for (int i = 0; i < module_spec->schedule_size; i++) {
         const auto& gate_fn_ptr = module_spec->gate_schedule[i];
@@ -38,15 +43,26 @@ __device__ void simulate_module(const ModuleSpec* module_spec, Transition** data
         );
         data_schedule_idx += num_inputs + num_outputs;
     }
+    if (threadIdx.x == 0) {
+        for (int i = 0; i < sdf_spec->num_rows; i++) {
+            printf("edge_type: %c, pin_index: %d, rising_delay: %d, falling_delay %d",
+                sdf_spec->edge_type[i],
+                sdf_spec->pin_index[i],
+                sdf_spec->rising_delay[i],
+                sdf_spec->falling_delay[i]
+            );
+        }
+    }
 }
 
 __global__ void simulate_batch(BatchResource batch_resource) {
     if (blockIdx.x < batch_resource.num_modules) {
         const auto& offset = batch_resource.data_schedule_offsets[blockIdx.x];
         const auto& module_spec = batch_resource.module_specs[blockIdx.x];
+        const auto& sdf_spec = batch_resource.sdf_specs[blockIdx.x];
         auto module_data_schedule = &batch_resource.data_schedule[offset];
         auto module_capacities = &batch_resource.capacities[offset];
-        simulate_module(module_spec, module_data_schedule, module_capacities);
+        simulate_module(module_spec, sdf_spec, module_data_schedule, module_capacities);
     }
 };
 
@@ -115,11 +131,13 @@ BatchResource Simulator::get_batch_data() {
     batch_resource.num_modules = num_modules;
 
     cudaMalloc((void**) &batch_resource.module_specs, sizeof(ModuleSpec*) * num_modules);
+    cudaMalloc((void**) &batch_resource.sdf_specs, sizeof(SDFSpec*) * num_modules);
     cudaMalloc((void**) &batch_resource.data_schedule, sizeof(Transition*) * resource_buffer.data_schedule.size());
     cudaMalloc((void**) &batch_resource.data_schedule_offsets, sizeof(unsigned int) * num_modules);
     cudaMalloc((void**) &batch_resource.capacities, sizeof(unsigned int) * resource_buffer.capacities.size());
 
     cudaMemcpy(batch_resource.module_specs, resource_buffer.module_specs.data(), sizeof(ModuleSpec*) * num_modules, cudaMemcpyHostToDevice);
+    cudaMemcpy(batch_resource.sdf_specs, resource_buffer.sdf_specs.data(), sizeof(SDFSpec*) * num_modules, cudaMemcpyHostToDevice);
     cudaMemcpy(batch_resource.data_schedule, resource_buffer.data_schedule.data(), sizeof(Transition*) * resource_buffer.data_schedule.size(), cudaMemcpyHostToDevice);
     cudaMemcpy(batch_resource.data_schedule_offsets, resource_buffer.data_schedule_offsets.data(), sizeof(unsigned int) * num_modules, cudaMemcpyHostToDevice);
     cudaMemcpy(batch_resource.capacities, resource_buffer.capacities.data(), sizeof(unsigned int) * resource_buffer.capacities.size(), cudaMemcpyHostToDevice);

@@ -30,8 +30,8 @@ class StandardCellOrganizer:
             # (gate_type, args) -> (gate_type, gate_id, args)
             module_declares['gates'][gate_idx] = (gate[0], gate_idx, gate[1])
 
-        all_gates = lambda : chain(module_declares['gates'], module_declares['submodules'])
-        all_wires = lambda : chain(module_declares['wire'], module_declares['supply1'], module_declares['supply0'])
+        all_gates = lambda: chain(module_declares['gates'], module_declares['submodules'])
+        all_wires = lambda: chain(module_declares['wire'], module_declares['supply1'], module_declares['supply0'])
 
         tuple_to_gate = {}
         for gate in all_gates():

@@ -19,12 +19,12 @@ struct pair_hash {
 struct SubmoduleSpec {
     std::string name;
     std::string type;
-    std::vector<std::string> args;
+    std::vector<unsigned int> args;
 };
 
 struct SDFSpec {
     unsigned int num_rows;
-    int* pin_index;
+    unsigned int* pin_index;
     char* edge_type;
     int *rising_delay, *falling_delay;
 };
@@ -53,15 +53,18 @@ typedef void (*GateFnPtr)(
 typedef char (*LogicFn)(Transition**, unsigned int, const unsigned int*, char* table, unsigned int table_row_num);
 struct ModuleSpec{
     GateFnPtr* gate_schedule;
-    unsigned int schedule_size;
+    unsigned int schedule_size; // number of gates
+    unsigned int data_schedule_size = 0;  // number of wires in the whole schedule
+    unsigned int* data_schedule_indices;
     char** tables;
     unsigned int* table_row_num;
     unsigned int* num_inputs;  // how many inputs for every gate
-    unsigned int* num_outputs;  // how many outputs for every gate
+    unsigned int* num_outputs;  // how many outputs for every gate, currently assume its always 1
 };
 
 struct BatchResource {
     const ModuleSpec** module_specs;
+    const SDFSpec** sdf_specs;
     Transition** data_schedule;
     unsigned int* capacities;
     unsigned int* data_schedule_offsets; // offsets to each module

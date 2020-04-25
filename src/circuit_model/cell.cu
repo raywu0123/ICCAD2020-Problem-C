@@ -26,10 +26,7 @@ void Cell::set_paths(const vector<SDFPath>& ps) {
     vector<int> rising_delays, falling_delays;
 
     for (const auto& path : ps) {
-        const auto& it = wire_map.find(path.in);
-        if (it == wire_map.end()) throw runtime_error("Pin " + path.in + " not found.");
-        edge_types.push_back(path.edge_type);
-        pin_indices.push_back(it->second.second);
+        pin_indices.push_back(path.in);
         rising_delays.push_back(path.rising_delay);
         falling_delays.push_back(path.falling_delay);
     }
@@ -64,9 +61,9 @@ void Cell::build_wire_map(
 {
     if (not wire_map.empty()) throw runtime_error("wire_map not empty.");
 
-    for (const auto& pin_spec: pin_specs) wire_map[pin_spec.name] = make_pair(pin_spec.wire, wire_map.size());
-    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY1]) wire_map[arg] = make_pair(supply1_wire, wire_map.size());
-    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY0]) wire_map[arg] = make_pair(supply0_wire, wire_map.size());
+    for (const auto& pin_spec: pin_specs) wire_map[pin_spec.index] = pin_spec.wire;
+    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY1]) wire_map[arg] = supply1_wire;
+    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY0]) wire_map[arg] = supply0_wire;
 }
 
 
@@ -77,13 +74,11 @@ void Cell::create_wire_schedule(
         for (const auto& arg: submodule_spec.args) {
             const auto& it = wire_map.find(arg);
             if (it != wire_map.end()) {
-                wire_schedule.push_back(it->second.first);
-                wire_schedule_indices.push_back(it->second.second);
+                wire_schedule.push_back(it->second);
             } else {
                 // create cell wire
                 Wire* wire_ptr = new Wire();
                 wire_schedule.push_back(wire_ptr);
-                wire_schedule_indices.push_back(-1);
                 add_cell_wire(wire_ptr);
             }
         }
@@ -107,7 +102,7 @@ void Cell::prepare_resource(ResourceBuffer& resource_buffer)  {
     resource_buffer.sdf_specs.push_back(sdf_spec);
 
     resource_buffer.data_schedule_offsets.push_back(resource_buffer.data_schedule_offsets.size());
-    for (const auto& wire : wire_schedule) {
+    for (auto & wire : wire_schedule) {
         resource_buffer.data_schedule.push_back(wire->data_ptr);
         resource_buffer.capacities.push_back(wire->capacity);
     }

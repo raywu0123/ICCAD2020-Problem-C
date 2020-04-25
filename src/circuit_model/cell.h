@@ -6,16 +6,16 @@
 #include "simulator/module_registry.h"
 
 struct SDFPath {
-    std::string in, out;
+    unsigned int in, out;
     char edge_type;
     int rising_delay, falling_delay;
 };
 
 struct PinSpec {
-    std::string name;
+    unsigned int index{};
     Wire* wire{};
     PinSpec() = default;
-    PinSpec(std::string name, Wire* wire): name(std::move(name)), wire(wire) {};
+    PinSpec(unsigned int index, Wire* wire): index(index), wire(wire) {};
 };
 
 class Cell {
@@ -47,8 +47,7 @@ private:
 
     const ModuleSpec* module_spec;
     std::vector<const Wire*> wire_schedule;
-    std::vector<int> wire_schedule_indices;
-    std::unordered_map<std::string, std::pair<Wire*, int>> wire_map;
+    std::unordered_map<unsigned int, Wire*> wire_map;
 
     std::vector<Wire*> cell_wires;
     std::vector<Wire*> alloc_wires, free_wires;

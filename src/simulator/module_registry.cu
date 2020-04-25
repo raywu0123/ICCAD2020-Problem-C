@@ -67,9 +67,9 @@ void ModuleRegistry::read_vlib_module(ifstream& fin) {
             throw runtime_error("Less than two args to submodule " + submodule_spec.name + " in " + name + '\n');
 
         for (int i_arg = 0; i_arg < num_args; i_arg++) {
-            string arg;
-            fin >> arg;
-            submodule_spec.args.push_back(arg);
+            unsigned int arg_index;
+            fin >> arg_index;
+            submodule_spec.args.push_back(arg_index);
         }
         submodule_specs.push_back(submodule_spec);
     }
@@ -81,11 +81,12 @@ string ModuleRegistry::read_vlib_common(ifstream& fin, StdCellDeclare& declares)
     fin >> name;
     for (auto& arg_bucket : declares.buckets) {
         int num_args;
+        unsigned int arg_index;
         string s;
         fin >> s >> num_args;
-        for (int i = 0; i < num_args; i++) {
-            fin >> s;
-            arg_bucket.push_back(s);
+        for (int i = 0; i < num_args; i++){
+            fin >> arg_index;
+            arg_bucket.push_back(arg_index);
         }
     }
     return name;
@@ -190,50 +191,52 @@ void ModuleRegistry::register_module(
     name_to_submodule_specs[name] = submodules;
     name_to_declares[name] = declares;
 
-    ModuleSpec module_spec{};
+//    temporary
 //    TODO move module_spec to constant memory
-    module_spec.schedule_size = submodules.size();
     if (submodules.empty())
         throw runtime_error("Empty module " + name + "\n");
-    unsigned int schedule_size = submodules.size();
-//    temporary
-    module_spec.gate_schedule = new GateFnPtr[schedule_size];
-    module_spec.tables = new char*[submodules.size()];
-    module_spec.table_row_num = new unsigned int[schedule_size];
-    module_spec.num_inputs = new unsigned int[schedule_size];
-    module_spec.num_outputs = new unsigned int[schedule_size];
-    for (int i = 0; i < schedule_size; i++) {
-        module_spec.gate_schedule[i] = get_gate_fn(
-            submodules[i].type,
-            module_spec.tables[i],
-            module_spec.table_row_num[i]
+    vector<unsigned int> data_schedule_indices;
+    for (const auto& submodule_spec : submodules) {
+        data_schedule_indices.insert(
+            data_schedule_indices.end(),
+            submodule_spec.args.begin(),
+            submodule_spec.args.end()
         );
-        module_spec.num_outputs[i] = 1;
-        module_spec.num_inputs[i] = submodules[i].args.size() - 1;
+    }
+
+    vector<GateFnPtr> gate_schedule;
+    vector<char*> tables;
+    vector<unsigned int> table_row_nums, num_inputs, num_outputs;
+    unsigned int schedule_size = submodules.size();
+    for (int i = 0; i < schedule_size; i++) {
+        char* table;
+        unsigned int table_row_num;
+        gate_schedule.push_back(get_gate_fn(submodules[i].type, table, table_row_num));
+        tables.push_back(table);
+        table_row_nums.push_back(table_row_num);
+        num_outputs.push_back(1);
+        num_inputs.push_back(submodules[i].args.size() - 1);
     }
     ModuleSpec device_module_spec_{};
     device_module_spec_.schedule_size = schedule_size;
+    device_module_spec_.data_schedule_size = data_schedule_indices.size();
+    cudaMalloc((void**) &device_module_spec_.data_schedule_indices, sizeof(unsigned int) * data_schedule_indices.size());
+    cudaMemcpy(device_module_spec_.data_schedule_indices, data_schedule_indices.data(), sizeof(unsigned int) * data_schedule_indices.size(), cudaMemcpyHostToDevice);
     cudaMalloc((void**) &device_module_spec_.gate_schedule, sizeof(GateFnPtr) * schedule_size);
-    cudaMemcpy(device_module_spec_.gate_schedule, module_spec.gate_schedule, sizeof(GateFnPtr) * schedule_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(device_module_spec_.gate_schedule, gate_schedule.data(), sizeof(GateFnPtr) * schedule_size, cudaMemcpyHostToDevice);
     cudaMalloc((void**) &device_module_spec_.tables, sizeof(char*) * schedule_size);
-    cudaMemcpy(device_module_spec_.tables, module_spec.tables, sizeof(char*) * schedule_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(device_module_spec_.tables, tables.data(), sizeof(char*) * schedule_size, cudaMemcpyHostToDevice);
     cudaMalloc((void**) &device_module_spec_.table_row_num, sizeof(unsigned int) * schedule_size);
-    cudaMemcpy(device_module_spec_.table_row_num, module_spec.table_row_num, sizeof(unsigned int) * schedule_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(device_module_spec_.table_row_num, table_row_nums.data(), sizeof(unsigned int) * schedule_size, cudaMemcpyHostToDevice);
     cudaMalloc((void**) &device_module_spec_.num_inputs, sizeof(unsigned int) * schedule_size);
-    cudaMemcpy(device_module_spec_.num_inputs, module_spec.num_inputs, sizeof(unsigned int) * schedule_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(device_module_spec_.num_inputs, num_inputs.data(), sizeof(unsigned int) * schedule_size, cudaMemcpyHostToDevice);
     cudaMalloc((void**) &device_module_spec_.num_outputs, sizeof(unsigned int) * schedule_size);
-    cudaMemcpy(device_module_spec_.num_outputs, module_spec.num_outputs, sizeof(unsigned int) * schedule_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(device_module_spec_.num_outputs, num_outputs.data(), sizeof(unsigned int) * schedule_size, cudaMemcpyHostToDevice);
 
     ModuleSpec* device_module_spec;
     cudaMalloc((void**) &device_module_spec, sizeof(ModuleSpec));
     cudaMemcpy(device_module_spec, &device_module_spec_, sizeof(ModuleSpec), cudaMemcpyHostToDevice);
     name_to_module_spec[name] = device_module_spec;
-
-    delete[] module_spec.gate_schedule;
-    delete[] module_spec.tables;
-    delete[] module_spec.table_row_num;
-    delete[] module_spec.num_inputs;
-    delete[] module_spec.num_outputs;
 }
 
 const ModuleSpec* ModuleRegistry::get_module_spec(const string &cell_type) const {

@@ -183,7 +183,7 @@ void Circuit::read_cells(ifstream& fin) {
             char c;
             unsigned int wire_index;
             PinSpec pin_spec;
-            fin >> pin_spec.name >> c >> wire_index;
+            fin >> pin_spec.index >> c >> wire_index;
             pin_spec.wire = get_wire(wire_index);
             args.push_back(pin_spec);
         }
@@ -265,7 +265,7 @@ void Circuit::read_sdf(ifstream &fin, double input_timescale) const {
         vector<SDFPath> paths;
         paths.reserve(num_paths);
         for(int i_path = 0; i_path < num_paths; i_path++) {
-            SDFPath path;
+            SDFPath path{};
             double sdf_rising_delay, sdf_falling_delay;
             fin >> path.edge_type >> path.in >> path.out >> sdf_rising_delay >> sdf_falling_delay;
 
