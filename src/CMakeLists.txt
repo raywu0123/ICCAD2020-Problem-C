@@ -1,5 +1,5 @@
 set(HEADER_FILES
-        input_waveforms.h
+        vcd_reader.h
         simulator/simulator.h
         simulator/data_structures.h
         simulator/module_registry.h
@@ -14,7 +14,7 @@ set(HEADER_FILES
         utils.h
         )
 set(SOURCE_FILES
-        input_waveforms.cu
+        vcd_reader.cu
         simulator/simulator.cu
         simulator/data_structures.cu
         simulator/module_registry.cu

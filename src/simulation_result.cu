@@ -45,8 +45,8 @@ void VCDResult::write(char *path) {
         for (int i = 0; i < num_transitions; i++) {
             const auto& wire_index = buffer[buffer_index].first;
             const auto& transition_index = buffer[buffer_index].second;
-            const auto* accumulator = (VCDAccumulator*) wires[wire_index]->accumulator;
-            const auto& transition = accumulator->transitions[transition_index];
+            const auto& bucket = wires[wire_index]->bucket;
+            const auto& transition = bucket.transitions[transition_index];
             const auto& wire_infos = wires[wire_index]->wire_infos;
 
             bus_manager.add_transition(wire_infos, transition);
@@ -63,16 +63,16 @@ void VCDResult::merge_sort(vector<pair<unsigned int, unsigned int>>& buffer, vec
     const auto num_wires = wires.size();
     unsigned int num_finished = 0;
     for (auto& wire: wires) {
-        const auto* acc = (VCDAccumulator*) wire->accumulator;
-        if (acc->transitions.empty()) num_finished++;
+        const auto& bucket = wire->bucket;
+        if (bucket.transitions.empty()) num_finished++;
     }
     indices.resize(num_wires);
     while (num_finished < num_wires) {
         unsigned int min_index;
         Timestamp min_timestamp = LONG_LONG_MAX;
         for (int i = 0; i < num_wires; i++) {
-            const auto* accumulator = (VCDAccumulator*) wires[i]->accumulator;
-            const auto& transitions = accumulator->transitions;
+            const auto& bucket = wires[i]->bucket;
+            const auto& transitions = bucket.transitions;
             if(indices[i] >= transitions.size()) continue;
             const auto& transition = transitions[indices[i]];
             if (transition.timestamp < min_timestamp) {
@@ -80,8 +80,8 @@ void VCDResult::merge_sort(vector<pair<unsigned int, unsigned int>>& buffer, vec
                 min_index = i;
             }
         }
-        const auto* min_accumulator = (VCDAccumulator*) wires[min_index]->accumulator;
-        const auto& transitions = min_accumulator->transitions;
+        const auto& min_bucket = wires[min_index]->bucket;
+        const auto& transitions = min_bucket.transitions;
 
         buffer.emplace_back(min_index, indices[min_index]);
         timestamps.push_back(transitions[indices[min_index]].timestamp);

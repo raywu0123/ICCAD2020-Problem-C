@@ -31,7 +31,10 @@ public:
     ~Cell();
 
     void prepare_resource(ResourceBuffer&);
+    bool is_finished();
+    void finalize_output();
     void free_resource();
+
 
     void set_paths(const std::vector<SDFPath>& ps);
 

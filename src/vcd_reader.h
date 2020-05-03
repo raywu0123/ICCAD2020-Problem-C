@@ -1,5 +1,5 @@
-#ifndef ICCAD2020_INPUT_WAVEFORMS_H
-#define ICCAD2020_INPUT_WAVEFORMS_H
+#ifndef ICCAD2020_VCD_READER_H
+#define ICCAD2020_VCD_READER_H
 
 #include <memory>
 #include <string>
@@ -12,17 +12,18 @@
 #include "simulator/data_structures.h"
 
 
-class InputWaveforms {
+class VCDReader {
 
 public:
-    explicit InputWaveforms(char* path) { read(path); }
-    void read(char*);
+    explicit VCDReader(char* path) { fin = std::ifstream(path); };
+    void read_input_waveforms(Circuit& circuit);
     void summary();
-    void get_input_wires(const Circuit& circuit);
 
-    void ignore_header();
-    void read_timescale();
+    InputInfo read_input_info();
+    static void ignore_vcd_header(std::ifstream&);
+
     void read_vars_and_scopes();
+    void get_buckets(Circuit& circuit);
     void read_dump();
     void read_single_time_dump(Timestamp);
 
@@ -31,17 +32,12 @@ public:
     void update_stimuli_edge_indices(Bucket*);
     void finalize_stimuli_edge_indices();
     void push_back_stimuli_edge_indices();
-    void build_buckets();
 
     std::ifstream fin;
 
-    std::pair<int, std::string> timescale_pair;
-    double timescale{};
-    std::vector<std::string> scopes;
-
     std::unordered_map<std::string, TokenInfo> token_to_wire;
-    std::vector<Bucket> buckets;
     unsigned int num_stimuli = 0;
+    std::vector<Bucket*> buckets;
     unsigned num_buckets = 0;
 
     int n_dump = 0;

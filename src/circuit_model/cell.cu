@@ -98,23 +98,18 @@ void Cell::add_cell_wire(Wire *wire_ptr) {
 }
 
 void Cell::prepare_resource(ResourceBuffer& resource_buffer)  {
-    for (unsigned i = 0; i < alloc_wires_size; i++) {
-        const auto& wire_ptr = alloc_wires[i];
-        wire_ptr->alloc();
-    }
-    resource_buffer.module_specs.push_back(module_spec);
-    resource_buffer.sdf_specs.push_back(sdf_spec);
-
-    resource_buffer.data_schedule_offsets.push_back(resource_buffer.data_schedule_offsets.size());
-    for (auto & wire : wire_schedule) {
-        resource_buffer.data_schedule.push_back(wire->data_ptr);
-        resource_buffer.capacities.push_back(wire->capacity);
-    }
+//    TODO
 }
 
 void Cell::free_resource() {
-    for (unsigned i = 0; i < free_wires_size; i++) {
-        const auto& wire_ptr = free_wires[i];
-        wire_ptr->free();
-    }
+//    TODO
+}
+
+void Cell::finalize_output() {
+//    TODO
+}
+
+bool Cell::is_finished() {
+//    TODO
+    return false;
 }

@@ -1,0 +1,160 @@
+#include <iostream>
+#include <string>
+#include <functional>
+
+#include "vcd_reader.h"
+#include "utils.h"
+
+using namespace std;
+
+
+void VCDReader::ignore_vcd_header(ifstream& fin) {
+    string s;
+    do{ fin >> s; } while(s != "$timescale");
+}
+
+InputInfo VCDReader::read_input_info() {
+    ignore_vcd_header(fin);
+    InputInfo info{};
+    string s;
+    fin >> info.timescale_pair.first >> info.timescale_pair.second >> s;
+    info.timescale = get_timescale(info.timescale_pair.first, info.timescale_pair.second);
+
+    while (s != "$var") {
+        fin >> s;
+        if (s == "$scope") {
+            fin >> s >> s;
+            info.scopes.push_back(s);
+        }
+    }
+    return info;
+}
+
+void VCDReader::summary() {
+    cout << "Summary of Input Waveforms" << endl;
+    cout << "Num dumps: " << n_dump << endl;
+    cout << "Num stimuli: " << num_stimuli << endl;
+
+    cout << "Max transition: " << max_transition << endl;
+    cout << "Min transition: " << min_transition << endl;
+    cout << endl;
+}
+
+void VCDReader::read_input_waveforms(Circuit& circuit) {
+    cout << "Reading Input VCD file..." << endl;
+    read_vars_and_scopes();
+    get_buckets(circuit);
+    read_dump();
+}
+
+void VCDReader::read_vars_and_scopes() {
+    string s;
+    while (s.find("$var") == 0) {
+        string token, id;
+        unsigned int n_bits;
+        fin >> s >> n_bits>> token >> id;
+        char c;
+        BitWidth bitwidth = {0, 0};
+        if (n_bits > 1) fin >> c >> bitwidth.first >> c >> bitwidth.second >> c;
+        token_to_wire.emplace(token, TokenInfo{id, bitwidth, 0});
+        fin >> s >> s;
+    }
+
+    while (s.find("$dumpvars") == string::npos) { getline(fin, s); }
+}
+
+void VCDReader::get_buckets(Circuit& circuit) {
+
+}
+
+void VCDReader::read_dump() {
+    char c;
+    fin >> c;
+    while (not fin.eof()) {
+        Timestamp t;
+        fin >> t;
+        read_single_time_dump(t);
+        n_dump++;
+    }
+    finalize_stimuli_edge_indices();
+}
+
+void VCDReader::read_single_time_dump(Timestamp timestamp) {
+    char c;
+    fin >> c;
+    while (c != '#' and c != EOF and not fin.eof()) {
+        string token;
+        Bucket* bucket;
+        if (c == 'b') {
+            string value;
+            fin >> value >> token;
+            bucket = emplace_transition(token, timestamp, value);
+        } else {
+            fin >> token;
+            bucket = emplace_transition(token, timestamp, c);
+        }
+        update_stimuli_edge_indices(bucket);
+        fin >> c;
+    }
+}
+
+Bucket* VCDReader::emplace_transition(const string& token, Timestamp timestamp, const string& value) {
+    const auto& it = token_to_wire.find(token);
+    if (it == token_to_wire.end())
+        throw runtime_error("Token " + token + " not found\n");
+    const auto& token_info = it->second;
+
+    const auto& bitwidth = token_info.bitwidth;
+    int bit_range = abs(bitwidth.first - bitwidth.second) + 1;
+    int pad_size = bit_range - value.size();
+    if (pad_size < 0) {
+        throw runtime_error(
+            "Value: " + value +
+            " and bitwidth: " + to_string(bitwidth.first) + " " + to_string(bitwidth.second) + " incompatible"
+        );
+    }
+    for (int bit_index = 0; bit_index < bit_range; bit_index++) {
+        char bit_value;
+        if (bit_index - pad_size < 0) {
+            if (value[0] == '1') bit_value = '0';
+            else bit_value = value[0];
+        } else {
+            bit_value = value[bit_index - pad_size];
+        }
+        auto* bucket = buckets[token_info.bucket_index + bit_index];
+        bucket->transitions.emplace_back(timestamp, bit_value);
+    }
+    return buckets[token_info.bucket_index];
+}
+
+Bucket* VCDReader::emplace_transition(const string& token, Timestamp timestamp, const char& value) {
+    const auto& it = token_to_wire.find(token);
+    if (it == token_to_wire.end())
+        throw runtime_error("Token " + token + " not found\n");
+    const auto& token_info = it->second;
+    auto* bucket = buckets[token_info.bucket_index];
+    bucket->transitions.emplace_back(timestamp, value);
+    return bucket;
+}
+
+void VCDReader::update_stimuli_edge_indices(Bucket* bucket) {
+    if ((bucket->transitions.size() - bucket->stimuli_edge_indices.back()) % INITIAL_CAPACITY == 0) {
+        push_back_stimuli_edge_indices();
+    }
+}
+
+void VCDReader::finalize_stimuli_edge_indices() {
+    for (const auto* bucket: buckets) {
+        if (bucket->transitions.size() > bucket->stimuli_edge_indices.back()) {
+            push_back_stimuli_edge_indices();
+            break;
+        }
+    }
+}
+
+void VCDReader::push_back_stimuli_edge_indices() {
+    for (auto* all_bucket: buckets) {
+        all_bucket->stimuli_edge_indices.push_back(all_bucket->transitions.size());
+    }
+    num_stimuli++;
+}

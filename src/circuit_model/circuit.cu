@@ -105,22 +105,22 @@ Cell* Circuit::get_cell(const string& name) const {
     return it->second;
 }
 
-void Circuit::read_file(ifstream &fin, double input_timescale, BusManager& bus_manager, const string& output_flag) {
+void Circuit::read_intermediate_file(ifstream &fin, double input_timescale, BusManager& bus_manager) {
     fin >> design_name;
     bus_manager.read(fin);
-    register_01_wires(output_flag);
-    read_wires(fin, output_flag);
+    register_01_wires();
+    read_wires(fin);
     read_assigns(fin);
     read_cells(fin);
     read_schedules(fin);
     read_sdf(fin, input_timescale);
 }
 
-void Circuit::register_01_wires(const string& output_flag) {
+void Circuit::register_01_wires() {
     wirekey_to_index.emplace(make_pair("1'b0", 0), 0);
     wirekey_to_index.emplace(make_pair("1'b1", 0), 1);
-    wires.push_back(new ConstantWire('0', output_flag));
-    wires.push_back(new ConstantWire('1', output_flag));
+    wires.push_back(new ConstantWire('0'));
+    wires.push_back(new ConstantWire('1'));
 }
 
 void BusManager::read(ifstream& fin) {
@@ -139,7 +139,7 @@ void BusManager::read(ifstream& fin) {
     }
 }
 
-void Circuit::read_wires(ifstream& fin, const string& output_flag) {
+void Circuit::read_wires(ifstream& fin) {
     unsigned int num_wires;
     fin >> num_wires;
     wires.resize(2 + num_wires);  // plus two for constant wires
@@ -150,7 +150,7 @@ void Circuit::read_wires(ifstream& fin, const string& output_flag) {
         fin >> bucket_index >> wire_name >> wire_index >> bus_index;
         auto wirekey = make_pair(wire_name, wire_index);
         wirekey_to_index.emplace(wirekey, bucket_index),
-        wires[bucket_index] = new Wire(WireInfo{wirekey, bus_index}, output_flag);
+        wires[bucket_index] = new Wire(WireInfo{wirekey, bus_index});
     }
 }
 
