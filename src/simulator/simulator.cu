@@ -169,7 +169,14 @@ __global__ void simulate_batch(BatchResource batch_resource) {
 };
 
 void Simulator::run() {
-    for (const auto& schedule_layer : circuit.cell_schedule) {
+    cout << "Running Simulation... " << endl;
+
+    unsigned int num_layers = circuit.cell_schedule.size();
+    cout << "Total " << num_layers << " layers" << endl;
+
+    ProgressBar progress_bar(num_layers);
+    for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
+        const auto& schedule_layer = circuit.cell_schedule[i_layer];
         int num_gates = schedule_layer.size();
         int num_finished_gates = 0;
         while (num_finished_gates < num_gates) {
@@ -193,5 +200,7 @@ void Simulator::run() {
                 gate->finalize_output();
             }
         }
+        progress_bar.Progressed(i_layer);
     }
+    cout << endl;
 }

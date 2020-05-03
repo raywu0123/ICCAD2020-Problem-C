@@ -51,8 +51,11 @@ int main(int argc, char* argv[]) {
     Circuit circuit(module_registry);
     VCDReader vcd_reader(input_vcd_file);
     InputInfo input_info = vcd_reader.read_input_info();
+    input_info.summary();
+
     circuit.read_intermediate_file(fin_intermediate, input_info.timescale, bus_manager);
     vcd_reader.read_input_waveforms(circuit);
+    vcd_reader.summary();
     circuit.summary();
 
     MemoryManager::init();

@@ -15,10 +15,11 @@ void VCDReader::ignore_vcd_header(ifstream& fin) {
 
 InputInfo VCDReader::read_input_info() {
     ignore_vcd_header(fin);
-    InputInfo info{};
     string s;
-    fin >> info.timescale_pair.first >> info.timescale_pair.second >> s;
-    info.timescale = get_timescale(info.timescale_pair.first, info.timescale_pair.second);
+
+    pair<int, string> timescale_pair;
+    fin >> timescale_pair.first >> timescale_pair.second >> s;
+    InputInfo info(timescale_pair);
 
     while (s != "$var") {
         fin >> s;
@@ -34,22 +35,19 @@ void VCDReader::summary() {
     cout << "Summary of Input Waveforms" << endl;
     cout << "Num dumps: " << n_dump << endl;
     cout << "Num stimuli: " << num_stimuli << endl;
-
-    cout << "Max transition: " << max_transition << endl;
-    cout << "Min transition: " << min_transition << endl;
     cout << endl;
 }
 
 void VCDReader::read_input_waveforms(Circuit& circuit) {
     cout << "Reading Input VCD file..." << endl;
-    read_vars_and_scopes();
+    read_vars();
     get_buckets(circuit);
     read_dump();
 }
 
-void VCDReader::read_vars_and_scopes() {
+void VCDReader::read_vars() {
     string s;
-    while (s.find("$var") == 0) {
+    do {
         string token, id;
         unsigned int n_bits;
         fin >> s >> n_bits>> token >> id;
@@ -58,13 +56,22 @@ void VCDReader::read_vars_and_scopes() {
         if (n_bits > 1) fin >> c >> bitwidth.first >> c >> bitwidth.second >> c;
         token_to_wire.emplace(token, TokenInfo{id, bitwidth, 0});
         fin >> s >> s;
-    }
+    } while (s.find("$var") == 0);
 
     while (s.find("$dumpvars") == string::npos) { getline(fin, s); }
 }
 
 void VCDReader::get_buckets(Circuit& circuit) {
-
+    for (auto& it : token_to_wire ) {
+        auto& token_info = it.second;
+        token_info.bucket_index = buckets.size();
+        const auto& bitwidth = token_info.bitwidth;
+        int bit_range = abs(bitwidth.first - bitwidth.second) + 1;
+        for (int bit_index = 0; bit_index < bit_range; bit_index++) {
+            const auto& wire = circuit.get_wire(Wirekey{token_info.wire_name, min(bitwidth.first, bitwidth.second) + bit_index});
+            buckets.push_back(&wire->bucket);
+        }
+    }
 }
 
 void VCDReader::read_dump() {

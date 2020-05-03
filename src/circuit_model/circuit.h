@@ -1,6 +1,7 @@
 #ifndef ICCAD2020_CIRCUIT_H
 #define ICCAD2020_CIRCUIT_H
 
+#include <iostream>
 #include <fstream>
 #include <string>
 #include <unordered_map>
@@ -10,6 +11,8 @@
 
 #include "cell.h"
 #include "wire.h"
+#include "utils.h"
+
 
 class Bus {
 public:
@@ -25,11 +28,23 @@ struct InputInfo {
     std::pair<int, std::string> timescale_pair;
     double timescale{};
     std::vector<std::string> scopes;
+
+    explicit InputInfo(std::pair<int, std::string>  tp): timescale_pair(std::move(tp)) {
+        timescale = get_timescale(timescale_pair.first, timescale_pair.second);
+    }
+
+    void summary() const {
+        std::cout << "InputInfo Summary:" << std::endl;
+        std::cout << "timescale_pair: " << timescale_pair.first << " " << timescale_pair.second << std::endl;
+        std::cout << "timescale: " << timescale << std::endl;
+        std::cout << "scopes: ";
+        for (const auto& scope : scopes) std::cout << scope << " ";
+        std::cout << std::endl << std::endl;
+    }
 };
 
 class BusManager {
 public:
-//    TODO
     void read(std::ifstream&);
     std::string dumps_token_to_bus_map() const;
     void add_transition(const std::vector<WireInfo>&, const Transition&);

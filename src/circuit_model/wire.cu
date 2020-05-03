@@ -23,5 +23,4 @@ void Wire::assign(const Wire& other_wire) {
 ConstantWire::ConstantWire(char value): value(value) {
     Transition t{0, value};
 //    TODO
-    cudaMemcpy(data_ptr, &t, sizeof(Transition), cudaMemcpyHostToDevice);
 }

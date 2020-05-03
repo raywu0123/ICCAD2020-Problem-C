@@ -111,5 +111,5 @@ void Cell::finalize_output() {
 
 bool Cell::is_finished() {
 //    TODO
-    return false;
+    return true;
 }

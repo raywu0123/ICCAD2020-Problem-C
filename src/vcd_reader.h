@@ -16,13 +16,13 @@ class VCDReader {
 
 public:
     explicit VCDReader(char* path) { fin = std::ifstream(path); };
+    InputInfo read_input_info();
     void read_input_waveforms(Circuit& circuit);
     void summary();
 
-    InputInfo read_input_info();
+private:
     static void ignore_vcd_header(std::ifstream&);
-
-    void read_vars_and_scopes();
+    void read_vars();
     void get_buckets(Circuit& circuit);
     void read_dump();
     void read_single_time_dump(Timestamp);
@@ -38,12 +38,8 @@ public:
     std::unordered_map<std::string, TokenInfo> token_to_wire;
     unsigned int num_stimuli = 0;
     std::vector<Bucket*> buckets;
-    unsigned num_buckets = 0;
 
     int n_dump = 0;
-    size_t max_transition = 0;
-    size_t min_transition = INT64_MAX;
-    size_t sum_transition = 0;
 };
 
 
