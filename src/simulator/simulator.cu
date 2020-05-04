@@ -177,16 +177,19 @@ void Simulator::run() {
     ProgressBar progress_bar(num_layers);
     for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
         const auto& schedule_layer = circuit.cell_schedule[i_layer];
-        int num_gates = schedule_layer.size();
-        int num_finished_gates = 0;
-        while (num_finished_gates < num_gates) {
-            int prev_num_finished_gates = num_finished_gates;
+        for (auto* cell : schedule_layer) {
+            cell->build_bucket_index_schedule();
+        }
+
+        int num_cells = schedule_layer.size();
+        int num_finished_cells = 0;
+        while (num_finished_cells < num_cells) {
+            int prev_num_finished_gates = num_finished_cells;
             for (int i = 0; i < N_GATE_PARALLEL; i++) {
-                const auto& gate = schedule_layer[num_finished_gates];
-                gate->prepare_resource(resource_buffer);
-                if (gate->is_finished()) {
-                    num_finished_gates++;
-                    if (num_finished_gates >= num_gates) break;
+                const auto& cell = schedule_layer[num_finished_cells];
+                if (cell->prepare_resource(resource_buffer)) {
+                    num_finished_cells++;
+                    if (num_finished_cells >= num_cells) break;
                 }
             }
 
@@ -194,10 +197,9 @@ void Simulator::run() {
             simulate_batch<<<N_GATE_PARALLEL, N_STIMULI_PARALLEL>>>(batch_data);
             cudaDeviceSynchronize();
 
-            for (int gate_idx = prev_num_finished_gates; gate_idx < num_finished_gates; gate_idx++) {
-                const auto& gate = schedule_layer[gate_idx];
-                gate->free_resource();
-                gate->finalize_output();
+            for (int cell_idx = prev_num_finished_gates; cell_idx < num_finished_cells; cell_idx++) {
+                const auto& cell = schedule_layer[cell_idx];
+                cell->finalize();
             }
         }
         progress_bar.Progressed(i_layer);

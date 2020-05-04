@@ -11,13 +11,17 @@ Cell::Cell(
     const StdCellDeclare* declare,
     const vector<PinSpec> &pin_specs,
     Wire* supply1_wire, Wire* supply0_wire,
-    vector<Wire*> alloc_wires_param, vector<Wire*> free_wires_param
-) : module_spec(module_spec), alloc_wires(std::move(alloc_wires_param)), free_wires(std::move(free_wires_param))
+    const vector<Wire*>& alloc_wires_param, const vector<Wire*>& free_wires_param
+) : module_spec(module_spec)
 {
-    alloc_wires_size = alloc_wires.size();
-    free_wires_size = free_wires.size();
     build_wire_map(declare, pin_specs, supply1_wire, supply0_wire);
     create_wire_schedule(submodule_specs);
+    for (const auto& idx : declare->buckets[STD_CELL_INPUT]) {
+        input_wires.emplace_back(wire_map[idx]);
+    }
+    for (const auto& idx : declare->buckets[STD_CELL_OUTPUT]) {
+        output_wires.push_back(wire_map[idx]);
+    }
 }
 
 void Cell::set_paths(const vector<SDFPath>& ps) {
@@ -78,11 +82,11 @@ void Cell::create_wire_schedule(
         for (const auto& arg: submodule_spec.args) {
             const auto& it = wire_map.find(arg);
             if (it != wire_map.end()) {
-                wire_schedule.push_back(it->second);
+                wire_schedule.emplace_back(it->second);
             } else {
                 // create cell wire
-                Wire* wire_ptr = new Wire();
-                wire_schedule.push_back(wire_ptr);
+                auto* wire_ptr = new Wire();
+                wire_schedule.emplace_back(wire_ptr);
                 add_cell_wire(wire_ptr);
             }
         }
@@ -91,25 +95,33 @@ void Cell::create_wire_schedule(
 
 void Cell::add_cell_wire(Wire *wire_ptr) {
     cell_wires.push_back(wire_ptr);
-    alloc_wires.push_back(wire_ptr);
-    alloc_wires_size++;
-    free_wires.push_back(wire_ptr);
-    free_wires_size++;
 }
 
-void Cell::prepare_resource(ResourceBuffer& resource_buffer)  {
+void Cell::build_bucket_index_schedule() {
 //    TODO
 }
 
-void Cell::free_resource() {
-//    TODO
+bool Cell::prepare_resource(ResourceBuffer& resource_buffer)  {
+    resource_buffer.module_specs.push_back(module_spec);
+    resource_buffer.sdf_specs.push_back(sdf_spec);
+    resource_buffer.data_schedule_offsets.push_back(resource_buffer.data_schedule_offsets.size());
+
+//    allocate data memory
+    for (const auto& wire : wire_schedule) {
+        auto* data_ptr = wire->alloc();
+        resource_buffer.data_schedule.push_back(data_ptr);
+        resource_buffer.capacities.push_back(wire->capacity);
+    }
+
+    bool all_finished = true;
+    for (auto& indexed_wire : input_wires) {
+        all_finished &= indexed_wire.load_from_bucket();
+    }
+    return all_finished;
 }
 
-void Cell::finalize_output() {
-//    TODO
-}
-
-bool Cell::is_finished() {
-//    TODO
-    return true;
+void Cell::finalize() {
+    for (const auto& wire : wire_schedule) {
+        wire->free();
+    }
 }

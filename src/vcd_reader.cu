@@ -83,7 +83,6 @@ void VCDReader::read_dump() {
         read_single_time_dump(t);
         n_dump++;
     }
-    finalize_stimuli_edge_indices();
 }
 
 void VCDReader::read_single_time_dump(Timestamp timestamp) {
@@ -91,21 +90,19 @@ void VCDReader::read_single_time_dump(Timestamp timestamp) {
     fin >> c;
     while (c != '#' and c != EOF and not fin.eof()) {
         string token;
-        Bucket* bucket;
         if (c == 'b') {
             string value;
             fin >> value >> token;
-            bucket = emplace_transition(token, timestamp, value);
+            emplace_transition(token, timestamp, value);
         } else {
             fin >> token;
-            bucket = emplace_transition(token, timestamp, c);
+            emplace_transition(token, timestamp, c);
         }
-        update_stimuli_edge_indices(bucket);
         fin >> c;
     }
 }
 
-Bucket* VCDReader::emplace_transition(const string& token, Timestamp timestamp, const string& value) {
+void VCDReader::emplace_transition(const string& token, Timestamp timestamp, const string& value) {
     const auto& it = token_to_wire.find(token);
     if (it == token_to_wire.end())
         throw runtime_error("Token " + token + " not found\n");
@@ -131,37 +128,13 @@ Bucket* VCDReader::emplace_transition(const string& token, Timestamp timestamp, 
         auto* bucket = buckets[token_info.bucket_index + bit_index];
         bucket->transitions.emplace_back(timestamp, bit_value);
     }
-    return buckets[token_info.bucket_index];
 }
 
-Bucket* VCDReader::emplace_transition(const string& token, Timestamp timestamp, const char& value) {
+void VCDReader::emplace_transition(const string& token, Timestamp timestamp, const char& value) {
     const auto& it = token_to_wire.find(token);
     if (it == token_to_wire.end())
         throw runtime_error("Token " + token + " not found\n");
     const auto& token_info = it->second;
     auto* bucket = buckets[token_info.bucket_index];
     bucket->transitions.emplace_back(timestamp, value);
-    return bucket;
-}
-
-void VCDReader::update_stimuli_edge_indices(Bucket* bucket) {
-    if ((bucket->transitions.size() - bucket->stimuli_edge_indices.back()) % INITIAL_CAPACITY == 0) {
-        push_back_stimuli_edge_indices();
-    }
-}
-
-void VCDReader::finalize_stimuli_edge_indices() {
-    for (const auto* bucket: buckets) {
-        if (bucket->transitions.size() > bucket->stimuli_edge_indices.back()) {
-            push_back_stimuli_edge_indices();
-            break;
-        }
-    }
-}
-
-void VCDReader::push_back_stimuli_edge_indices() {
-    for (auto* all_bucket: buckets) {
-        all_bucket->stimuli_edge_indices.push_back(all_bucket->transitions.size());
-    }
-    num_stimuli++;
 }

@@ -27,11 +27,8 @@ private:
     void read_dump();
     void read_single_time_dump(Timestamp);
 
-    Bucket* emplace_transition(const std::string&, Timestamp, const std::string&);
-    Bucket* emplace_transition(const std::string&, Timestamp, const char&);
-    void update_stimuli_edge_indices(Bucket*);
-    void finalize_stimuli_edge_indices();
-    void push_back_stimuli_edge_indices();
+    void emplace_transition(const std::string&, Timestamp, const std::string&);
+    void emplace_transition(const std::string&, Timestamp, const char&);
 
     std::ifstream fin;
 
