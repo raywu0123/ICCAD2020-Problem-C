@@ -28,7 +28,6 @@ Transition* Wire::alloc() {
 
 void Wire::free() {
     for (const auto& data_ptr : data_ptrs) {
-        bucket.push_back(data_ptr);
         MemoryManager::free(data_ptr.ptr);
     }
     data_ptrs.clear();
@@ -41,6 +40,10 @@ void Wire::load_from_bucket(unsigned int index, unsigned int size) {
         sizeof(Transition) * size,
         cudaMemcpyHostToDevice
     );
+}
+
+void Wire::store_to_bucket() {
+    for (const auto& data_ptr : data_ptrs) bucket.push_back(data_ptr);
 }
 
 ConstantWire::ConstantWire(char value): value(value) {

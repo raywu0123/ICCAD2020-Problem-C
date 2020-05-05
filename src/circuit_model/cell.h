@@ -1,6 +1,7 @@
 #ifndef ICCAD2020_CELL_H
 #define ICCAD2020_CELL_H
 
+#include <iostream>
 #include "constants.h"
 #include "wire.h"
 #include "simulator/module_registry.h"
@@ -23,17 +24,30 @@ struct IndexedWire {
 
     bool load_from_bucket() {
 //        FIXME what if bucket is empty?
-        wire->load_from_bucket(
-            bucket_index_schedule[index],
-            bucket_index_schedule[index + 1] - bucket_index_schedule[index]
-        );
-        index++;
-        return (index >= bucket_index_schedule.size() - 1);
-    };
+        auto& start_index = bucket_index_schedule[bucket_idx];
+        const auto& next_start_index = bucket_index_schedule[bucket_idx + 1];
 
+        auto s = next_start_index - start_index;
+        if (s == 0) {
+            start_index--;
+            s = 1;
+        }
+        wire->load_from_bucket(start_index, s);
+        bucket_idx++;
+        return bucket_idx + 1 >= bucket_index_schedule.size();
+    };
+    void push_back_schedule_index(unsigned int i) {
+        if (i > wire->bucket.size())
+            throw std::runtime_error("Schedule index out of range.");
+        if (not bucket_index_schedule.empty() and i < bucket_index_schedule.back())
+            throw std::runtime_error("Schedule index in incorrect order.");
+
+        bucket_index_schedule.push_back(i);
+    }
+    unsigned int size() const { return wire->bucket.size(); }
+    std::vector<unsigned int> bucket_index_schedule{0};
     Wire* wire;
-    unsigned int index = 0;
-    std::vector<unsigned int> bucket_index_schedule;
+    unsigned int bucket_idx = 0;
 };
 
 class Cell {
@@ -48,12 +62,15 @@ public:
     );
     ~Cell();
 
-    void build_bucket_index_schedule();
+    static void build_bucket_index_schedule(std::vector<IndexedWire>&, unsigned int);
+    static unsigned int find_end_index(const Bucket&, unsigned int, Timestamp, unsigned int);
+
     bool prepare_resource(ResourceBuffer&);
     void finalize();
 
     void set_paths(const std::vector<SDFPath>& ps);
 
+    std::vector<IndexedWire> input_wires;
 private:
     void build_wire_map(
         const StdCellDeclare* declare, const std::vector<PinSpec>& pin_specs,
@@ -71,7 +88,6 @@ private:
     std::unordered_map<unsigned int, Wire*> wire_map;
 
     std::vector<Wire*> cell_wires, output_wires;
-    std::vector<IndexedWire> input_wires;
 };
 
 #endif

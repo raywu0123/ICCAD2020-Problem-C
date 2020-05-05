@@ -97,8 +97,74 @@ void Cell::add_cell_wire(Wire *wire_ptr) {
     cell_wires.push_back(wire_ptr);
 }
 
-void Cell::build_bucket_index_schedule() {
-//    TODO
+void Cell::build_bucket_index_schedule(vector<IndexedWire>& wires, unsigned int capacity) {
+    unsigned int num_finished = 0;
+    unsigned int num_inputs = wires.size();
+
+    vector<unsigned int> starting_indices;
+    vector<bool> finished;
+    starting_indices.resize(num_inputs);
+    finished.resize(num_inputs);
+    for (int i_wire = 0; i_wire < num_inputs; i_wire++) {
+        const auto& wire = wires[i_wire];
+        if (capacity >= wire.wire->bucket.size()) {
+            finished[i_wire] = true;
+            num_finished++;
+        }
+    }
+
+    while (num_finished < num_inputs) {
+//        Find min_end_timestamp
+        Timestamp min_end_timestamp = LONG_LONG_MAX;
+        for(int i_wire = 0; i_wire < num_inputs; i_wire++) {
+            auto& wire = wires[i_wire];
+            const auto& bucket = wire.wire->bucket;
+            unsigned int end_index = starting_indices[i_wire] + capacity - 1;
+            if (end_index >= bucket.size()) continue;
+            const auto& end_timestamp = bucket.transitions[end_index].timestamp;
+            if (end_timestamp < min_end_timestamp) min_end_timestamp = end_timestamp;
+        }
+
+        for (int i_wire = 0; i_wire < num_inputs; i_wire++) {
+            auto& wire = wires[i_wire];
+            const auto& bucket = wire.wire->bucket;
+//            If already finished, push_back the last index of bucket
+            if (
+                not wire.bucket_index_schedule.empty()
+                and wire.bucket_index_schedule.back() == bucket.size()
+            ) wire.push_back_schedule_index(bucket.size() - 1);
+            else {
+//                FIXME will fail if start_index = 0 and timestamp[0] > min_end_timestamp
+                auto start_index = bucket.transitions[starting_indices[i_wire]].timestamp > min_end_timestamp ? starting_indices[i_wire] - 1 : starting_indices[i_wire];
+                auto end_index = find_end_index(bucket, start_index, min_end_timestamp, capacity);
+                auto next_start_index = end_index + 1;
+                wire.push_back_schedule_index(next_start_index);
+                if (next_start_index + capacity >= bucket.size() and not finished[i_wire]) {
+                    finished[i_wire] = true;
+                    num_finished++;
+                }
+                starting_indices[i_wire] = end_index + 1;
+            }
+        }
+    }
+    for (auto& wire : wires) {
+        wire.push_back_schedule_index(wire.wire->bucket.size());
+    }
+}
+
+unsigned int Cell::find_end_index(const Bucket& bucket, unsigned int start_index, Timestamp t, unsigned int capacity) {
+//    Binary Search for end_index <= t
+    unsigned int low = start_index;
+    unsigned int high = min(start_index + capacity, bucket.size()) - 1;
+    if (bucket.transitions[high].timestamp <= t) return high;
+    while (low < high) {
+        unsigned mid = (low + high) / 2;
+        if (mid == low) break;
+        if (bucket.transitions[mid].timestamp < t) low = mid;
+        else if (bucket.transitions[mid].timestamp > t) high = mid;
+        else return mid;
+    }
+    return low;
 }
 
 bool Cell::prepare_resource(ResourceBuffer& resource_buffer)  {
@@ -121,7 +187,11 @@ bool Cell::prepare_resource(ResourceBuffer& resource_buffer)  {
 }
 
 void Cell::finalize() {
+    for (const auto& wire : output_wires) {
+        wire->store_to_bucket();
+    }
     for (const auto& wire : wire_schedule) {
         wire->free();
     }
 }
+

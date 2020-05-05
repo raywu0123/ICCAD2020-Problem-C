@@ -33,10 +33,9 @@ private:
     std::ifstream fin;
 
     std::unordered_map<std::string, TokenInfo> token_to_wire;
-    unsigned int num_stimuli = 0;
     std::vector<Bucket*> buckets;
 
-    int n_dump = 0;
+    unsigned int n_dump = 0;
 };
 
 

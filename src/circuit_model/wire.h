@@ -1,6 +1,7 @@
 #ifndef ICCAD2020_WIRE_H
 #define ICCAD2020_WIRE_H
 
+#include <iostream>
 #include "simulator/data_structures.h"
 #include "simulator/memory_manager.h"
 #include "accumulators.h"
@@ -21,8 +22,18 @@ struct Bucket {
 
     void push_back(const DataPtr& data_ptr) {
         unsigned int previous_size = transitions.size();
-        transitions.reserve(transitions.size() + data_ptr.capacity);
-        cudaMemcpy(transitions.data() + previous_size, data_ptr.ptr, sizeof(Transition) * data_ptr.capacity, cudaMemcpyDeviceToHost);
+        transitions.resize(transitions.size() + data_ptr.capacity);
+        cudaMemcpy(
+            transitions.data() + previous_size,
+            data_ptr.ptr,
+            sizeof(Transition) * data_ptr.capacity,
+            cudaMemcpyDeviceToHost
+        );
+//        TODO finalize bucket
+    }
+
+    unsigned int size() const {
+        return transitions.size();
     }
 };
 
@@ -34,6 +45,8 @@ public:
     void assign(const Wire&);
     Transition* alloc();
     void load_from_bucket(unsigned int index, unsigned int size);
+    void store_to_bucket();
+
     void free();
 
     std::vector<WireInfo> wire_infos;

@@ -34,7 +34,6 @@ InputInfo VCDReader::read_input_info() {
 void VCDReader::summary() {
     cout << "Summary of Input Waveforms" << endl;
     cout << "Num dumps: " << n_dump << endl;
-    cout << "Num stimuli: " << num_stimuli << endl;
     cout << endl;
 }
 

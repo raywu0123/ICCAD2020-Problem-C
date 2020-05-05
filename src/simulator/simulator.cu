@@ -166,7 +166,7 @@ __global__ void simulate_batch(BatchResource batch_resource) {
         auto module_capacities = &batch_resource.capacities[offset];
         simulate_module(module_spec, sdf_spec, module_data_schedule, module_capacities);
     }
-};
+}
 
 void Simulator::run() {
     cout << "Running Simulation... " << endl;
@@ -178,7 +178,7 @@ void Simulator::run() {
     for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
         const auto& schedule_layer = circuit.cell_schedule[i_layer];
         for (auto* cell : schedule_layer) {
-            cell->build_bucket_index_schedule();
+            Cell::build_bucket_index_schedule(cell->input_wires, INITIAL_CAPACITY);
         }
 
         int num_cells = schedule_layer.size();
@@ -192,11 +192,9 @@ void Simulator::run() {
                     if (num_finished_cells >= num_cells) break;
                 }
             }
-
             const auto& batch_data = resource_buffer.get_batch_resource();
             simulate_batch<<<N_GATE_PARALLEL, N_STIMULI_PARALLEL>>>(batch_data);
             cudaDeviceSynchronize();
-
             for (int cell_idx = prev_num_finished_gates; cell_idx < num_finished_cells; cell_idx++) {
                 const auto& cell = schedule_layer[cell_idx];
                 cell->finalize();
