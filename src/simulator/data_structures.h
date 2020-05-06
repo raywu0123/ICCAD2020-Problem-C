@@ -63,15 +63,6 @@ struct ModuleSpec{
     unsigned int* num_outputs;  // how many outputs for every gate, currently assume its always 1
 };
 
-struct BatchResource {
-    const ModuleSpec** module_specs;
-    const SDFSpec** sdf_specs;
-    Transition** data_schedule;
-    unsigned int* capacities;
-    unsigned int* data_schedule_offsets; // offsets to each module
-    unsigned int num_modules;
-};
-
 struct ResourceBuffer {
     std::vector<const ModuleSpec*> module_specs;
     std::vector<const SDFSpec*> sdf_specs;
@@ -88,27 +79,18 @@ struct ResourceBuffer {
     }
 
     int size() const { return module_specs.size(); }
+};
 
-    BatchResource get_batch_resource() {
-        BatchResource batch_resource{};
-        unsigned int num_modules = size();
-        batch_resource.num_modules = num_modules;
 
-        cudaMalloc((void**) &batch_resource.module_specs, sizeof(ModuleSpec*) * num_modules);
-        cudaMalloc((void**) &batch_resource.sdf_specs, sizeof(SDFSpec*) * num_modules);
-        cudaMalloc((void**) &batch_resource.data_schedule, sizeof(Transition*) * data_schedule.size());
-        cudaMalloc((void**) &batch_resource.data_schedule_offsets, sizeof(unsigned int) * num_modules);
-        cudaMalloc((void**) &batch_resource.capacities, sizeof(unsigned int) * capacities.size());
-
-        cudaMemcpy(batch_resource.module_specs, module_specs.data(), sizeof(ModuleSpec*) * num_modules, cudaMemcpyHostToDevice);
-        cudaMemcpy(batch_resource.sdf_specs, sdf_specs.data(), sizeof(SDFSpec*) * num_modules, cudaMemcpyHostToDevice);
-        cudaMemcpy(batch_resource.data_schedule, data_schedule.data(), sizeof(Transition*) * data_schedule.size(), cudaMemcpyHostToDevice);
-        cudaMemcpy(batch_resource.data_schedule_offsets, data_schedule_offsets.data(), sizeof(unsigned int) * num_modules, cudaMemcpyHostToDevice);
-        cudaMemcpy(batch_resource.capacities, capacities.data(), sizeof(unsigned int) * capacities.size(), cudaMemcpyHostToDevice);
-        clear();
-
-        return batch_resource;
-    }
+struct BatchResource {
+    BatchResource(const ResourceBuffer&);
+    ~BatchResource();
+    const ModuleSpec** module_specs;
+    const SDFSpec** sdf_specs;
+    Transition** data_schedule;
+    unsigned int* capacities;
+    unsigned int* data_schedule_offsets; // offsets to each module
+    unsigned int num_modules;
 };
 
 #endif
