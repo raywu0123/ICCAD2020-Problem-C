@@ -175,8 +175,7 @@ bool Cell::prepare_resource(ResourceBuffer& resource_buffer)  {
 //    allocate data memory
     for (const auto& wire : wire_schedule) {
         auto* data_ptr = wire->alloc();
-        resource_buffer.data_schedule.push_back(data_ptr);
-        resource_buffer.capacities.push_back(wire->capacity);
+        resource_buffer.data_schedule.emplace_back(data_ptr, wire->capacity);
     }
 
     bool all_finished = true;

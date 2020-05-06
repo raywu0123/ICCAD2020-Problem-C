@@ -93,32 +93,37 @@ extern __host__ __device__ void compute_delay(
 
 __device__ void simulate_gate_on_multiple_stimuli(
     GateFnPtr gate_fn_ptr,
-    Transition** data,  //(n_stimuli * capacities[i_wire], num_inputs + num_outputs)
-    unsigned int* capacities,
+    Data* data,  //(n_stimuli * capacities[i_wire], num_inputs + num_outputs)
     char* table,
     unsigned int table_row_num,
     unsigned int num_inputs, unsigned int num_outputs
 ) {
     unsigned int stimuli_idx = threadIdx.x;
+
     auto** stimuli_data = new Transition*[num_inputs + num_outputs]; // (capacities[i], num_inputs + num_outputs)
+    auto* capacities  = new unsigned int[num_inputs + num_outputs];
     for (int i = 0; i < num_inputs + num_outputs; i++) {
-        stimuli_data[i] = data[i] + capacities[i] * stimuli_idx;
+        stimuli_data[i] = data[i].ptr + data[i].capacity * stimuli_idx;
+        capacities[i] = data[i].capacity;
     }
     gate_fn_ptr(stimuli_data, capacities, table, table_row_num, num_inputs, num_outputs);
+
     delete[] stimuli_data;
+    delete[] capacities;
 }
 
 __device__ void compute_delay_on_multiple_stimuli(
-    Transition** data_schedule,
-    unsigned int* capacities,
+    Data* data,
     const ModuleSpec* module_spec,
     const SDFSpec* sdf_spec
 ) {
     unsigned int stimuli_idx = threadIdx.x;
     const auto& data_schedule_size = module_spec->data_schedule_size;
     auto** stimuli_data = new Transition*[data_schedule_size]; // (capacities[i], num_inputs + num_outputs)
+    auto* capacities = new unsigned int[data_schedule_size];
     for (int i = 0; i < data_schedule_size; i++) {
-        stimuli_data[i] = data_schedule[i] + capacities[i] * stimuli_idx;
+        stimuli_data[i] = data[i].ptr + data[i].capacity * stimuli_idx;
+        capacities[i] = data[i].capacity;
     }
     compute_delay(
         stimuli_data,
@@ -129,13 +134,13 @@ __device__ void compute_delay_on_multiple_stimuli(
         sdf_spec
     );
     delete[] stimuli_data;
+    delete[] capacities;
 }
 
 __device__ void simulate_module(
     const ModuleSpec* module_spec,
     const SDFSpec* sdf_spec,
-    Transition** data_schedule,
-    unsigned int* capacities
+    Data* data_schedule
 ) {
     unsigned int data_schedule_idx = 0;
     for (int i = 0; i < module_spec->schedule_size; i++) {
@@ -147,14 +152,13 @@ __device__ void simulate_module(
         simulate_gate_on_multiple_stimuli(
             gate_fn_ptr,
             data_schedule + data_schedule_idx,
-            capacities + data_schedule_idx,
             table,
             table_row_num,
             num_inputs, num_outputs
         );
         data_schedule_idx += num_inputs + num_outputs;
     }
-    compute_delay_on_multiple_stimuli(data_schedule, capacities, module_spec, sdf_spec);
+    compute_delay_on_multiple_stimuli(data_schedule, module_spec, sdf_spec);
 }
 
 __global__ void simulate_batch(BatchResource batch_resource) {
@@ -163,8 +167,7 @@ __global__ void simulate_batch(BatchResource batch_resource) {
         const auto& module_spec = batch_resource.module_specs[blockIdx.x];
         const auto& sdf_spec = batch_resource.sdf_specs[blockIdx.x];
         auto module_data_schedule = &batch_resource.data_schedule[offset];
-        auto module_capacities = &batch_resource.capacities[offset];
-        simulate_module(module_spec, sdf_spec, module_data_schedule, module_capacities);
+        simulate_module(module_spec, sdf_spec, module_data_schedule);
     }
 }
 
