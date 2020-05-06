@@ -192,7 +192,8 @@ void Simulator::run() {
                     if (num_finished_cells >= num_cells) break;
                 }
             }
-            const auto& batch_data = resource_buffer.get_batch_resource();
+            const auto& batch_data = BatchResource{resource_buffer};
+            resource_buffer.clear();
             simulate_batch<<<N_GATE_PARALLEL, N_STIMULI_PARALLEL>>>(batch_data);
             cudaDeviceSynchronize();
             for (int cell_idx = prev_num_finished_gates; cell_idx < num_finished_cells; cell_idx++) {
