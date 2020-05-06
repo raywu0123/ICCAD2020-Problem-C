@@ -1,6 +1,6 @@
 #include <iostream>
 #include "src/circuit_model/circuit.h"
-#include "src/input_waveforms.h"
+#include "src/vcd_reader.h"
 #include "src/utils.h"
 #include "src/simulation_result.h"
 #include "simulator/simulator.h"
@@ -42,40 +42,41 @@ int main(int argc, char* argv[]) {
     string output_flag = string(argv[3]);
     char* output_file = argv[4];
 
-    InputWaveforms input_waveforms(input_vcd_file);
-    input_waveforms.summary();
-
-    ifstream fin = ifstream(inter_repr_file);
+    ifstream fin_intermediate = ifstream(inter_repr_file);
     ModuleRegistry module_registry;
-    module_registry.read_file(fin);
+    module_registry.read_file(fin_intermediate);
     module_registry.summary();
 
     BusManager bus_manager;
     Circuit circuit(module_registry);
-    circuit.read_file(fin, input_waveforms.timescale, bus_manager, output_flag);
-    input_waveforms.get_input_wires(circuit);
+    VCDReader vcd_reader(input_vcd_file);
+    InputInfo input_info = vcd_reader.read_input_info();
+    input_info.summary();
+
+    circuit.read_intermediate_file(fin_intermediate, input_info.timescale, bus_manager);
+    vcd_reader.read_input_waveforms(circuit);
+    vcd_reader.summary();
     circuit.summary();
+
+    MemoryManager::init();
+    Simulator simulator(circuit);
+    simulator.run();
 
     SimulationResult* simulation_result;
     if (output_flag == "SAIF") {
         simulation_result = new SAIFResult(
             circuit.wires,
-            input_waveforms.scopes,
-            input_waveforms.timescale_pair
+            input_info.scopes,
+            input_info.timescale_pair
         );
     } else if (output_flag == "VCD") {
         simulation_result = new VCDResult(
             circuit.wires,
-            input_waveforms.scopes,
-            input_waveforms.timescale_pair,
+            input_info.scopes,
+            input_info.timescale_pair,
             bus_manager
         );
     }
-
-
-    MemoryManager::init();
-    Simulator simulator(circuit, input_waveforms, simulation_result);
-    simulator.run();
 
     simulation_result->write(output_file);
 }

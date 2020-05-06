@@ -24,21 +24,10 @@ __host__ __device__ void compute_delay(
 
 class Simulator {
 public:
-    Simulator(
-        Circuit& c,
-        InputWaveforms& iw,
-        SimulationResult* sr
-    ): circuit(c), simulation_result(sr), input_waveforms(iw) {};
-
+    explicit Simulator(Circuit& c): circuit(c) {};
     void run();
-    void simulate_batch_stimuli(unsigned int& i_batch);
-    void set_input(unsigned int) const;
-
-    BatchResource get_batch_data();
 
     Circuit& circuit;
-    SimulationResult* simulation_result;
-    InputWaveforms& input_waveforms;
     ResourceBuffer resource_buffer;
 };
 

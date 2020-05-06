@@ -4,7 +4,7 @@
 #include <vector>
 #include <fstream>
 
-#include "input_waveforms.h"
+#include "vcd_reader.h"
 #include "circuit_model/circuit.h"
 #include "simulator/data_structures.h"
 #include "circuit_model/accumulators.h"

@@ -1,6 +1,7 @@
 #ifndef ICCAD2020_CIRCUIT_H
 #define ICCAD2020_CIRCUIT_H
 
+#include <iostream>
 #include <fstream>
 #include <string>
 #include <unordered_map>
@@ -10,6 +11,8 @@
 
 #include "cell.h"
 #include "wire.h"
+#include "utils.h"
+
 
 class Bus {
 public:
@@ -21,9 +24,27 @@ public:
     std::string state;
 };
 
+struct InputInfo {
+    std::pair<int, std::string> timescale_pair;
+    double timescale{};
+    std::vector<std::string> scopes;
+
+    explicit InputInfo(std::pair<int, std::string>  tp): timescale_pair(std::move(tp)) {
+        timescale = get_timescale(timescale_pair.first, timescale_pair.second);
+    }
+
+    void summary() const {
+        std::cout << "InputInfo Summary:" << std::endl;
+        std::cout << "timescale_pair: " << timescale_pair.first << " " << timescale_pair.second << std::endl;
+        std::cout << "timescale: " << timescale << std::endl;
+        std::cout << "scopes: ";
+        for (const auto& scope : scopes) std::cout << scope << " ";
+        std::cout << std::endl << std::endl;
+    }
+};
+
 class BusManager {
 public:
-//    TODO
     void read(std::ifstream&);
     std::string dumps_token_to_bus_map() const;
     void add_transition(const std::vector<WireInfo>&, const Transition&);
@@ -41,11 +62,12 @@ public:
     explicit Circuit(const ModuleRegistry& module_registry);
     ~Circuit();
     void summary() const;
-    void read_file(std::ifstream& fin, double input_timescale, BusManager&, const std::string& output_flag);
+
+    void read_intermediate_file(std::ifstream& fin, double input_timescale, BusManager&);
+
     Wire* get_wire(const Wirekey&) const;
 
     std::string design_name;
-
     std::vector<std::vector<Cell*>> cell_schedule;
     std::vector<Wire*> wires;
     const ModuleRegistry& module_registry;
@@ -55,8 +77,8 @@ private:
     void set_wire(unsigned int, Wire*);
     Cell* get_cell(const std::string& cell_id) const;
 
-    void register_01_wires(const std::string& output_flag); // register 1'b1 1'b0 wires
-    void read_wires(std::ifstream& fin, const std::string&);
+    void register_01_wires(); // register 1'b1 1'b0 wires
+    void read_wires(std::ifstream& fin);
     void read_assigns(std::ifstream& fin);
     void read_cells(std::ifstream& fin);
     Cell* create_cell(const std::string&, const std::vector<PinSpec>&, const std::vector<Wire*>&, const std::vector<Wire*>&);
