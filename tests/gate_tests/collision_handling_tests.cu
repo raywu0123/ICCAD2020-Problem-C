@@ -34,20 +34,20 @@ INSTANTIATE_TEST_CASE_P(
     SingleWaveformCollisionTestFixture,
     ::testing::Values(
         SingleWaveformTestPair{
-            vector<Transition>{ Transition{0, 0}, Transition{3, 0}, Transition{5, 0}, Transition{4, 0}, Transition{6, 0} },
-            vector<Transition>{ Transition{0, 0}, Transition{3, 0}, Transition{4, 0}, Transition{6, 0} }
+            vector<Transition>{ Transition{0, '0'}, Transition{3, '0'}, Transition{5, '0'}, Transition{4, '0'}, Transition{6, '0'}, Transition{0, 0} },
+            vector<Transition>{ Transition{0, '0'}, Transition{3, '0'}, Transition{4, '0'}, Transition{6, '0'} }
         },
         SingleWaveformTestPair{
-            vector<Transition>{ Transition{0, 0}, Transition{5, 'x'}, Transition{5, 'y'} },
-            vector<Transition>{ Transition{0, 0}, Transition{5, 'y'} }
+            vector<Transition>{ Transition{0, '0'}, Transition{5, 'x'}, Transition{5, 'y'}, Transition{0, 0} },
+            vector<Transition>{ Transition{0, '0'}, Transition{5, 'y'} }
         },
         SingleWaveformTestPair{
-            vector<Transition>{ Transition{0, 0}, Transition{5, 0}, Transition{4, 0}, Transition{6, 0}, Transition{3, 0} },
-            vector<Transition>{ Transition{0, 0}, Transition{3, 0} }
+            vector<Transition>{ Transition{0, '0'}, Transition{5, '0'}, Transition{4, '0'}, Transition{6, '0'}, Transition{3, '0'} },
+            vector<Transition>{ Transition{0, '0'}, Transition{3, '0'} }
         },
         SingleWaveformTestPair{
-            vector<Transition>{ Transition{10, 0}, Transition{11, 0}, Transition{0, 0}, Transition{5, 0} },
-            vector<Transition>{ Transition{0, 0}, Transition{5, 0} }
+            vector<Transition>{ Transition{10, '0'}, Transition{11, '0'}, Transition{0, '0'}, Transition{5, '0'} },
+            vector<Transition>{ Transition{0, '0'}, Transition{5, '0'} }
         }
     )
 );

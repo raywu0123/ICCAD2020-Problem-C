@@ -21,6 +21,8 @@ extern __host__ __device__ void resolve_collisions_for_single_waveform(
     unsigned int write_index = 0;
     Timestamp prev_t = LONG_LONG_MIN;
     for(unsigned int index = 0; index < capacity; index++) {
+        if (waveform[index].value == 0) break;
+
         Timestamp& t = waveform[index].timestamp;
         if (t <= prev_t) write_index = binary_search(waveform, write_index - 1, t);
         waveform[write_index] = waveform[index];
