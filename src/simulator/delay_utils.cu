@@ -46,7 +46,7 @@ extern __host__ __device__ void compute_delay(
                or capacities[i] == 0) num_finished++;
         indices[i] = 0;
     }
-    unsigned int output_transition_index = 1;
+    unsigned int output_transition_index = 0;
 
     while(num_finished < data_schedule_size) {
         Timestamp min_timestamp = LONG_LONG_MAX;
@@ -68,10 +68,10 @@ extern __host__ __device__ void compute_delay(
             const auto& output_data = data[output_indices[output_index_]];
             if (output_transition_index >= capacities[output_indices[output_index_]]) continue;
             output_data[output_transition_index].timestamp += lookup_delay(
-                    data[min_index],
-                    data_schedule_indices[min_index], num_inputs + output_index_,
-                    indices[min_index],
-                    sdf_spec
+                data[min_index],
+                data_schedule_indices[min_index], num_inputs + output_index_,
+                indices[min_index],
+                sdf_spec
             );
         }
         if (   indices[min_index] >= capacities[min_index] - 1

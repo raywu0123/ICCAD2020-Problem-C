@@ -91,19 +91,18 @@ __host__ __device__ char buf_logic(char value) {
 }
 
 __host__ __device__ void merge_sort_algorithm(
-        Transition** data,  // (capacity, num_inputs + num_outputs)
-        const unsigned int* capacities,
-        char* table, unsigned int table_row_num,
-        unsigned int num_inputs,
-        LogicFn logic_fn
+    Transition** data,  // (capacity, num_inputs + num_outputs)
+    const unsigned int* capacities,
+    char* table, unsigned int table_row_num,
+    unsigned int num_inputs,
+    LogicFn logic_fn
 ) {
     unsigned int num_finished = 0;
     for (int i = 1; i < num_inputs + 1; i++) {
         if (data[i][1].value == 0 or capacities[i] == 0) num_finished++;
     }
     auto* indices = new unsigned int[num_inputs + 1];
-    indices[0] = 1;     // output index starts from 1
-    for (int i = 1; i < num_inputs + 1; i++) indices[i] = 0;
+    for (int i = 0; i < num_inputs + 1; i++) indices[i] = 0;
 // TODO shorter implementation
     while (num_finished < num_inputs) {
         Timestamp min_timestamp = LONG_LONG_MAX;
@@ -151,9 +150,9 @@ __host__ __device__ void single_input_algorithm(
         Transition** data, const unsigned int* capacities, char(*logic_fn)(char)
 ) {
     for (unsigned int i = 1; i < capacities[1]; i++) {
-        if (i > capacities[0] - 1) break; // TODO handle overflow
-        data[0][i].timestamp = data[1][i].timestamp;
-        data[0][i].value = logic_fn(data[1][i].value);
+        if (i > capacities[0]) break; // TODO handle overflow
+        data[0][i - 1].timestamp = data[1][i].timestamp;
+        data[0][i - 1].value = logic_fn(data[1][i].value);
     }
 }
 __host__ __device__ void and_gate_fn(
