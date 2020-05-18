@@ -7,14 +7,14 @@
 
 using namespace std;
 
-struct TestPair{
+struct SingleWaveformTestPair{
     vector<vector<Transition>> data_schedule;
     unsigned int num_inputs;
     vector<SDFPath> sdf_paths;
     vector<vector<Timestamp>> expected_output_timestamps;
 };
 
-class ComputeDelayTestFixture: public ::testing::TestWithParam<TestPair>
+class ComputeDelayTestFixture: public ::testing::TestWithParam<SingleWaveformTestPair>
 {
 protected:
 };
@@ -84,7 +84,7 @@ INSTANTIATE_TEST_SUITE_P(
     GateTests,
     ComputeDelayTestFixture,
     ::testing::Values(
-        TestPair{
+            SingleWaveformTestPair{
             vector<vector<Transition>>{
                 { Transition{0, '0'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, 'z'} },
                 { Transition{0, '0'}, Transition{2, '1'}, Transition{3, '0'}, Transition{4, '1'} },
@@ -96,7 +96,7 @@ INSTANTIATE_TEST_SUITE_P(
             },
             vector<vector<Timestamp>>{ {0, 11, 12, 7} }
         },
-        TestPair{
+            SingleWaveformTestPair{
             vector<vector<Transition>>{
                 { Transition{0, '0'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, 'z'} },
                 { Transition{0, '0'}, Transition{2, '1'}, Transition{3, '0'}, Transition{4, '1'} },
@@ -110,7 +110,7 @@ INSTANTIATE_TEST_SUITE_P(
             },
             vector<vector<Timestamp>>{ {0, 10, 12, 8} }
         },
-        TestPair{
+            SingleWaveformTestPair{
             vector<vector<Transition>>{
                 { Transition{0, '0'}, Transition{1, 'x'}, Transition{2, 'z'}, Transition{3, 'x'} },
                 { Transition{0, '0'}, Transition{2, 'z'}, Transition{3, 'x'}, Transition{4, '1'} },
@@ -122,7 +122,7 @@ INSTANTIATE_TEST_SUITE_P(
             },
             vector<vector<Timestamp>>{ {0, 10, 11, 7} }
         },
-        TestPair{
+            SingleWaveformTestPair{
             vector<vector<Transition>>{
                 { Transition{0, '0'}, Transition{1, 'x'}, Transition{2, 'z'}, Transition{3, 'x'} },
                 { Transition{0, '0'}, Transition{2, 'z'}, Transition{3, 'x'}, Transition{4, '1'} },

@@ -6,12 +6,12 @@
 
 using namespace std;
 
-struct TestPair {
+struct SingleWaveformTestPair {
     GateFnPtr gate_fn;
     vector<Transition> expected_output;
 };
 
-class BuiltinGateTestFixture: public ::testing::TestWithParam<TestPair>
+class BuiltinGateTestFixture: public ::testing::TestWithParam<SingleWaveformTestPair>
 {
 protected:
     vector<vector<Transition>> inputs {
@@ -58,40 +58,40 @@ INSTANTIATE_TEST_SUITE_P(
     GateTests,
     BuiltinGateTestFixture,
     ::testing::Values(
-        TestPair{
+            SingleWaveformTestPair{
             and_gate_fn,
             vector<Transition>{ Transition{0, 0}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'} }
         },
-        TestPair{
+            SingleWaveformTestPair{
             or_gate_fn,
             vector<Transition>{ Transition{0, 0}, Transition{1, '1'}, Transition{2, '1'}, Transition{2, '1'} }
         },
-        TestPair{
+            SingleWaveformTestPair{
             xor_gate_fn,
             vector<Transition>{ Transition{0, 0}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'} }
         },
-        TestPair{
+            SingleWaveformTestPair{
             nand_gate_fn,
             vector<Transition>{ Transition{0, 0}, Transition{1, '1'}, Transition{2, 'x'}, Transition{2, 'x'} }
         },
-        TestPair{
+            SingleWaveformTestPair{
             nor_gate_fn,
             vector<Transition>{ Transition{0, 0}, Transition{1, '0'}, Transition{2, '0'}, Transition{2, '0'} }
         },
-        TestPair{
+            SingleWaveformTestPair{
             xnor_gate_fn,
             vector<Transition>{ Transition{0, 0}, Transition{1, '1'}, Transition{2, 'x'}, Transition{2, 'x'} }
         },
-        TestPair{
+            SingleWaveformTestPair{
             not_gate_fn,
             vector<Transition>{ Transition{0, 0}, Transition{1, '0'}, Transition{2, 'x'}, Transition{3, 'x'} }
         },
-        TestPair{
+            SingleWaveformTestPair{
             buf_gate_fn,
             vector<Transition>{ Transition{0, 0}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, 'x'} }
         },
         // capacity larger than needed
-        TestPair{
+        SingleWaveformTestPair{
             and_gate_fn,
             vector<Transition>{
                 Transition{0, 0}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'},

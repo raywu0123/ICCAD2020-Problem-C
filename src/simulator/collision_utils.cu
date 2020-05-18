@@ -31,7 +31,23 @@ extern __host__ __device__ void resolve_collisions_for_single_waveform(
 }
 
 extern __host__ __device__ void resolve_collisions_for_batch_waveform(
-    Transition* waveform, unsigned int capacity, unsigned int* stimuli_lengths, unsigned int* length
+    Transition* waveform,
+    unsigned int capacity,
+    unsigned int* stimuli_lengths,
+    unsigned int* length,
+    unsigned int num_stimuli
 ) {
-
+    unsigned int write_index = 0;
+    Timestamp prev_t = LONG_LONG_MIN;
+    for (unsigned int stimuli_index = 0; stimuli_index < num_stimuli; stimuli_index++) {
+        Timestamp& t = waveform[capacity * stimuli_index].timestamp;
+        unsigned int stimuli_length = stimuli_lengths[stimuli_index];
+        if (t <= prev_t) write_index = binary_search(waveform, write_index - 1, t);
+        for (unsigned int i = 0; i < stimuli_length; i++) {
+            waveform[write_index + i] = waveform[capacity * stimuli_index + i];
+        }
+        write_index += stimuli_length;
+        prev_t = waveform[capacity * stimuli_index + stimuli_length - 1].timestamp;
+    }
+    *length = write_index;
 }
