@@ -53,7 +53,7 @@ __device__ __host__ void resolve_collisions_for_single_stimuli(
     get_output_indices(output_indices, data_schedule_indices, data_schedule_size, num_inputs, num_outputs);
     for (int i = 0; i < num_outputs; i++) {
         resolve_collisions_for_single_waveform(
-                data[output_indices[i]], capacities[output_indices[i]], lengths + i
+            data[output_indices[i]], capacities[output_indices[i]], lengths + i
         );
     }
     delete[] output_indices;
@@ -61,7 +61,7 @@ __device__ __host__ void resolve_collisions_for_single_stimuli(
 
 __device__ __host__ void resolve_collisions_for_batch_stimuli(
     Transition** data,
-    unsigned int ** batch_lengths,
+    unsigned int** batch_lengths,
     unsigned int* lengths,
     unsigned int data_schedule_size,
     unsigned int* capacities,
@@ -77,8 +77,8 @@ __device__ __host__ void resolve_collisions_for_batch_stimuli(
             stimuli_lengths[i] = lengths[num_outputs * i_stimuli + i];
         }
         resolve_collisions_for_batch_waveform(
-                data[output_indices[i]], capacities[output_indices[i]], stimuli_lengths,
-                batch_lengths[output_indices[i]]
+            data[output_indices[i]], capacities[output_indices[i]], stimuli_lengths,
+            batch_lengths[output_indices[i]]
         );
 
     }
@@ -105,23 +105,23 @@ __device__ void resolve_collisions_on_multiple_stimuli(
     }
 
     resolve_collisions_for_single_stimuli(
-            stimuli_data,
-            lengths + stimuli_idx * module_spec->num_module_output,
-            data_schedule_size,
-            capacities,
-            module_spec->data_schedule_indices,
-            module_spec->num_module_input, module_spec->num_module_output
+        stimuli_data,
+        lengths + stimuli_idx * module_spec->num_module_output,
+        data_schedule_size,
+        capacities,
+        module_spec->data_schedule_indices,
+        module_spec->num_module_input, module_spec->num_module_output
     );
     __syncthreads();
     if (threadIdx.x == 0) {
         resolve_collisions_for_batch_stimuli(
-                stimuli_data,
-                batch_lengths,
-                lengths,
-                data_schedule_size,
-                capacities,
-                module_spec->data_schedule_indices,
-                module_spec->num_module_input, module_spec->num_module_output
+            stimuli_data,
+            batch_lengths,
+            lengths,
+            data_schedule_size,
+            capacities,
+            module_spec->data_schedule_indices,
+            module_spec->num_module_input, module_spec->num_module_output
         );
     }
     delete[] lengths;

@@ -40,6 +40,13 @@ struct Transition {
     char value;
     explicit Transition(): timestamp(0), value(0) {};
     Transition(Timestamp t, char v): timestamp(t), value(v) {};
+
+    bool operator== (const Transition& other) const {
+        return timestamp == other.timestamp and value == other.value;
+    }
+    bool operator!= (const Transition& other) const {
+        return not operator==(other);
+    }
 };
 
 typedef void (*GateFnPtr)(
