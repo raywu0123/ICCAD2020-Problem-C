@@ -34,20 +34,28 @@ INSTANTIATE_TEST_CASE_P(
     SingleWaveformCollisionTestFixture,
     ::testing::Values(
         SingleWaveformTestPair{
-            vector<Transition>{ Transition{0, '0'}, Transition{3, '0'}, Transition{5, '0'}, Transition{4, '0'}, Transition{6, '0'}, Transition{0, 0} },
-            vector<Transition>{ Transition{0, '0'}, Transition{3, '0'}, Transition{4, '0'}, Transition{6, '0'} }
+            vector<Transition>{ Transition{0, '0'}, Transition{3, '0'}, Transition{5, '1'}, Transition{0, 0} },
+            vector<Transition>{ Transition{0, '0'}, Transition{5, '1'} }
+        },
+        SingleWaveformTestPair{
+            vector<Transition>{ Transition{0, '0'}, Transition{3, '1'}, Transition{5, '0'}, Transition{4, '0'}, Transition{6, '1'}, Transition{0, 0} },
+            vector<Transition>{ Transition{0, '0'}, Transition{3, '1'}, Transition{4, '0'}, Transition{6, '1'} }
         },
         SingleWaveformTestPair{
             vector<Transition>{ Transition{0, '0'}, Transition{5, 'x'}, Transition{5, 'y'}, Transition{0, 0} },
             vector<Transition>{ Transition{0, '0'}, Transition{5, 'y'} }
         },
         SingleWaveformTestPair{
-            vector<Transition>{ Transition{0, '0'}, Transition{5, '0'}, Transition{4, '0'}, Transition{6, '0'}, Transition{3, '0'} },
-            vector<Transition>{ Transition{0, '0'}, Transition{3, '0'} }
+            vector<Transition>{ Transition{0, '0'}, Transition{5, '1'}, Transition{4, '0'}, Transition{6, '1'}, Transition{3, '0'} },
+            vector<Transition>{ Transition{0, '0'} }
         },
         SingleWaveformTestPair{
-            vector<Transition>{ Transition{10, '0'}, Transition{11, '0'}, Transition{0, '0'}, Transition{5, '0'} },
-            vector<Transition>{ Transition{0, '0'}, Transition{5, '0'} }
+            vector<Transition>{ Transition{10, '0'}, Transition{11, '1'}, Transition{0, '0'}, Transition{5, '1'} },
+            vector<Transition>{ Transition{0, '0'}, Transition{5, '1'} }
+        },
+        SingleWaveformTestPair{
+            vector<Transition>{ Transition{0, 0} },
+            vector<Transition>{}
         }
     )
 );
@@ -78,10 +86,11 @@ TEST_P(BatchWaveformCollisionTestFixture, SimpleCases) {
     unsigned int length = 0;
     resolve_collisions_for_batch_waveform(w, capacity, stimuli_lengths, &length, num_stimuli);
 
-    EXPECT_EQ(length, test_pair.expected.size());
+    EXPECT_EQ(length, test_pair.expected.size() - 1);
 
     unsigned int err_num = 0;
     for (int i = 0; i < length; i++) {
+        cout << w[i].timestamp << " " << w[i].value << endl;
         if (w[i] != test_pair.expected[i]) err_num++;
     }
     EXPECT_EQ(err_num, 0);
@@ -95,25 +104,33 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Values(
         BatchWaveformTestPair{
             vector<vector<Transition>>{
-                vector<Transition>{ Transition{0, 0}, Transition{1, 0}, Transition{10, 0} },
-                vector<Transition>{ Transition{3, 0}, Transition{5, 0} }
+                vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{10, '0'} },
+                vector<Transition>{ Transition{3, '0'}, Transition{5, '1'} }
             },
-            vector<Transition>{ Transition{0, 0}, Transition{1, 0}, Transition{3, 0}, Transition{5, 0} }
+            vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{3, '0'}, Transition{5, '1'}, Transition{0, 0} }
         },
         BatchWaveformTestPair{
             vector<vector<Transition>>{
-                vector<Transition>{ Transition{5, 0}, Transition{7, 0}, Transition{10, 0} },
-                vector<Transition>{ Transition{3, 0}, Transition{20, 0} }
+                vector<Transition>{ Transition{5, '0'}, Transition{7, '1'}, Transition{10, '0'} },
+                vector<Transition>{ Transition{3, '0'}, Transition{20, '1'} }
             },
-            vector<Transition>{ Transition{3, 0}, Transition{20, 0} }
+            vector<Transition>{ Transition{3, '0'}, Transition{20, '1'}, Transition{0, 0} }
         },
         BatchWaveformTestPair{
             vector<vector<Transition>>{
-                vector<Transition>{ Transition{0, 0}, Transition{1, 0}, Transition{10, 0} },
-                vector<Transition>{ Transition{3, 0}, Transition{5, 0} },
-                vector<Transition>{ Transition{4, 0}, Transition{20, 0} }
+                vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{10, '0'} },
+                vector<Transition>{ Transition{3, '0'}, Transition{5, '1'} },
+                vector<Transition>{ Transition{4, '0'}, Transition{20, '1'} }
             },
-            vector<Transition>{ Transition{0, 0}, Transition{1, 0}, Transition{3, 0}, Transition{4, 0}, Transition{20, 0} }
+            vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{3, '0'}, Transition{20, '1'}, Transition{0, 0} }
+        },
+        BatchWaveformTestPair{
+            vector<vector<Transition>>{
+                vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{10, '0'} },
+                vector<Transition>{ Transition{3, '1'}, Transition{5, '0'} },
+                vector<Transition>{ }
+            },
+            vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{5, '0'}, Transition{0, 0} }
         }
     )
 );

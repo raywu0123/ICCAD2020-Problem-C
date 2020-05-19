@@ -25,7 +25,9 @@ extern __host__ __device__ void resolve_collisions_for_single_waveform(
 
         Timestamp& t = waveform[index].timestamp;
         if (t <= prev_t) write_index = binary_search(waveform, write_index - 1, t);
+        if (write_index > 0 and waveform[index].value == waveform[write_index - 1].value) continue;
         waveform[write_index] = waveform[index];
+
         prev_t = t;
         write_index++;
     }
@@ -35,21 +37,27 @@ extern __host__ __device__ void resolve_collisions_for_single_waveform(
 extern __host__ __device__ void resolve_collisions_for_batch_waveform(
     Transition* waveform,
     unsigned int capacity,
-    unsigned int* stimuli_lengths,
+    const unsigned int* stimuli_lengths,
     unsigned int* length,
     unsigned int num_stimuli
 ) {
     unsigned int write_index = 0;
     Timestamp prev_t = LONG_LONG_MIN;
     for (unsigned int stimuli_index = 0; stimuli_index < num_stimuli; stimuli_index++) {
-        Timestamp& t = waveform[capacity * stimuli_index].timestamp;
         unsigned int stimuli_length = stimuli_lengths[stimuli_index];
+        if (stimuli_length == 0) break;
+
+        Timestamp& t = waveform[capacity * stimuli_index].timestamp;
         if (t <= prev_t) write_index = binary_search(waveform, write_index - 1, t);
-        for (unsigned int i = 0; i < stimuli_length; i++) {
-            waveform[write_index + i] = waveform[capacity * stimuli_index + i];
+        auto offset = (write_index > 0 and waveform[capacity * stimuli_index].value == waveform[write_index - 1].value) ? 1: 0;
+        for (unsigned int i = offset; i < stimuli_length; i++) {
+            waveform[write_index] = waveform[capacity * stimuli_index + i];
+            write_index++;
         }
-        write_index += stimuli_length;
         prev_t = waveform[capacity * stimuli_index + stimuli_length - 1].timestamp;
     }
+
+    // add EOS token
+    if (write_index < capacity * num_stimuli) waveform[write_index].timestamp = 0; waveform[write_index].value = 0;
     *length = write_index;
 }

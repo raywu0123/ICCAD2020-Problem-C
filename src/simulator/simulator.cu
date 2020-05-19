@@ -62,7 +62,7 @@ __device__ __host__ void resolve_collisions_for_single_stimuli(
 __device__ __host__ void resolve_collisions_for_batch_stimuli(
     Transition** data,
     unsigned int** batch_lengths,
-    unsigned int* lengths,
+    const unsigned int* lengths,
     unsigned int data_schedule_size,
     unsigned int* capacities,
     unsigned int* data_schedule_indices,
@@ -72,13 +72,13 @@ __device__ __host__ void resolve_collisions_for_batch_stimuli(
     auto* stimuli_lengths = new unsigned int[INITIAL_CAPACITY];
 
     get_output_indices(output_indices, data_schedule_indices, data_schedule_size, num_inputs, num_outputs);
-    for (int i = 0; i < num_outputs; i++) {
+    for (int i_output = 0; i_output < num_outputs; i_output++) {
         for(int i_stimuli = 0; i_stimuli < N_STIMULI_PARALLEL; i_stimuli++) {
-            stimuli_lengths[i] = lengths[num_outputs * i_stimuli + i];
+            stimuli_lengths[i_stimuli] = lengths[num_outputs * i_stimuli + i_output];
         }
         resolve_collisions_for_batch_waveform(
-            data[output_indices[i]], capacities[output_indices[i]], stimuli_lengths,
-            batch_lengths[output_indices[i]]
+            data[output_indices[i_output]], capacities[output_indices[i_output]],
+            stimuli_lengths, batch_lengths[output_indices[i_output]]
         );
 
     }
@@ -93,7 +93,7 @@ __device__ void resolve_collisions_on_multiple_stimuli(
     unsigned int stimuli_idx = threadIdx.x;
     const auto& data_schedule_size = module_spec->data_schedule_size;
 
-    auto* lengths = new unsigned int[N_STIMULI_PARALLEL * module_spec->num_module_output];
+    __shared__ unsigned int lengths[N_STIMULI_PARALLEL * MAX_NUM_MODULE_OUTPUT];
 
     auto** stimuli_data = new Transition*[data_schedule_size]; // (capacities[i], num_inputs + num_outputs)
     auto* capacities = new unsigned int[data_schedule_size];
@@ -124,7 +124,6 @@ __device__ void resolve_collisions_on_multiple_stimuli(
             module_spec->num_module_input, module_spec->num_module_output
         );
     }
-    delete[] lengths;
     delete[] batch_lengths;
     delete[] stimuli_data;
     delete[] capacities;
@@ -191,7 +190,8 @@ void Simulator::run() {
     for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
         const auto& schedule_layer = circuit.cell_schedule[i_layer];
         for (auto* cell : schedule_layer) {
-            Cell::build_bucket_index_schedule(cell->input_wires, INITIAL_CAPACITY);
+            Cell::build_bucket_index_schedule(cell->input_wires, INITIAL_CAPACITY - 1);
+            // leave one for delay calculation
         }
 
         int num_cells = schedule_layer.size();
@@ -211,7 +211,7 @@ void Simulator::run() {
             cudaDeviceSynchronize();
             for (int cell_idx = prev_num_finished_gates; cell_idx < num_finished_cells; cell_idx++) {
                 const auto& cell = schedule_layer[cell_idx];
-                cell->finalize();
+                cell->dump_result();
             }
         }
         progress_bar.Progressed(i_layer);

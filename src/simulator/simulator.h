@@ -37,7 +37,7 @@ __host__ __device__ void resolve_collisions_for_single_waveform(
 __host__ __device__ void resolve_collisions_for_batch_waveform(
     Transition* waveform, // (N_STIMULI_PARALLEL, capacity)
     unsigned int capacity,
-    unsigned int* stimuli_lengths, // (N_STIMULI_PARALLEL,)
+    const unsigned int* stimuli_lengths, // (N_STIMULI_PARALLEL,)
     unsigned int* length,  // reference to lengths in Data structs
     unsigned int num_stimuli=N_STIMULI_PARALLEL
 );
