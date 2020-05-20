@@ -4,6 +4,7 @@
 #include <iostream>
 #include "simulator/data_structures.h"
 #include "simulator/memory_manager.h"
+#include "simulator/collision_utils.h"
 #include "accumulators.h"
 
 struct WireInfo {
@@ -21,27 +22,31 @@ struct Bucket {
     std::vector<Transition> transitions;
 
     void push_back(const DataPtr& data_ptr) {
-        unsigned int previous_size = transitions.size();
-        transitions.resize(transitions.size() + data_ptr.capacity * N_STIMULI_PARALLEL);
+        Transition first_transition;
+        cudaMemcpy(&first_transition, data_ptr.ptr, sizeof(Transition), cudaMemcpyDeviceToHost);
+        const auto& t = first_transition.timestamp;
+        const auto& v = first_transition.value;
+
+        Timestamp prev_t = transitions.empty() ? LONG_LONG_MIN : transitions.back().timestamp;
+        auto write_index = transitions.size();
+        if (t <= prev_t) write_index = binary_search(transitions.data(), write_index - 1, t);
+        auto offset = (write_index > 0 and v == transitions[write_index - 1].value) ? 1: 0;
+
+        auto valid_data_size = data_ptr.capacity * N_STIMULI_PARALLEL - offset;
+        transitions.resize(transitions.size() + valid_data_size);
         cudaMemcpy(
-            transitions.data() + previous_size,
+            transitions.data() + write_index,
             data_ptr.ptr,
-            sizeof(Transition) * data_ptr.capacity * N_STIMULI_PARALLEL,
+            sizeof(Transition) * valid_data_size,
             cudaMemcpyDeviceToHost
         );
 
         // strip excess transitions
-        for (unsigned int idx = previous_size; idx < previous_size + data_ptr.capacity * N_STIMULI_PARALLEL; idx++) {
+        for (unsigned int idx = write_index; idx < write_index + valid_data_size; idx++) {
             if (transitions[idx].value == 0) {
                 transitions.resize(idx);
                 break;
             }
-        }
-    }
-
-    void finalize() {
-        for (const auto& tr : transitions) {
-            std::cout << tr.timestamp << " " << tr.value << std::endl;
         }
     }
 

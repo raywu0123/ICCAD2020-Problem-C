@@ -44,7 +44,6 @@ void Wire::load_from_bucket(unsigned int stimuli_index, unsigned int bucket_inde
 
 void Wire::store_to_bucket() {
     for (const auto& data_ptr : data_ptrs) bucket.push_back(data_ptr);
-    bucket.finalize();
 }
 
 ConstantWire::ConstantWire(char value): value(value) {

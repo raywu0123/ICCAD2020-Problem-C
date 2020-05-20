@@ -1,4 +1,4 @@
-#include "simulator.h"
+#include "collision_utils.h"
 
 __host__ __device__ unsigned int binary_search(Transition* waveform, unsigned int end_index, Timestamp t) {
     if (waveform[0].timestamp >= t) return 0;

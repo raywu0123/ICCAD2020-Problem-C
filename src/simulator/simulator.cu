@@ -1,4 +1,5 @@
 #include "simulator/simulator.h"
+#include "simulator/collision_utils.h"
 #include "include/progress_bar.h"
 
 using namespace std;

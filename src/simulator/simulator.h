@@ -28,20 +28,6 @@ __host__ __device__ void compute_delay(
     const SDFSpec* sdf_spec
 );
 
-__host__ __device__ void resolve_collisions_for_single_waveform(
-    Transition* waveform, // (capacity)
-    unsigned int capacity,
-    unsigned int* length  // place to return length of resulting waveform
-);
-
-__host__ __device__ void resolve_collisions_for_batch_waveform(
-    Transition* waveform, // (N_STIMULI_PARALLEL, capacity)
-    unsigned int capacity,
-    const unsigned int* stimuli_lengths, // (N_STIMULI_PARALLEL,)
-    unsigned int* length,  // reference to lengths in Data structs
-    unsigned int num_stimuli=N_STIMULI_PARALLEL
-);
-
 class Simulator {
 public:
     explicit Simulator(Circuit& c): circuit(c) {};
