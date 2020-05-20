@@ -101,10 +101,8 @@ void Cell::build_bucket_index_schedule(vector<IndexedWire>& wires, unsigned int 
     unsigned int num_finished = 0;
     unsigned int num_inputs = wires.size();
 
-    vector<unsigned int> starting_indices;
-    vector<bool> finished;
-    starting_indices.resize(num_inputs);
-    finished.resize(num_inputs);
+    vector<unsigned int> starting_indices; starting_indices.resize(num_inputs);
+    vector<bool> finished; finished.resize(num_inputs);
     for (int i_wire = 0; i_wire < num_inputs; i_wire++) {
         const auto& wire = wires[i_wire];
         if (capacity >= wire.wire->bucket.size()) {
@@ -132,7 +130,7 @@ void Cell::build_bucket_index_schedule(vector<IndexedWire>& wires, unsigned int 
             if (
                 not wire.bucket_index_schedule.empty()
                 and wire.bucket_index_schedule.back() == bucket.size()
-            ) wire.push_back_schedule_index(bucket.size() - 1);
+            ) wire.push_back_schedule_index(bucket.size());
             else {
 //                FIXME will fail if start_index = 0 and timestamp[0] > min_end_timestamp
                 auto start_index = bucket.transitions[starting_indices[i_wire]].timestamp > min_end_timestamp ? starting_indices[i_wire] - 1 : starting_indices[i_wire];
@@ -175,8 +173,7 @@ bool Cell::prepare_resource(ResourceBuffer& resource_buffer)  {
 //    allocate data memory
     for (const auto& wire : wire_schedule) {
         auto* data_ptr = wire->alloc();
-        resource_buffer.data_schedule.push_back(data_ptr);
-        resource_buffer.capacities.push_back(wire->capacity);
+        resource_buffer.data_schedule.emplace_back(data_ptr, wire->capacity);
     }
 
     bool all_finished = true;
@@ -186,7 +183,7 @@ bool Cell::prepare_resource(ResourceBuffer& resource_buffer)  {
     return all_finished;
 }
 
-void Cell::finalize() {
+void Cell::dump_result() {
     for (const auto& wire : output_wires) {
         wire->store_to_bucket();
     }

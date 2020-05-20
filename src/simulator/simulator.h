@@ -6,6 +6,12 @@
 #include "circuit_model/circuit.h"
 #include "simulation_result.h"
 
+void __host__ __device__ get_output_indices(
+    unsigned int* output_indices,
+    unsigned int* data_schedule_indices, unsigned int data_schedule_size,
+    unsigned int num_inputs, unsigned int num_outputs
+);
+
 __host__ __device__ int lookup_delay(
     Transition*,
     unsigned int, unsigned int,

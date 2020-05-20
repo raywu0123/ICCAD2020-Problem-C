@@ -27,6 +27,6 @@ set(SOURCE_FILES
         circuit_model/accumulators.cu
         include/progress_bar.cu
         utils.cu
-        )
+        simulator/delay_utils.cu simulator/collision_utils.cu)
 add_library(mylib STATIC ${HEADER_FILES} ${SOURCE_FILES})
 set_target_properties(mylib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)

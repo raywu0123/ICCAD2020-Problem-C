@@ -24,16 +24,16 @@ struct IndexedWire {
 
     bool load_from_bucket() {
 //        FIXME what if bucket is empty?
-        auto& start_index = bucket_index_schedule[bucket_idx];
-        const auto& next_start_index = bucket_index_schedule[bucket_idx + 1];
+        for (unsigned int stimuli_index = 0; stimuli_index < N_STIMULI_PARALLEL; stimuli_index++) {
+            auto index = bucket_index_schedule[bucket_idx];
+            auto size = bucket_index_schedule[bucket_idx + 1] - index;
 
-        auto s = next_start_index - start_index;
-        if (s == 0) {
-            start_index--;
-            s = 1;
+            if (index != 0) index--, size++;  // leave one for delay calculation
+
+            wire->load_from_bucket(stimuli_index, index, size);
+            bucket_idx++;
+            if (bucket_idx + 1 >= bucket_index_schedule.size()) break;
         }
-        wire->load_from_bucket(start_index, s);
-        bucket_idx++;
         return bucket_idx + 1 >= bucket_index_schedule.size();
     };
     void push_back_schedule_index(unsigned int i) {
@@ -66,7 +66,7 @@ public:
     static unsigned int find_end_index(const Bucket&, unsigned int, Timestamp, unsigned int);
 
     bool prepare_resource(ResourceBuffer&);
-    void finalize();
+    void dump_result();
 
     void set_paths(const std::vector<SDFPath>& ps);
 

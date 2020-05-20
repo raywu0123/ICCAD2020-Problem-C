@@ -21,7 +21,7 @@ void Wire::assign(const Wire& other_wire) {
 }
 
 Transition* Wire::alloc() {
-    auto* data_ptr = MemoryManager::alloc(capacity);
+    auto* data_ptr = MemoryManager::alloc(capacity * N_STIMULI_PARALLEL);
     data_ptrs.emplace_back(data_ptr, capacity);
     return data_ptr;
 }
@@ -33,10 +33,10 @@ void Wire::free() {
     data_ptrs.clear();
 }
 
-void Wire::load_from_bucket(unsigned int index, unsigned int size) {
+void Wire::load_from_bucket(unsigned int stimuli_index, unsigned int bucket_index, unsigned int size) {
     cudaMemcpy(
-        data_ptrs.back().ptr,
-        bucket.transitions.data() + index,
+        data_ptrs.back().ptr + capacity * stimuli_index,
+        bucket.transitions.data() + bucket_index,
         sizeof(Transition) * size,
         cudaMemcpyHostToDevice
     );

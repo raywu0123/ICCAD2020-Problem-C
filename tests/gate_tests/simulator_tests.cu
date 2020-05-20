@@ -7,14 +7,14 @@
 
 using namespace std;
 
-struct TestPair{
+struct SingleWaveformTestPair{
     vector<vector<Transition>> data_schedule;
     unsigned int num_inputs;
     vector<SDFPath> sdf_paths;
     vector<vector<Timestamp>> expected_output_timestamps;
 };
 
-class ComputeDelayTestFixture: public ::testing::TestWithParam<TestPair>
+class ComputeDelayTestFixture: public ::testing::TestWithParam<SingleWaveformTestPair>
 {
 protected:
 };
@@ -64,7 +64,7 @@ TEST_P(ComputeDelayTestFixture, SimpleCases) {
 
     int num_error = 0;
     for (int i_output = 0; i_output < num_module_outputs; i_output++) {
-        for (int i = 1; i < expected_output_timestamps[i_output].size(); i++) {
+        for (int i = 0; i < expected_output_timestamps[i_output].size(); i++) {
             if (expected_output_timestamps[i_output][i] != vector_data_schedule[num_module_inputs + i_output][i].timestamp)
                 num_error++;
         }
@@ -84,23 +84,23 @@ INSTANTIATE_TEST_SUITE_P(
     GateTests,
     ComputeDelayTestFixture,
     ::testing::Values(
-        TestPair{
+            SingleWaveformTestPair{
             vector<vector<Transition>>{
-                { Transition{0, '0'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, 'z'} },
+                { Transition{0, '0'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, '1'} },
                 { Transition{0, '0'}, Transition{2, '1'}, Transition{3, '0'}, Transition{4, '1'} },
-                { Transition{0, '0'}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'} }
+                { Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'}, Transition{3, 'z'} }
             }, 2,
             vector<SDFPath> {
                 SDFPath{0, 2, 'x', 10, 10},
                 SDFPath{1, 2, 'x', 5, 5},
             },
-            vector<vector<Timestamp>>{ {0, 11, 12, 7} }
+            vector<vector<Timestamp>>{ {11, 12, 7, 13} }
         },
-        TestPair{
+            SingleWaveformTestPair{
             vector<vector<Transition>>{
-                { Transition{0, '0'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, 'z'} },
+                { Transition{0, '0'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, '1'} },
                 { Transition{0, '0'}, Transition{2, '1'}, Transition{3, '0'}, Transition{4, '1'} },
-                { Transition{0, '0'}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'} }
+                { Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'}, Transition{3, 'z'} }
             }, 2,
             vector<SDFPath> {
                 SDFPath{0, 2, '+', 9, 9},
@@ -108,26 +108,26 @@ INSTANTIATE_TEST_SUITE_P(
                 SDFPath{1, 2, '+', 6, 6},
                 SDFPath{1, 2, '-', 5, 5},
             },
-            vector<vector<Timestamp>>{ {0, 10, 12, 8} }
+            vector<vector<Timestamp>>{ {10, 12, 8, 12} }
         },
-        TestPair{
+            SingleWaveformTestPair{
             vector<vector<Transition>>{
-                { Transition{0, '0'}, Transition{1, 'x'}, Transition{2, 'z'}, Transition{3, 'x'} },
+                { Transition{0, '0'}, Transition{1, 'x'}, Transition{2, 'z'}, Transition{3, '1'} },
                 { Transition{0, '0'}, Transition{2, 'z'}, Transition{3, 'x'}, Transition{4, '1'} },
-                { Transition{0, '0'}, Transition{1, '0'}, Transition{2, 'z'}, Transition{2, 'x'} }
+                { Transition{1, '0'}, Transition{2, 'z'}, Transition{2, 'x'}, Transition{3, 'z'} }
             }, 2,
             vector<SDFPath> {
                 SDFPath{0, 2, 'x', 9, 9},
                 SDFPath{1, 2, 'x', 5, 5},
             },
-            vector<vector<Timestamp>>{ {0, 10, 11, 7} }
+            vector<vector<Timestamp>>{ {10, 11, 7, 12} }
         },
-        TestPair{
+            SingleWaveformTestPair{
             vector<vector<Transition>>{
-                { Transition{0, '0'}, Transition{1, 'x'}, Transition{2, 'z'}, Transition{3, 'x'} },
+                { Transition{0, '0'}, Transition{1, 'x'}, Transition{2, 'z'}, Transition{3, '1'} },
                 { Transition{0, '0'}, Transition{2, 'z'}, Transition{3, 'x'}, Transition{4, '1'} },
-                { Transition{0, '0'}, Transition{1, '0'}, Transition{2, 'z'}, Transition{2, 'x'} },
-                { Transition{0, '0'}, Transition{1, '0'}, Transition{2, 'z'}, Transition{2, 'x'} }
+                { Transition{1, '0'}, Transition{2, 'z'}, Transition{2, 'x'}, Transition{3, 'z'} },
+                { Transition{1, '0'}, Transition{2, 'z'}, Transition{2, 'x'}, Transition{3, 'z'} }
             }, 2,
             vector<SDFPath> {
                 SDFPath{0, 2, 'x', 10, 10},
@@ -135,7 +135,7 @@ INSTANTIATE_TEST_SUITE_P(
                 SDFPath{1, 2, 'x', 5, 5},
                 SDFPath{1, 3, 'x', 6, 6},
             },
-            vector<vector<Timestamp>>{ {0, 11, 12, 7}, {0, 9, 10, 8} }
+            vector<vector<Timestamp>>{ {11, 12, 7, 13}, {9, 10, 8, 11} }
         }
     )
 );

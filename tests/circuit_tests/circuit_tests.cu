@@ -11,12 +11,12 @@ TEST(circuit_test, trivial) {
     EXPECT_EQ(c, 3);
 }
 
-struct TestPair {
+struct SingleWaveformTestPair {
     vector<vector<Timestamp>> transition_timestamps;
     vector<vector<unsigned int>> expected_schedule_indices;
 };
 
-class CellBuildBucketIndexScheduleTestFixture : public ::testing::TestWithParam<TestPair> {
+class CellBuildBucketIndexScheduleTestFixture : public ::testing::TestWithParam<SingleWaveformTestPair> {
 };
 
 TEST_P(CellBuildBucketIndexScheduleTestFixture, cases) {
@@ -51,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(
     CircuitTests,
     CellBuildBucketIndexScheduleTestFixture,
     ::testing::Values(
-        TestPair{
+        SingleWaveformTestPair{
             vector<vector<Timestamp>> {
                 {0, 3,     6, 9, 12,  15, 18, 21,  24, 27, 30},
                 {0, 2, 5,  10,                     31}
@@ -61,19 +61,26 @@ INSTANTIATE_TEST_SUITE_P(
                 {0, 3, 4, 4, 5}
             }
         },
-        TestPair{
+        SingleWaveformTestPair{
             vector<vector<Timestamp>> {
                 {0, 3, 5},
                 {0, 1}
             },
             vector<vector<unsigned int>> { {0, 3}, {0, 2} }
         },
-        TestPair{
+        SingleWaveformTestPair{
             vector<vector<Timestamp>> {
                 {0, 3, 5, 10},
                 {0, 100}
             },
             vector<vector<unsigned int>> { {0, 3, 4}, {0, 1, 2} }
+        },
+        SingleWaveformTestPair{
+            vector<vector<Timestamp>> {
+                {0, 100, 200, 400},
+                {0, 100, 300, 400, 500, 600, 700, 800}
+            },
+            vector<vector<unsigned int>> { {0, 3, 4, 4}, {0, 2, 5, 8} }
         }
     )
 );

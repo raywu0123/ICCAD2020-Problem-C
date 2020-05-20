@@ -40,6 +40,13 @@ struct Transition {
     char value;
     explicit Transition(): timestamp(0), value(0) {};
     Transition(Timestamp t, char v): timestamp(t), value(v) {};
+
+    bool operator== (const Transition& other) const {
+        return timestamp == other.timestamp and value == other.value;
+    }
+    bool operator!= (const Transition& other) const {
+        return not operator==(other);
+    }
 };
 
 typedef void (*GateFnPtr)(
@@ -63,10 +70,18 @@ struct ModuleSpec{
     unsigned int* num_outputs;  // how many outputs for every gate, currently assume its always 1
 };
 
+struct Data {
+    Data(Transition* ptr, unsigned int capacity): ptr(ptr), capacity(capacity) {};
+    Transition* ptr;
+    unsigned int capacity;
+    unsigned int length = 0;
+    bool overflow = false;
+};
+
 struct ResourceBuffer {
     std::vector<const ModuleSpec*> module_specs;
     std::vector<const SDFSpec*> sdf_specs;
-    std::vector<const Transition*> data_schedule;
+    std::vector<Data> data_schedule;
     std::vector<unsigned int> data_schedule_offsets;
     std::vector<unsigned int> capacities;
 
@@ -87,7 +102,7 @@ struct BatchResource {
     ~BatchResource();
     const ModuleSpec** module_specs;
     const SDFSpec** sdf_specs;
-    Transition** data_schedule;
+    Data* data_schedule;
     unsigned int* capacities;
     unsigned int* data_schedule_offsets; // offsets to each module
     unsigned int num_modules;

@@ -5,13 +5,13 @@
 
 using namespace std;
 
-struct TestPair {
+struct SingleWaveformTestPair {
     unsigned int index;
     string expected_output;
 };
 
 
-class IndexToIdentifierTestFixture: public ::testing::TestWithParam<TestPair>
+class IndexToIdentifierTestFixture: public ::testing::TestWithParam<SingleWaveformTestPair>
 {};
 
 TEST_P(IndexToIdentifierTestFixture, TestIndexToIdentifier) {
@@ -28,8 +28,8 @@ INSTANTIATE_TEST_SUITE_P(
     IndexToIdentifierTest,
     IndexToIdentifierTestFixture,
     ::testing::Values(
-        TestPair{0, "0"},
-        TestPair{15, "f"},
-        TestPair{16, "10"}
+            SingleWaveformTestPair{0, "0"},
+            SingleWaveformTestPair{15, "f"},
+            SingleWaveformTestPair{16, "10"}
     )
 );

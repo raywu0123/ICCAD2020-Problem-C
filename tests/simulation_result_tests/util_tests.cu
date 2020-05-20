@@ -7,12 +7,12 @@
 
 using namespace std;
 
-struct TestPair {
+struct SingleWaveformTestPair {
     vector<Timestamp> timestamps;
     vector<pair<Timestamp, int>> expected_ans;
 };
 
-class GroupTimestampsTestFixture: public ::testing::TestWithParam<TestPair>
+class GroupTimestampsTestFixture: public ::testing::TestWithParam<SingleWaveformTestPair>
 {};
 
 TEST_P(GroupTimestampsTestFixture, Cases) {
@@ -33,7 +33,7 @@ INSTANTIATE_TEST_SUITE_P(
     GroupTimestampsTest,
     GroupTimestampsTestFixture,
     ::testing::Values(
-        TestPair{
+            SingleWaveformTestPair{
             vector<Timestamp>{0, 0, 1, 2, 3, 3, 3, 3, 4},
             vector<pair<Timestamp, int>> {
                 pair<Timestamp, int>{0, 2},
