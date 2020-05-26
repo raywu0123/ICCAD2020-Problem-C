@@ -1,3 +1,5 @@
+#include <queue>
+
 #include "simulator/simulator.h"
 #include "simulator/collision_utils.h"
 #include "include/progress_bar.h"
@@ -194,25 +196,31 @@ void Simulator::run() {
             Cell::build_bucket_index_schedule(cell->input_wires, INITIAL_CAPACITY - 1);
             // leave one for delay calculation
         }
+        queue<Cell*, deque<Cell*>> job_queue(deque<Cell*>(schedule_layer.begin(), schedule_layer.end()));
+        while (!job_queue.empty()) {
+            vector<Cell*> processing_cells;
 
-        int num_cells = schedule_layer.size();
-        int num_finished_cells = 0;
-        while (num_finished_cells < num_cells) {
-            int prev_num_finished_gates = num_finished_cells;
             for (int i = 0; i < N_GATE_PARALLEL; i++) {
-                const auto& cell = schedule_layer[num_finished_cells];
-                if (cell->prepare_resource(resource_buffer)) {
-                    num_finished_cells++;
-                    if (num_finished_cells >= num_cells) break;
-                }
+                auto* cell = job_queue.front(); job_queue.pop(); processing_cells.push_back(cell);
+                cell->prepare_resource(resource_buffer);
+                if (job_queue.empty()) break;
             }
             const auto& batch_data = BatchResource{resource_buffer};
             resource_buffer.clear();
             simulate_batch<<<N_GATE_PARALLEL, N_STIMULI_PARALLEL>>>(batch_data);
             cudaDeviceSynchronize();
-            for (int cell_idx = prev_num_finished_gates; cell_idx < num_finished_cells; cell_idx++) {
-                const auto& cell = schedule_layer[cell_idx];
-                cell->dump_result();
+
+            for (auto* cell : processing_cells) {
+                bool finished = false;
+                if (cell->overflow()) {
+                    cell->increase_capacity();
+                } else {
+                    finished = cell->next();
+                    cell->dump_result();
+                }
+                if (not finished) {
+                    job_queue.push(cell);
+                }
             }
         }
         progress_bar.Progressed(i_layer);

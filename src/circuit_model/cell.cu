@@ -1,5 +1,4 @@
 #include <iostream>
-
 #include "cell.h"
 
 using namespace std;
@@ -165,22 +164,22 @@ unsigned int Cell::find_end_index(const Bucket& bucket, unsigned int start_index
     return low;
 }
 
-bool Cell::prepare_resource(ResourceBuffer& resource_buffer)  {
+void Cell::prepare_resource(ResourceBuffer& resource_buffer)  {
     resource_buffer.module_specs.push_back(module_spec);
     resource_buffer.sdf_specs.push_back(sdf_spec);
     resource_buffer.data_schedule_offsets.push_back(resource_buffer.data_schedule_offsets.size());
 
-//    allocate data memory
+    for (auto& indexed_wire : input_wires) {
+        indexed_wire.wire->reset_capacity();
+    }
+    //    allocate data memory
     for (const auto& wire : wire_schedule) {
         auto* data_ptr = wire->alloc();
         resource_buffer.data_schedule.emplace_back(data_ptr, wire->capacity);
     }
-
-    bool all_finished = true;
     for (auto& indexed_wire : input_wires) {
-        all_finished &= indexed_wire.load_from_bucket();
+        indexed_wire.load_from_bucket();
     }
-    return all_finished;
 }
 
 void Cell::dump_result() {
@@ -189,6 +188,23 @@ void Cell::dump_result() {
     }
     for (const auto& wire : wire_schedule) {
         wire->free();
+    }
+}
+
+bool Cell::next() {
+    bool finished = true;
+    for (auto& indexed_wire : input_wires) {
+        finished &= indexed_wire.next();
+    }
+    return finished;
+}
+
+void Cell::increase_capacity() {
+    for (auto* wire : cell_wires) {
+        wire->increase_capacity();
+    }
+    for (auto* wire : output_wires) {
+        wire->increase_capacity();
     }
 }
 

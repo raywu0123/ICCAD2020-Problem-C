@@ -46,6 +46,14 @@ void Wire::store_to_bucket() {
     for (const auto& data_ptr : data_ptrs) bucket.push_back(data_ptr);
 }
 
+void Wire::reset_capacity() {
+    capacity = INITIAL_CAPACITY;
+}
+
+void Wire::increase_capacity() {
+    capacity *= 2;
+}
+
 ConstantWire::ConstantWire(char value): value(value) {
     bucket.transitions.emplace_back(0, value);
 }

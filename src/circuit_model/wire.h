@@ -62,10 +62,13 @@ public:
 
     void assign(const Wire&);
     Transition* alloc();
+    void free();
+
     void load_from_bucket(unsigned int stimuli_index, unsigned int bucket_index, unsigned int size);
     void store_to_bucket();
 
-    void free();
+    void reset_capacity();
+    void increase_capacity();
 
     std::vector<WireInfo> wire_infos;
     std::vector<DataPtr> data_ptrs;

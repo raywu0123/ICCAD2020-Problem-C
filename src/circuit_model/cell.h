@@ -22,20 +22,25 @@ struct PinSpec {
 struct IndexedWire {
     explicit IndexedWire(Wire* wire): wire(wire) {};
 
-    bool load_from_bucket() {
+    void load_from_bucket() {
 //        FIXME what if bucket is empty?
         for (unsigned int stimuli_index = 0; stimuli_index < N_STIMULI_PARALLEL; stimuli_index++) {
-            auto index = bucket_index_schedule[bucket_idx];
-            auto size = bucket_index_schedule[bucket_idx + 1] - index;
+            unsigned int batch_bucket_idx = bucket_idx;
+            auto index = bucket_index_schedule[batch_bucket_idx];
+            auto size = bucket_index_schedule[batch_bucket_idx + 1] - index;
 
             if (index != 0) index--, size++;  // leave one for delay calculation
 
             wire->load_from_bucket(stimuli_index, index, size);
-            bucket_idx++;
-            if (bucket_idx + 1 >= bucket_index_schedule.size()) break;
+            batch_bucket_idx++;
+            if (batch_bucket_idx + 1 >= bucket_index_schedule.size()) break;
         }
-        return bucket_idx + 1 >= bucket_index_schedule.size();
     };
+    bool next() {
+        bucket_idx += N_STIMULI_PARALLEL;
+        return bucket_idx + 1 >= bucket_index_schedule.size();
+    }
+
     void push_back_schedule_index(unsigned int i) {
         if (i > wire->bucket.size())
             throw std::runtime_error("Schedule index out of range.");
@@ -65,7 +70,10 @@ public:
     static void build_bucket_index_schedule(std::vector<IndexedWire>&, unsigned int);
     static unsigned int find_end_index(const Bucket&, unsigned int, Timestamp, unsigned int);
 
-    bool prepare_resource(ResourceBuffer&);
+    void prepare_resource(ResourceBuffer&);
+    void increase_capacity();
+    bool overflow() const { return false; };
+    bool next();
     void dump_result();
 
     void set_paths(const std::vector<SDFPath>& ps);
