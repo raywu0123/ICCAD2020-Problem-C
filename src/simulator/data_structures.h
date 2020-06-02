@@ -83,14 +83,12 @@ struct ResourceBuffer {
     std::vector<const SDFSpec*> sdf_specs;
     std::vector<Data> data_schedule;
     std::vector<unsigned int> data_schedule_offsets;
-    std::vector<unsigned int> capacities;
 
     void clear() {
         module_specs.clear();
         sdf_specs.clear();
         data_schedule.clear();
         data_schedule_offsets.clear();
-        capacities.clear();
     }
 
     int size() const { return module_specs.size(); }
@@ -98,12 +96,11 @@ struct ResourceBuffer {
 
 
 struct BatchResource {
-    BatchResource(const ResourceBuffer&);
+    explicit BatchResource(const ResourceBuffer&);
     ~BatchResource();
     const ModuleSpec** module_specs;
     const SDFSpec** sdf_specs;
     Data* data_schedule;
-    unsigned int* capacities;
     unsigned int* data_schedule_offsets; // offsets to each module
     unsigned int num_modules;
 };
