@@ -20,18 +20,42 @@ struct PinSpec {
 };
 
 struct IndexedWire {
-    explicit IndexedWire(Wire* wire): wire(wire) {};
+    Wire* wire;
+    Transition* ptr = nullptr;
+    std::vector<unsigned int> wire_schedule_indices;
+    explicit IndexedWire(Wire* w) : wire(w) {};
+
+    void init_wire_schedule_indices(const std::vector<Wire*>& wire_schedule) {
+        for (unsigned int schedule_index = 0; schedule_index < wire_schedule.size(); schedule_index++) {
+            if (wire_schedule[schedule_index] == wire) wire_schedule_indices.push_back(schedule_index);
+        }
+    };
+
+    Transition* alloc() {
+        if (ptr != nullptr) throw std::runtime_error("Illegal alloc of indexed wire");
+        ptr = wire->alloc();
+        return ptr;
+    }
+    void free() { wire->free(ptr); ptr = nullptr; };
+    Transition* increase_capacity() {
+        ptr = wire->increase_capacity();
+        return ptr;
+    }
+};
+
+struct ScheduledWire : public IndexedWire {
+    explicit ScheduledWire(Wire* wire): IndexedWire(wire) {};
 
     void load_from_bucket() {
 //        FIXME what if bucket is empty?
+        unsigned int batch_bucket_idx = bucket_idx;
         for (unsigned int stimuli_index = 0; stimuli_index < N_STIMULI_PARALLEL; stimuli_index++) {
-            unsigned int batch_bucket_idx = bucket_idx;
             auto index = bucket_index_schedule[batch_bucket_idx];
             auto size = bucket_index_schedule[batch_bucket_idx + 1] - index;
 
             if (index != 0) index--, size++;  // leave one for delay calculation
 
-            wire->load_from_bucket(stimuli_index, index, size);
+            wire->load_from_bucket(ptr, stimuli_index, index, size);
             batch_bucket_idx++;
             if (batch_bucket_idx + 1 >= bucket_index_schedule.size()) break;
         }
@@ -51,9 +75,9 @@ struct IndexedWire {
     }
     unsigned int size() const { return wire->bucket.size(); }
     std::vector<unsigned int> bucket_index_schedule{0};
-    Wire* wire;
     unsigned int bucket_idx = 0;
 };
+
 
 class Cell {
 public:
@@ -65,20 +89,24 @@ public:
         Wire* supply1_wire, Wire* supply0_wire,
         const std::vector<Wire*>& alloc_wires, const std::vector<Wire*>& free_wires
     );
-    ~Cell();
 
-    static void build_bucket_index_schedule(std::vector<IndexedWire>&, unsigned int);
+    static void build_bucket_index_schedule(std::vector<ScheduledWire>&, unsigned int);
     static unsigned int find_end_index(const Bucket&, unsigned int, Timestamp, unsigned int);
 
+    void init();
+    void update_data_ptrs(Transition*, const IndexedWire&);
     void prepare_resource(ResourceBuffer&);
     void increase_capacity();
-    bool overflow() const { return false; };
+    bool overflow() const;
     bool next();
     void dump_result();
 
     void set_paths(const std::vector<SDFPath>& ps);
 
-    std::vector<IndexedWire> input_wires;
+    std::vector<ScheduledWire> input_wires;
+    std::vector<Transition*> data_ptrs;
+    bool* overflow_ptr;
+
 private:
     void build_wire_map(
         const StdCellDeclare* declare, const std::vector<PinSpec>& pin_specs,
@@ -89,13 +117,15 @@ private:
         const std::vector<SubmoduleSpec>* submodule_specs
     );
 
+    void init_wire_vectors(const StdCellDeclare* declare);
+
     const ModuleSpec* module_spec;
     SDFSpec* sdf_spec = nullptr;
 
     std::vector<Wire*> wire_schedule;
     std::unordered_map<unsigned int, Wire*> wire_map;
 
-    std::vector<Wire*> cell_wires, output_wires;
+    std::vector<IndexedWire> cell_wires, output_wires;
 };
 
 #endif

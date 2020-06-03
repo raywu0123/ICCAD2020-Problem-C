@@ -193,8 +193,7 @@ void Simulator::run() {
     for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
         const auto& schedule_layer = circuit.cell_schedule[i_layer];
         for (auto* cell : schedule_layer) {
-            Cell::build_bucket_index_schedule(cell->input_wires, INITIAL_CAPACITY - 1);
-            // leave one for delay calculation
+            cell->init();
         }
         queue<Cell*, deque<Cell*>> job_queue(deque<Cell*>(schedule_layer.begin(), schedule_layer.end()));
         while (!job_queue.empty()) {
@@ -212,15 +211,10 @@ void Simulator::run() {
 
             for (auto* cell : processing_cells) {
                 bool finished = false;
-                if (cell->overflow()) {
-                    cell->increase_capacity();
-                } else {
-                    finished = cell->next();
-                    cell->dump_result();
-                }
-                if (not finished) {
-                    job_queue.push(cell);
-                }
+                if (cell->overflow()) cell->increase_capacity();
+                else finished = cell->next();
+
+                if (not finished) job_queue.push(cell);
             }
         }
         progress_bar.Progressed(i_layer);

@@ -5,6 +5,7 @@ BatchResource::BatchResource(const ResourceBuffer& resource_buffer) {
 
     cudaMalloc((void**) &module_specs, sizeof(ModuleSpec*) * num_modules);
     cudaMalloc((void**) &sdf_specs, sizeof(SDFSpec*) * num_modules);
+    cudaMalloc((void**) &overflows, sizeof(bool) * num_modules);
     cudaMalloc((void**) &data_schedule, sizeof(Data) * resource_buffer.data_schedule.size());
     cudaMalloc((void**) &data_schedule_offsets, sizeof(unsigned int) * num_modules);
 

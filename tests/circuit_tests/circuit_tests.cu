@@ -20,7 +20,7 @@ class CellBuildBucketIndexScheduleTestFixture : public ::testing::TestWithParam<
 };
 
 TEST_P(CellBuildBucketIndexScheduleTestFixture, cases) {
-    vector<IndexedWire> wires;
+    vector<ScheduledWire> wires;
     auto& test_pair = GetParam();
 
     for (const auto& wire_transitions : test_pair.transition_timestamps) {
@@ -42,8 +42,8 @@ TEST_P(CellBuildBucketIndexScheduleTestFixture, cases) {
         }
     }
     ASSERT_EQ(num_error, 0);
-    for (const auto& indexed_wire : wires) {
-        delete indexed_wire.wire;
+    for (const auto& scheduled_wire : wires) {
+        delete scheduled_wire.wire;
     }
 }
 
