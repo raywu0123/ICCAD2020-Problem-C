@@ -192,16 +192,17 @@ void Simulator::run() {
     ProgressBar progress_bar(num_layers);
     for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
         const auto& schedule_layer = circuit.cell_schedule[i_layer];
-        for (auto* cell : schedule_layer) {
-            cell->init();
-        }
+        for (auto* cell : schedule_layer) cell->init();
         queue<Cell*, deque<Cell*>> job_queue(deque<Cell*>(schedule_layer.begin(), schedule_layer.end()));
-        while (!job_queue.empty()) {
-            vector<Cell*> processing_cells;
+        int session_index = 0;
+
+        while (not job_queue.empty()) {
+            unordered_set<Cell*> processing_cells;
 
             for (int i = 0; i < N_GATE_PARALLEL; i++) {
-                auto* cell = job_queue.front(); job_queue.pop(); processing_cells.push_back(cell);
-                cell->prepare_resource(resource_buffer);
+                auto* cell = job_queue.front(); job_queue.pop(); processing_cells.insert(cell);
+                cell->prepare_resource(session_index, resource_buffer);
+                if (not cell->finished()) job_queue.push(cell);
                 if (job_queue.empty()) break;
             }
             const auto& batch_data = BatchResource{resource_buffer};
@@ -210,12 +211,12 @@ void Simulator::run() {
             cudaDeviceSynchronize();
 
             for (auto* cell : processing_cells) {
-                bool finished = false;
-                if (cell->overflow()) cell->increase_capacity();
-                else finished = cell->next();
-
-                if (not finished) job_queue.push(cell);
+                if (cell->overflow()) {
+                    if (cell->finished()) job_queue.push(cell);
+                    cell->handle_overflow();
+                } else cell->dump_result();
             }
+            session_index++;
         }
         progress_bar.Progressed(i_layer);
     }

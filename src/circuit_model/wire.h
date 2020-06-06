@@ -56,19 +56,14 @@ public:
     explicit Wire(const WireInfo&);
 
     void assign(const Wire&);
-    Transition* alloc();
-    void free(Transition*);
 
-    void load_from_bucket(Transition* ptr, unsigned int stimuli_index, unsigned int bucket_index, unsigned int size);
-    void store_to_bucket();
-
-    void reset_capacity();
-    Transition* increase_capacity();
+    void load_from_bucket(
+        Transition* ptr, unsigned int capacity, unsigned int stimuli_index, unsigned int bucket_index, unsigned int size
+    );
+    void store_to_bucket(const std::vector<Transition*>& data_ptrs, unsigned int capacity);
 
     std::vector<WireInfo> wire_infos;
-    std::map<Transition*, unsigned int> data_ptrs;
     Bucket bucket;
-    unsigned int capacity = INITIAL_CAPACITY;
 };
 
 
@@ -76,7 +71,6 @@ class ConstantWire : public Wire {
 public:
     explicit ConstantWire(char value);
     char value;
-    const unsigned int capacity = 1;
 };
 
 #endif

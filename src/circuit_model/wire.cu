@@ -20,23 +20,10 @@ void Wire::assign(const Wire& other_wire) {
     wire_infos.insert(wire_infos.end(), other_wire.wire_infos.begin(), other_wire.wire_infos.end());
 }
 
-Transition* Wire::alloc() {
-    // Multiple alloc() calls would happen when same wire is used as input for different cells
-    auto* data_ptr = MemoryManager::alloc(capacity * N_STIMULI_PARALLEL);
-    data_ptrs.emplace(data_ptr, capacity);
-    return data_ptr;
-}
-
-void Wire::free(Transition* data_ptr) {
-    // Using data_ptrs vector to records
-    // repeated calling free() would not cause a problem
-    if (data_ptrs.find(data_ptr) != data_ptrs.end()) {
-        MemoryManager::free(data_ptr);
-        data_ptrs.erase(data_ptr);
-    }
-}
-
-void Wire::load_from_bucket(Transition* ptr, unsigned int stimuli_index, unsigned int bucket_index, unsigned int size) {
+void Wire::load_from_bucket(
+    Transition* ptr, unsigned int capacity,
+    unsigned int stimuli_index, unsigned int bucket_index, unsigned int size
+) {
     cudaMemcpy(
         ptr + capacity * stimuli_index,
         bucket.transitions.data() + bucket_index,
@@ -45,19 +32,8 @@ void Wire::load_from_bucket(Transition* ptr, unsigned int stimuli_index, unsigne
     );
 }
 
-void Wire::store_to_bucket() {
-    for (const auto& item : data_ptrs) bucket.push_back(item.first, item.second);
-}
-
-void Wire::reset_capacity() {
-    capacity = INITIAL_CAPACITY;
-}
-
-Transition* Wire::increase_capacity() {
-    if (data_ptrs.size() != 1) throw runtime_error("Encountered multiple data_ptrs while increasing capacity.");
-    free(data_ptrs.begin()->first);
-    capacity *= 2;
-    return alloc();
+void Wire::store_to_bucket(const vector<Transition*>& data_ptrs, unsigned int capacity) {
+    for (const auto& data_ptr : data_ptrs) bucket.push_back(data_ptr, capacity);
 }
 
 ConstantWire::ConstantWire(char value): value(value) {
