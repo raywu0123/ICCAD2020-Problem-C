@@ -25,8 +25,8 @@ TEST_P(CellBuildBucketIndexScheduleTestFixture, cases) {
 
     for (const auto& wire_transitions : test_pair.transition_timestamps) {
         auto* w = new Wire();
-        for (const auto& t : wire_transitions)
-        w->bucket.transitions.emplace_back(t, 0);
+        w->bucket.transitions.clear();
+        for (const auto& t : wire_transitions) w->bucket.transitions.emplace_back(t, 0);
         wires.push_back(new ScheduledWire(w));
     }
 

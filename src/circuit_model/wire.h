@@ -14,7 +14,7 @@ struct WireInfo {
 };
 
 struct Bucket {
-    std::vector<Transition> transitions;
+    std::vector<Transition> transitions{ Transition{0, 'x'} };
 
     void push_back(const Transition* ptr, const unsigned int capacity) {
         Transition first_transition;

@@ -102,6 +102,7 @@ void VCDReader::read_single_time_dump(Timestamp timestamp) {
 }
 
 void VCDReader::emplace_transition(const string& token, Timestamp timestamp, const string& value) {
+    if (timestamp == 0) return;
     const auto& it = token_to_wire.find(token);
     if (it == token_to_wire.end())
         throw runtime_error("Token " + token + " not found\n");
@@ -130,6 +131,7 @@ void VCDReader::emplace_transition(const string& token, Timestamp timestamp, con
 }
 
 void VCDReader::emplace_transition(const string& token, Timestamp timestamp, const char& value) {
+    if (timestamp == 0) return;
     const auto& it = token_to_wire.find(token);
     if (it == token_to_wire.end())
         throw runtime_error("Token " + token + " not found\n");
