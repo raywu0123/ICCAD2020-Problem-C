@@ -2,6 +2,7 @@
 #define ICCAD2020_WIRE_H
 
 #include <iostream>
+#include <map>
 #include "simulator/data_structures.h"
 #include "simulator/memory_manager.h"
 #include "simulator/collision_utils.h"
@@ -12,18 +13,12 @@ struct WireInfo {
     int bus_index;
 };
 
-struct DataPtr {
-    DataPtr(Transition* data_ptr, unsigned int capacity): ptr(data_ptr), capacity(capacity) {};
-    Transition* ptr;
-    unsigned int capacity;
-};
-
 struct Bucket {
-    std::vector<Transition> transitions;
+    std::vector<Transition> transitions{ Transition{0, 'x'} };
 
-    void push_back(const DataPtr& data_ptr) {
+    void push_back(const Transition* ptr, const unsigned int capacity) {
         Transition first_transition;
-        cudaMemcpy(&first_transition, data_ptr.ptr, sizeof(Transition), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&first_transition, ptr, sizeof(Transition), cudaMemcpyDeviceToHost);
         const auto& t = first_transition.timestamp;
         const auto& v = first_transition.value;
 
@@ -32,11 +27,11 @@ struct Bucket {
         if (t <= prev_t) write_index = binary_search(transitions.data(), write_index - 1, t);
         auto offset = (write_index > 0 and v == transitions[write_index - 1].value) ? 1: 0;
 
-        auto valid_data_size = data_ptr.capacity * N_STIMULI_PARALLEL - offset;
+        auto valid_data_size = capacity * N_STIMULI_PARALLEL - offset;
         transitions.resize(transitions.size() + valid_data_size);
         cudaMemcpy(
             transitions.data() + write_index,
-            data_ptr.ptr,
+            ptr,
             sizeof(Transition) * valid_data_size,
             cudaMemcpyDeviceToHost
         );
@@ -61,16 +56,14 @@ public:
     explicit Wire(const WireInfo&);
 
     void assign(const Wire&);
-    Transition* alloc();
-    void load_from_bucket(unsigned int stimuli_index, unsigned int bucket_index, unsigned int size);
-    void store_to_bucket();
 
-    void free();
+    void load_from_bucket(
+        Transition* ptr, unsigned int capacity, unsigned int stimuli_index, unsigned int bucket_index, unsigned int size
+    );
+    void store_to_bucket(const std::vector<Transition*>& data_ptrs, unsigned int capacity);
 
     std::vector<WireInfo> wire_infos;
-    std::vector<DataPtr> data_ptrs;
     Bucket bucket;
-    unsigned int capacity = INITIAL_CAPACITY;
 };
 
 
@@ -78,7 +71,6 @@ class ConstantWire : public Wire {
 public:
     explicit ConstantWire(char value);
     char value;
-    const unsigned int capacity = 1;
 };
 
 #endif

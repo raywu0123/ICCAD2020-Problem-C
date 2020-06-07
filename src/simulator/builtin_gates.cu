@@ -95,7 +95,8 @@ __host__ __device__ void merge_sort_algorithm(
     const unsigned int* capacities,
     char* table, unsigned int table_row_num,
     unsigned int num_inputs,
-    LogicFn logic_fn
+    LogicFn logic_fn,
+    bool* overflow
 ) {
     unsigned int num_finished = 0;
     for (int i = 1; i < num_inputs + 1; i++) {
@@ -130,27 +131,28 @@ __host__ __device__ void merge_sort_algorithm(
             }
         }
         const char& output_value = logic_fn(data, num_inputs, indices, table, table_row_num);
-        bool overflow = false;
         for (int i = 0; i < num_advancing_outputs; i++) {
+            if (indices[0] >= capacities[0]) {
+                *overflow = true;
+                break;
+            }
             data[0][indices[0]].timestamp = min_timestamp;
             data[0][indices[0]].value = output_value;
             indices[0]++;
-            if (indices[0] >= capacities[0]) {
-                overflow = true;
-//                TODO
-                break;
-            }
         }
-        if (overflow) break;
+        if (*overflow) break;
     }
 
     delete[] indices;
 }
 __host__ __device__ void single_input_algorithm(
-        Transition** data, const unsigned int* capacities, char(*logic_fn)(char)
+        Transition** data, const unsigned int* capacities, char(*logic_fn)(char), bool* overflow
 ) {
     for (unsigned int i = 1; i < capacities[1]; i++) {
-        if (i > capacities[0]) break; // TODO handle overflow
+        if (i > capacities[0]) {
+            *overflow = true;
+            break;
+        }
         data[0][i - 1].timestamp = data[1][i].timestamp;
         data[0][i - 1].value = logic_fn(data[1][i].value);
     }
@@ -159,65 +161,73 @@ __host__ __device__ void and_gate_fn(
         Transition** data,  // (capacity, num_inputs + num_outputs)
         const unsigned int* capacities,
         char* table, unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs
+        unsigned int num_inputs, unsigned int num_outputs,
+        bool* overflow
 ) {
-    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, and_logic);
+    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, and_logic, overflow);
 }
 __host__ __device__ void or_gate_fn(
         Transition** data,  // (capacity, num_inputs + num_outputs)
         const unsigned int* capacities,
         char* table, unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs
+        unsigned int num_inputs, unsigned int num_outputs,
+        bool* overflow
 ) {
-    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, or_logic);
+    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, or_logic, overflow);
 }
 __host__ __device__ void xor_gate_fn(
         Transition** data,  // (capacity, num_inputs + num_outputs)
         const unsigned int* capacities,
         char* table, unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs
+        unsigned int num_inputs, unsigned int num_outputs,
+        bool* overflow
 ) {
-    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, xor_logic);
+    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, xor_logic, overflow);
 }
 __host__ __device__ void nand_gate_fn(
         Transition** data,  // (capacity, num_inputs + num_outputs)
         const unsigned int* capacities,
         char* table, unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs
+        unsigned int num_inputs, unsigned int num_outputs,
+        bool* overflow
 ) {
-    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, nand_logic);
+    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, nand_logic, overflow);
 }
 __host__ __device__ void nor_gate_fn(
         Transition** data,  // (capacity, num_inputs + num_outputs)
         const unsigned int* capacities,
         char* table, unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs
+        unsigned int num_inputs, unsigned int num_outputs,
+        bool* overflow
 ) {
-    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, nor_logic);
+    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, nor_logic, overflow);
 }
 __host__ __device__ void xnor_gate_fn(
         Transition** data,  // (capacity, num_inputs + num_outputs)
         const unsigned int* capacities,
         char* table, unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs
+        unsigned int num_inputs, unsigned int num_outputs,
+        bool* overflow
 ) {
-    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, xnor_logic);
+    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, xnor_logic, overflow);
 }
 __host__ __device__ void not_gate_fn(
         Transition** data,  // (capacity, num_inputs + num_outputs)
         const unsigned int* capacities,
         char* table, unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs
+        unsigned int num_inputs, unsigned int num_outputs,
+        bool* overflow
 ) {
-    single_input_algorithm(data, capacities, not_logic);
+    single_input_algorithm(data, capacities, not_logic, overflow);
 }
 __host__ __device__ void buf_gate_fn(
         Transition** data,  // (capacity, num_inputs + num_outputs)
         const unsigned int* capacities,
         char* table, unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs
+        unsigned int num_inputs, unsigned int num_outputs,
+        bool* overflow
 ) {
-    single_input_algorithm(data, capacities, buf_logic);
+    single_input_algorithm(data, capacities, buf_logic, overflow);
 }
 
 __host__ __device__ char primitive_logic(
@@ -242,9 +252,10 @@ __host__ __device__ void PrimitiveGate(
         Transition** data,
         const unsigned int* capacities,
         char* table, unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs
+        unsigned int num_inputs, unsigned int num_outputs,
+        bool* overflow
 ) {
-    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, primitive_logic);
+    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, primitive_logic, overflow);
 };
 
 

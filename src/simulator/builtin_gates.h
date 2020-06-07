@@ -29,10 +29,11 @@ __host__ __device__ void merge_sort_algorithm(
     const unsigned int* capacities,
     char* table, unsigned int table_row_num,
     unsigned int num_inputs,
-    LogicFn logic_fn
+    LogicFn logic_fn,
+    bool* overflow
 );
 __host__ __device__ void single_input_algorithm(
-    Transition** data, const unsigned int* capacities, char(*logic_fn)(char)
+    Transition** data, const unsigned int* capacities, char(*logic_fn)(char), bool* overflow
 );
 
 // Gates compute results on single stimuli
@@ -40,49 +41,57 @@ __host__ __device__ void and_gate_fn(
     Transition** data,  // (capacity, num_inputs + num_outputs)
     const unsigned int* capacities,
     char* table, unsigned int table_row_num,
-    unsigned int num_inputs, unsigned int num_outputs
+    unsigned int num_inputs, unsigned int num_outputs,
+    bool* overflow
 );
 __host__ __device__ void or_gate_fn(
     Transition** data,  // (capacity, num_inputs + num_outputs)
     const unsigned int* capacities,
     char* table, unsigned int table_row_num,
-    unsigned int num_inputs, unsigned int num_outputs
+    unsigned int num_inputs, unsigned int num_outputs,
+    bool* overflow
 );
 __host__ __device__ void xor_gate_fn(
         Transition** data,  // (capacity, num_inputs + num_outputs)
         const unsigned int* capacities,
         char* table, unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs
+        unsigned int num_inputs, unsigned int num_outputs,
+        bool* overflow
 );
 __host__ __device__ void nand_gate_fn(
         Transition** data,  // (capacity, num_inputs + num_outputs)
         const unsigned int* capacities,
         char* table, unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs
+        unsigned int num_inputs, unsigned int num_outputs,
+        bool* overflow
 );
 __host__ __device__ void nor_gate_fn(
         Transition** data,  // (capacity, num_inputs + num_outputs)
         const unsigned int* capacities,
         char* table, unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs
+        unsigned int num_inputs, unsigned int num_outputs,
+        bool* overflow
 );
 __host__ __device__ void xnor_gate_fn(
         Transition** data,  // (capacity, num_inputs + num_outputs)
         const unsigned int* capacities,
         char* table, unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs
+        unsigned int num_inputs, unsigned int num_outputs,
+        bool* overflow
 );
 __host__ __device__ void not_gate_fn(
     Transition** data,  // (capacity, num_inputs + num_outputs)
     const unsigned int* capacities,
     char* table, unsigned int table_row_num,
-    unsigned int num_inputs, unsigned int num_outputs
+    unsigned int num_inputs, unsigned int num_outputs,
+    bool* overflow
 );
 __host__ __device__ void buf_gate_fn(
     Transition** data,  // (capacity, num_inputs + num_outputs)
     const unsigned int* capacities,
     char* table, unsigned int table_row_num,
-    unsigned int num_inputs, unsigned int num_outputs
+    unsigned int num_inputs, unsigned int num_outputs,
+    bool* overflow
 );
 
 __host__ __device__ char primitive_logic(
@@ -92,7 +101,8 @@ __host__ __device__ void PrimitiveGate(
     Transition** data,
     const unsigned int* capacities,
     char* table, unsigned int table_row_num,
-    unsigned int num_inputs, unsigned int num_outputs
+    unsigned int num_inputs, unsigned int num_outputs,
+    bool* overflow
 );
 
 #endif //ICCAD2020_BUILTIN_GATES_H

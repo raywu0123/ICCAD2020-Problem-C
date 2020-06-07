@@ -35,12 +35,13 @@ TEST_P(BuiltinGateTestFixture, SimpleCases) {
 
     auto** data_schedule = new Transition*[inputs.size() + 1];
     data_schedule[0] = output.data();
+    bool overflow = false;
     for (int i = 0; i < inputs.size(); i++) {
         data_schedule[i + 1] = inputs[i].data();
         capacities.push_back(inputs[i].size());
     }
 
-    gate_fn(data_schedule, capacities.data(), nullptr, 0, inputs.size(), 1);
+    gate_fn(data_schedule, capacities.data(), nullptr, 0, inputs.size(), 1, &overflow);
 
     int error_num = 0;
     for (int i = 0; i < expected_output.size(); i++) {
@@ -138,11 +139,12 @@ TEST_P(PrimitiveGateTestFixture, SimpleCases) {
     output.resize(expected_output.size());
     capacities.push_back(output.size());
     data_schedule[0] = output.data();
+    bool overflow = false;
     for (int i = 0; i < inputs.size(); i++) {
         data_schedule[i + 1] = inputs[i].data();
         capacities.push_back(inputs[i].size());
     }
-    PrimitiveGate(data_schedule, capacities.data(), table, table_row_num, inputs.size(), 1);
+    PrimitiveGate(data_schedule, capacities.data(), table, table_row_num, inputs.size(), 1, &overflow);
 
     int error_num = 0;
     for (int i = 0; i < expected_output.size(); i++) {

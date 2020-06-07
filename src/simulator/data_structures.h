@@ -54,7 +54,8 @@ typedef void (*GateFnPtr)(
     const unsigned int* capacities,
     char* table,
     unsigned int table_row_num,
-    unsigned int num_inputs, unsigned int num_outputs
+    unsigned int num_inputs, unsigned int num_outputs,
+    bool* overflow
 );
 
 typedef char (*LogicFn)(Transition**, unsigned int, const unsigned int*, char* table, unsigned int table_row_num);
@@ -75,22 +76,20 @@ struct Data {
     Transition* ptr;
     unsigned int capacity;
     unsigned int length = 0;
-    bool overflow = false;
 };
 
 struct ResourceBuffer {
     std::vector<const ModuleSpec*> module_specs;
     std::vector<const SDFSpec*> sdf_specs;
+    std::vector<bool*> overflows;
     std::vector<Data> data_schedule;
     std::vector<unsigned int> data_schedule_offsets;
-    std::vector<unsigned int> capacities;
 
     void clear() {
         module_specs.clear();
         sdf_specs.clear();
         data_schedule.clear();
         data_schedule_offsets.clear();
-        capacities.clear();
     }
 
     int size() const { return module_specs.size(); }
@@ -98,12 +97,12 @@ struct ResourceBuffer {
 
 
 struct BatchResource {
-    BatchResource(const ResourceBuffer&);
+    explicit BatchResource(const ResourceBuffer&);
     ~BatchResource();
     const ModuleSpec** module_specs;
     const SDFSpec** sdf_specs;
+    bool** overflows;
     Data* data_schedule;
-    unsigned int* capacities;
     unsigned int* data_schedule_offsets; // offsets to each module
     unsigned int num_modules;
 };

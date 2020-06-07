@@ -1,3 +1,5 @@
+#include <queue>
+
 #include "simulator/simulator.h"
 #include "simulator/collision_utils.h"
 #include "include/progress_bar.h"
@@ -135,7 +137,8 @@ __device__ void simulate_gate_on_multiple_stimuli(
         Data* data,  //(n_stimuli * capacities[i_wire], num_inputs + num_outputs)
         char* table,
         unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs
+        unsigned int num_inputs, unsigned int num_outputs,
+        bool* overflow
 ) {
     unsigned int stimuli_idx = threadIdx.x;
 
@@ -145,7 +148,7 @@ __device__ void simulate_gate_on_multiple_stimuli(
         stimuli_data[i] = data[i].ptr + data[i].capacity * stimuli_idx;
         capacities[i] = data[i].capacity;
     }
-    gate_fn_ptr(stimuli_data, capacities, table, table_row_num, num_inputs, num_outputs);
+    gate_fn_ptr(stimuli_data, capacities, table, table_row_num, num_inputs, num_outputs, overflow);
 
     delete[] stimuli_data;
     delete[] capacities;
@@ -154,7 +157,8 @@ __device__ void simulate_gate_on_multiple_stimuli(
 __device__ void simulate_module(
     const ModuleSpec* module_spec,
     const SDFSpec* sdf_spec,
-    Data* data_schedule
+    Data* data_schedule,
+    bool* overflow
 ) {
     unsigned int data_schedule_idx = 0;
     for (int i = 0; i < module_spec->schedule_size; i++) {
@@ -163,7 +167,8 @@ __device__ void simulate_module(
             data_schedule + data_schedule_idx,
             module_spec->tables[i],
             module_spec->table_row_num[i],
-            module_spec->num_inputs[i], module_spec->num_outputs[i]
+            module_spec->num_inputs[i], module_spec->num_outputs[i],
+            overflow
         );
         data_schedule_idx += module_spec->num_inputs[i] + module_spec->num_outputs[i];
     }
@@ -177,7 +182,8 @@ __global__ void simulate_batch(BatchResource batch_resource) {
         const auto& module_spec = batch_resource.module_specs[blockIdx.x];
         const auto& sdf_spec = batch_resource.sdf_specs[blockIdx.x];
         auto module_data_schedule = &batch_resource.data_schedule[offset];
-        simulate_module(module_spec, sdf_spec, module_data_schedule);
+        auto* overflow = batch_resource.overflows[blockIdx.x];
+        simulate_module(module_spec, sdf_spec, module_data_schedule, overflow);
     }
 }
 
@@ -190,30 +196,31 @@ void Simulator::run() {
     ProgressBar progress_bar(num_layers);
     for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
         const auto& schedule_layer = circuit.cell_schedule[i_layer];
-        for (auto* cell : schedule_layer) {
-            Cell::build_bucket_index_schedule(cell->input_wires, INITIAL_CAPACITY - 1);
-            // leave one for delay calculation
-        }
+        for (auto* cell : schedule_layer) cell->init();
+        queue<Cell*, deque<Cell*>> job_queue(deque<Cell*>(schedule_layer.begin(), schedule_layer.end()));
+        int session_index = 0;
 
-        int num_cells = schedule_layer.size();
-        int num_finished_cells = 0;
-        while (num_finished_cells < num_cells) {
-            int prev_num_finished_gates = num_finished_cells;
+        while (not job_queue.empty()) {
+            unordered_set<Cell*> processing_cells;
+
             for (int i = 0; i < N_GATE_PARALLEL; i++) {
-                const auto& cell = schedule_layer[num_finished_cells];
-                if (cell->prepare_resource(resource_buffer)) {
-                    num_finished_cells++;
-                    if (num_finished_cells >= num_cells) break;
-                }
+                auto* cell = job_queue.front(); job_queue.pop(); processing_cells.insert(cell);
+                cell->prepare_resource(session_index, resource_buffer);
+                if (not cell->finished()) job_queue.push(cell);
+                if (job_queue.empty()) break;
             }
             const auto& batch_data = BatchResource{resource_buffer};
             resource_buffer.clear();
             simulate_batch<<<N_GATE_PARALLEL, N_STIMULI_PARALLEL>>>(batch_data);
             cudaDeviceSynchronize();
-            for (int cell_idx = prev_num_finished_gates; cell_idx < num_finished_cells; cell_idx++) {
-                const auto& cell = schedule_layer[cell_idx];
-                cell->dump_result();
+
+            for (auto* cell : processing_cells) {
+                if (cell->overflow()) {
+                    if (cell->finished()) job_queue.push(cell);
+                    cell->handle_overflow();
+                } else cell->dump_result();
             }
+            session_index++;
         }
         progress_bar.Progressed(i_layer);
     }

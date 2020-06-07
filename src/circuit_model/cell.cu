@@ -1,5 +1,4 @@
 #include <iostream>
-
 #include "cell.h"
 
 using namespace std;
@@ -14,14 +13,15 @@ Cell::Cell(
     const vector<Wire*>& alloc_wires_param, const vector<Wire*>& free_wires_param
 ) : module_spec(module_spec)
 {
+    cudaMalloc((void**) &overflow_ptr, sizeof(bool));
+
     build_wire_map(declare, pin_specs, supply1_wire, supply0_wire);
     create_wire_schedule(submodule_specs);
-    for (const auto& idx : declare->buckets[STD_CELL_INPUT]) {
-        input_wires.emplace_back(wire_map[idx]);
-    }
-    for (const auto& idx : declare->buckets[STD_CELL_OUTPUT]) {
-        output_wires.push_back(wire_map[idx]);
-    }
+}
+
+Cell::~Cell() {
+    for (auto& cell_wire : cell_wires) delete cell_wire->wire;
+    for (auto& it : wire_map) delete it.second;
 }
 
 void Cell::set_paths(const vector<SDFPath>& ps) {
@@ -55,12 +55,6 @@ void Cell::set_paths(const vector<SDFPath>& ps) {
     cudaMemcpy(sdf_spec, &host_sdf_spec, sizeof(SDFSpec), cudaMemcpyHostToDevice);
 }
 
-Cell::~Cell() {
-    for (auto& wire_ptr: cell_wires) {
-        delete wire_ptr;
-    }
-}
-
 void Cell::build_wire_map(
     const StdCellDeclare* declare,
     const vector<PinSpec> &pin_specs,
@@ -68,36 +62,41 @@ void Cell::build_wire_map(
 )
 {
     if (not wire_map.empty()) throw runtime_error("wire_map not empty.");
+    unordered_map<unsigned int, Wire*> index_to_wire_ptr;
+    for (const auto& pin_spec: pin_specs) index_to_wire_ptr.emplace(pin_spec.index, pin_spec.wire);
 
-    for (const auto& pin_spec: pin_specs) wire_map[pin_spec.index] = pin_spec.wire;
-    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY1]) wire_map[arg] = supply1_wire;
-    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY0]) wire_map[arg] = supply0_wire;
+    for (const auto& arg: declare->buckets[STD_CELL_INPUT]) {
+        bool specified = index_to_wire_ptr.find(arg) != index_to_wire_ptr.end();
+        if (not specified) continue;
+        auto* scheduled_wire = new ScheduledWire(index_to_wire_ptr[arg]);
+        wire_map.emplace(arg, scheduled_wire); input_wires.push_back(scheduled_wire);
+    }
+    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY1]) wire_map.emplace(arg, new IndexedWire(supply1_wire));
+    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY0]) wire_map.emplace(arg, new IndexedWire(supply0_wire));
+
+    for (const auto& arg: declare->buckets[STD_CELL_OUTPUT]) {
+        bool specified = index_to_wire_ptr.find(arg) != index_to_wire_ptr.end();
+        if (not specified) continue;
+        auto* indexed_wire = new IndexedWire(index_to_wire_ptr[arg]);
+        wire_map.emplace(arg, indexed_wire); output_wires.push_back(indexed_wire);
+    }
+    for (const auto& arg: declare->buckets[STD_CELL_WIRE]) {
+        auto* indexed_wire = new IndexedWire(new Wire());
+        wire_map.emplace(arg, indexed_wire); cell_wires.push_back(indexed_wire);
+    }
 }
 
-
-void Cell::create_wire_schedule(
-    const vector<SubmoduleSpec>* submodule_specs
-)  {
+void Cell::create_wire_schedule(const vector<SubmoduleSpec>* submodule_specs)  {
     for(const auto& submodule_spec: *submodule_specs) {
         for (const auto& arg: submodule_spec.args) {
             const auto& it = wire_map.find(arg);
-            if (it != wire_map.end()) {
-                wire_schedule.emplace_back(it->second);
-            } else {
-                // create cell wire
-                auto* wire_ptr = new Wire();
-                wire_schedule.emplace_back(wire_ptr);
-                add_cell_wire(wire_ptr);
-            }
+            if (it != wire_map.end()) wire_schedule.emplace_back(it->second);
+            else throw runtime_error("Wire not found in wire_map.");
         }
     }
 }
 
-void Cell::add_cell_wire(Wire *wire_ptr) {
-    cell_wires.push_back(wire_ptr);
-}
-
-void Cell::build_bucket_index_schedule(vector<IndexedWire>& wires, unsigned int capacity) {
+void Cell::build_bucket_index_schedule(vector<ScheduledWire*>& wires, unsigned int capacity) {
     unsigned int num_finished = 0;
     unsigned int num_inputs = wires.size();
 
@@ -105,7 +104,7 @@ void Cell::build_bucket_index_schedule(vector<IndexedWire>& wires, unsigned int 
     vector<bool> finished; finished.resize(num_inputs);
     for (int i_wire = 0; i_wire < num_inputs; i_wire++) {
         const auto& wire = wires[i_wire];
-        if (capacity >= wire.wire->bucket.size()) {
+        if (capacity >= wire->wire->bucket.size()) {
             finished[i_wire] = true;
             num_finished++;
         }
@@ -116,7 +115,7 @@ void Cell::build_bucket_index_schedule(vector<IndexedWire>& wires, unsigned int 
         Timestamp min_end_timestamp = LONG_LONG_MAX;
         for(int i_wire = 0; i_wire < num_inputs; i_wire++) {
             auto& wire = wires[i_wire];
-            const auto& bucket = wire.wire->bucket;
+            const auto& bucket = wire->wire->bucket;
             unsigned int end_index = starting_indices[i_wire] + capacity - 1;
             if (end_index >= bucket.size()) continue;
             const auto& end_timestamp = bucket.transitions[end_index].timestamp;
@@ -125,18 +124,18 @@ void Cell::build_bucket_index_schedule(vector<IndexedWire>& wires, unsigned int 
 
         for (int i_wire = 0; i_wire < num_inputs; i_wire++) {
             auto& wire = wires[i_wire];
-            const auto& bucket = wire.wire->bucket;
+            const auto& bucket = wire->wire->bucket;
 //            If already finished, push_back the last index of bucket
             if (
-                not wire.bucket_index_schedule.empty()
-                and wire.bucket_index_schedule.back() == bucket.size()
-            ) wire.push_back_schedule_index(bucket.size());
+                not wire->bucket_index_schedule.empty()
+                and wire->bucket_index_schedule.back() == bucket.size()
+            ) wire->push_back_schedule_index(bucket.size());
             else {
 //                FIXME will fail if start_index = 0 and timestamp[0] > min_end_timestamp
                 auto start_index = bucket.transitions[starting_indices[i_wire]].timestamp > min_end_timestamp ? starting_indices[i_wire] - 1 : starting_indices[i_wire];
                 auto end_index = find_end_index(bucket, start_index, min_end_timestamp, capacity);
                 auto next_start_index = end_index + 1;
-                wire.push_back_schedule_index(next_start_index);
+                wire->push_back_schedule_index(next_start_index);
                 if (next_start_index + capacity >= bucket.size() and not finished[i_wire]) {
                     finished[i_wire] = true;
                     num_finished++;
@@ -146,7 +145,7 @@ void Cell::build_bucket_index_schedule(vector<IndexedWire>& wires, unsigned int 
         }
     }
     for (auto& wire : wires) {
-        wire.push_back_schedule_index(wire.wire->bucket.size());
+        wire->push_back_schedule_index(wire->wire->bucket.size());
     }
 }
 
@@ -165,30 +164,45 @@ unsigned int Cell::find_end_index(const Bucket& bucket, unsigned int start_index
     return low;
 }
 
-bool Cell::prepare_resource(ResourceBuffer& resource_buffer)  {
+void Cell::init() {
+    Cell::build_bucket_index_schedule(input_wires, INITIAL_CAPACITY - 1); // leave one for delay calculation
+}
+
+void Cell::prepare_resource(int session_index, ResourceBuffer& resource_buffer)  {
+    cudaMemset(overflow_ptr, 0, sizeof(bool)); // reset overflow value
+    resource_buffer.overflows.push_back(overflow_ptr);
+
     resource_buffer.module_specs.push_back(module_spec);
     resource_buffer.sdf_specs.push_back(sdf_spec);
     resource_buffer.data_schedule_offsets.push_back(resource_buffer.data_schedule_offsets.size());
 
-//    allocate data memory
-    for (const auto& wire : wire_schedule) {
-        auto* data_ptr = wire->alloc();
-        resource_buffer.data_schedule.emplace_back(data_ptr, wire->capacity);
+    for (auto& indexed_wire : wire_schedule) {
+        resource_buffer.data_schedule.emplace_back(indexed_wire->load(session_index), indexed_wire->capacity);
     }
-
-    bool all_finished = true;
-    for (auto& indexed_wire : input_wires) {
-        all_finished &= indexed_wire.load_from_bucket();
-    }
-    return all_finished;
 }
 
 void Cell::dump_result() {
-    for (const auto& wire : output_wires) {
-        wire->store_to_bucket();
-    }
-    for (const auto& wire : wire_schedule) {
-        wire->free();
+    for (const auto& indexed_wire : output_wires) indexed_wire->store_to_bucket();
+    if (finished()) {
+        for (auto& indexed_wire : input_wires) indexed_wire->free();
+        for (auto& indexed_wire : output_wires) indexed_wire->free();
+        for (auto& indexed_wire : cell_wires) indexed_wire->free();
     }
 }
 
+void Cell::handle_overflow() {
+    for (auto& indexed_wire : cell_wires) indexed_wire->handle_overflow();
+    for (auto& indexed_wire : output_wires) indexed_wire->handle_overflow();
+}
+
+bool Cell::overflow() const {
+    bool host_overflow_value;
+    cudaMemcpy(&host_overflow_value, overflow_ptr, sizeof(bool), cudaMemcpyDeviceToHost);
+    return host_overflow_value;
+}
+
+bool Cell::finished() const {
+    bool finished = true;
+    for (auto& indexed_wire : input_wires) finished &= indexed_wire->finished();
+    return finished;
+}

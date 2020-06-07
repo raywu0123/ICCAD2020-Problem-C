@@ -20,14 +20,14 @@ class CellBuildBucketIndexScheduleTestFixture : public ::testing::TestWithParam<
 };
 
 TEST_P(CellBuildBucketIndexScheduleTestFixture, cases) {
-    vector<IndexedWire> wires;
+    vector<ScheduledWire*> wires;
     auto& test_pair = GetParam();
 
     for (const auto& wire_transitions : test_pair.transition_timestamps) {
         auto* w = new Wire();
-        for (const auto& t : wire_transitions)
-        w->bucket.transitions.emplace_back(t, 0);
-        wires.emplace_back(w);
+        w->bucket.transitions.clear();
+        for (const auto& t : wire_transitions) w->bucket.transitions.emplace_back(t, 0);
+        wires.push_back(new ScheduledWire(w));
     }
 
     Cell::build_bucket_index_schedule(wires, 3);
@@ -36,14 +36,15 @@ TEST_P(CellBuildBucketIndexScheduleTestFixture, cases) {
     const auto& expected_schedule_indices = test_pair.expected_schedule_indices;
     ASSERT_EQ(test_pair.expected_schedule_indices.size(), wires.size());
     for (int i = 0; i < wires.size(); i++) {
-        ASSERT_EQ(wires[i].bucket_index_schedule.size(), expected_schedule_indices[i].size());
+        ASSERT_EQ(wires[i]->bucket_index_schedule.size(), expected_schedule_indices[i].size());
         for (int j = 0; j < expected_schedule_indices[i].size(); j++) {
-            if (wires[i].bucket_index_schedule[j] != expected_schedule_indices[i][j]) num_error++;
+            if (wires[i]->bucket_index_schedule[j] != expected_schedule_indices[i][j]) num_error++;
         }
     }
     ASSERT_EQ(num_error, 0);
-    for (const auto& indexed_wire : wires) {
-        delete indexed_wire.wire;
+    for (const auto& scheduled_wire : wires) {
+        delete scheduled_wire->wire;
+        delete scheduled_wire;
     }
 }
 
