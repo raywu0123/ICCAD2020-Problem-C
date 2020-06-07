@@ -27,14 +27,19 @@ struct IndexedWire {
             first_free_data_ptr_index = 0;
             previous_session_index = session_index;
         }
-        if (first_free_data_ptr_index >= data_ptrs.size()) {
-            data_ptrs.push_back(MemoryManager::alloc(capacity * N_STIMULI_PARALLEL));
-        }
-        first_free_data_ptr_index++;
+        unsigned int size = capacity * N_STIMULI_PARALLEL;
 
-        if (first_free_data_ptr_index - 1 >= data_ptrs.size())
+        if (first_free_data_ptr_index >= data_ptrs.size())
+            data_ptrs.push_back(MemoryManager::alloc(size));
+
+        if (first_free_data_ptr_index >= data_ptrs.size())
             throw std::runtime_error("Invalid access to data_ptrs");
-        return data_ptrs[first_free_data_ptr_index - 1];
+
+        Transition* data_ptr = data_ptrs[first_free_data_ptr_index - 1];
+        cudaMemset(data_ptr, 0, sizeof(Transition) * size);
+
+        first_free_data_ptr_index++;
+        return data_ptr;
     }
     virtual Transition* load(int session_index) { return alloc(session_index); }
     void free() {

@@ -137,7 +137,8 @@ __device__ void simulate_gate_on_multiple_stimuli(
         Data* data,  //(n_stimuli * capacities[i_wire], num_inputs + num_outputs)
         char* table,
         unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs
+        unsigned int num_inputs, unsigned int num_outputs,
+        bool* overflow
 ) {
     unsigned int stimuli_idx = threadIdx.x;
 
@@ -147,7 +148,7 @@ __device__ void simulate_gate_on_multiple_stimuli(
         stimuli_data[i] = data[i].ptr + data[i].capacity * stimuli_idx;
         capacities[i] = data[i].capacity;
     }
-    gate_fn_ptr(stimuli_data, capacities, table, table_row_num, num_inputs, num_outputs);
+    gate_fn_ptr(stimuli_data, capacities, table, table_row_num, num_inputs, num_outputs, overflow);
 
     delete[] stimuli_data;
     delete[] capacities;
@@ -156,7 +157,8 @@ __device__ void simulate_gate_on_multiple_stimuli(
 __device__ void simulate_module(
     const ModuleSpec* module_spec,
     const SDFSpec* sdf_spec,
-    Data* data_schedule
+    Data* data_schedule,
+    bool* overflow
 ) {
     unsigned int data_schedule_idx = 0;
     for (int i = 0; i < module_spec->schedule_size; i++) {
@@ -165,7 +167,8 @@ __device__ void simulate_module(
             data_schedule + data_schedule_idx,
             module_spec->tables[i],
             module_spec->table_row_num[i],
-            module_spec->num_inputs[i], module_spec->num_outputs[i]
+            module_spec->num_inputs[i], module_spec->num_outputs[i],
+            overflow
         );
         data_schedule_idx += module_spec->num_inputs[i] + module_spec->num_outputs[i];
     }
@@ -179,7 +182,8 @@ __global__ void simulate_batch(BatchResource batch_resource) {
         const auto& module_spec = batch_resource.module_specs[blockIdx.x];
         const auto& sdf_spec = batch_resource.sdf_specs[blockIdx.x];
         auto module_data_schedule = &batch_resource.data_schedule[offset];
-        simulate_module(module_spec, sdf_spec, module_data_schedule);
+        auto* overflow = batch_resource.overflows[blockIdx.x];
+        simulate_module(module_spec, sdf_spec, module_data_schedule, overflow);
     }
 }
 

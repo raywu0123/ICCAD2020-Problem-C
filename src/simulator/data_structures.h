@@ -54,7 +54,8 @@ typedef void (*GateFnPtr)(
     const unsigned int* capacities,
     char* table,
     unsigned int table_row_num,
-    unsigned int num_inputs, unsigned int num_outputs
+    unsigned int num_inputs, unsigned int num_outputs,
+    bool* overflow
 );
 
 typedef char (*LogicFn)(Transition**, unsigned int, const unsigned int*, char* table, unsigned int table_row_num);
@@ -100,7 +101,7 @@ struct BatchResource {
     ~BatchResource();
     const ModuleSpec** module_specs;
     const SDFSpec** sdf_specs;
-    bool* overflows;
+    bool** overflows;
     Data* data_schedule;
     unsigned int* data_schedule_offsets; // offsets to each module
     unsigned int num_modules;

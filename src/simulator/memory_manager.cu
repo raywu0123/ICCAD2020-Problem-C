@@ -8,7 +8,6 @@ Transition* MemoryManager::alloc(size_t size) {
 //    TODO buddy tree
     Transition* p;
     cudaMalloc((void**) &p, sizeof(Transition) * size);
-    cudaMemset(&p, 0, sizeof(Transition) * size);
     return p;
 }
 

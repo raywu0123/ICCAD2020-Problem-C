@@ -169,7 +169,7 @@ void Cell::init() {
 }
 
 void Cell::prepare_resource(int session_index, ResourceBuffer& resource_buffer)  {
-    cudaMemset(&overflow_ptr, 0, sizeof(bool)); // reset overflow value
+    cudaMemset(overflow_ptr, 0, sizeof(bool)); // reset overflow value
     resource_buffer.overflows.push_back(overflow_ptr);
 
     resource_buffer.module_specs.push_back(module_spec);
