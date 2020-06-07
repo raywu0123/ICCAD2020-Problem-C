@@ -35,7 +35,7 @@ struct IndexedWire {
         if (first_free_data_ptr_index >= data_ptrs.size())
             throw std::runtime_error("Invalid access to data_ptrs");
 
-        Transition* data_ptr = data_ptrs[first_free_data_ptr_index - 1];
+        Transition* data_ptr = data_ptrs[first_free_data_ptr_index];
         cudaMemset(data_ptr, 0, sizeof(Transition) * size);
 
         first_free_data_ptr_index++;
