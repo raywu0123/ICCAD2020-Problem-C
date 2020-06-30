@@ -4,6 +4,10 @@ jobs:
   build:
     docker:
       - image: "nvidia/cuda"
+    environment:
+      LC_ALL: C.UTF-8
+      LANG: C.UTF-8
+      LANGUAGE: C.UTF-8
     steps:
       - checkout
       - run:
@@ -29,3 +33,17 @@ jobs:
       - run:
           name: Run Unit Tests
           command: 'bash ./scripts/test.sh'
+#      - run:
+#          name: Install Python
+#          command: 'apt-get update
+#          && sudo apt-get install -y python3.6
+#          && sudo apt-get install -y python3-pip
+#          && pip3 install --upgrade pip'
+#      - run:
+#          name: Install Python Packages
+#          command: |
+#            sudo pip install pipenv
+#            pipenv install
+#      - run:
+#          name: Run Custom Tests
+#          command: pipenv run python ./custom-tests/test-custom-cases.py

@@ -5,5 +5,4 @@ CMakeFiles/
 __pycache__/
 /test-cases/
 Testing/
-vcddiff/
 perf.data*
