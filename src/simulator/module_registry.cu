@@ -195,14 +195,7 @@ void ModuleRegistry::register_module(
 //    TODO move module_spec to constant memory
     if (submodules.empty())
         throw runtime_error("Empty module " + name + "\n");
-    vector<unsigned int> data_schedule_indices;
-    for (const auto& submodule_spec : submodules) {
-        data_schedule_indices.insert(
-            data_schedule_indices.end(),
-            submodule_spec.args.begin(),
-            submodule_spec.args.end()
-        );
-    }
+
     vector<GateFnPtr> gate_schedule;
     vector<char*> tables;
     vector<unsigned int> table_row_nums, num_inputs, num_outputs;
@@ -216,13 +209,31 @@ void ModuleRegistry::register_module(
         num_outputs.push_back(1);
         num_inputs.push_back(submodules[i].args.size() - 1);
     }
+
+    auto num_module_input = declares.buckets[0].size();
+    auto num_module_output = declares.buckets[1].size();
+    vector<unsigned int> data_schedule_args;
+    vector<unsigned int> output_indices; output_indices.reserve(declares.buckets[1].size());
+    unsigned int index_offset = 0;
+    for (const auto& submodule_spec : submodules) {
+        data_schedule_args.insert(data_schedule_args.end(), submodule_spec.args.begin(), submodule_spec.args.end());
+        for (int i_arg = 0; i_arg < submodule_spec.args.size(); i_arg++) {
+            const auto& arg = submodule_spec.args[i_arg];
+            if (num_module_input <= arg and arg < num_module_input + num_module_output) {
+                if (not arg - num_module_input <= num_module_output) {
+                    throw runtime_error("output arg invalid");
+                }
+                output_indices[arg - num_module_input] = i_arg + index_offset;
+            }
+        }
+        index_offset += submodule_spec.args.size();
+    }
+
     ModuleSpec device_module_spec_{};
     device_module_spec_.schedule_size = schedule_size;
-    device_module_spec_.num_module_input = declares.buckets[0].size();
-    device_module_spec_.num_module_output = declares.buckets[1].size();
-    device_module_spec_.data_schedule_size = data_schedule_indices.size();
-    cudaMalloc((void**) &device_module_spec_.data_schedule_indices, sizeof(unsigned int) * data_schedule_indices.size());
-    cudaMemcpy(device_module_spec_.data_schedule_indices, data_schedule_indices.data(), sizeof(unsigned int) * data_schedule_indices.size(), cudaMemcpyHostToDevice);
+    device_module_spec_.num_module_input = num_module_input;
+    device_module_spec_.num_module_output = num_module_output;
+    device_module_spec_.data_schedule_size = data_schedule_args.size();
     cudaMalloc((void**) &device_module_spec_.gate_schedule, sizeof(GateFnPtr) * schedule_size);
     cudaMemcpy(device_module_spec_.gate_schedule, gate_schedule.data(), sizeof(GateFnPtr) * schedule_size, cudaMemcpyHostToDevice);
     cudaMalloc((void**) &device_module_spec_.tables, sizeof(char*) * schedule_size);
@@ -233,6 +244,10 @@ void ModuleRegistry::register_module(
     cudaMemcpy(device_module_spec_.num_inputs, num_inputs.data(), sizeof(unsigned int) * schedule_size, cudaMemcpyHostToDevice);
     cudaMalloc((void**) &device_module_spec_.num_outputs, sizeof(unsigned int) * schedule_size);
     cudaMemcpy(device_module_spec_.num_outputs, num_outputs.data(), sizeof(unsigned int) * schedule_size, cudaMemcpyHostToDevice);
+    cudaMalloc((void**) &device_module_spec_.output_indices, sizeof(unsigned int) * num_module_output);
+    cudaMemcpy(device_module_spec_.output_indices, output_indices.data(), sizeof(unsigned int) * num_module_output, cudaMemcpyHostToDevice);
+    cudaMalloc((void**) &device_module_spec_.data_schedule_args, sizeof(unsigned int) * data_schedule_args.size());
+    cudaMemcpy(device_module_spec_.data_schedule_args, data_schedule_args.data(), sizeof(unsigned int) * data_schedule_args.size(), cudaMemcpyHostToDevice);
 
     ModuleSpec* device_module_spec;
     cudaMalloc((void**) &device_module_spec, sizeof(ModuleSpec));
