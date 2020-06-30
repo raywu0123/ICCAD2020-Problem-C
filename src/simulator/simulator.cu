@@ -7,53 +7,12 @@
 using namespace std;
 
 
-extern void __host__ __device__ get_output_indices(
-    unsigned int* output_indices,
-    unsigned int* data_schedule_indices, unsigned int data_schedule_size,
-    unsigned int num_inputs, unsigned int num_outputs
-) {
-    for (int i = 0; i < data_schedule_size; i++) {
-        if (num_inputs <= data_schedule_indices[i] and data_schedule_indices[i] < num_inputs + num_outputs) {
-            output_indices[data_schedule_indices[i] - num_inputs] = i;
-        }
-    }
-}
-
-__device__ void compute_delay_on_multiple_stimuli(
-    Data* data,
-    const ModuleSpec* module_spec,
-    const SDFSpec* sdf_spec
-) {
-    unsigned int stimuli_idx = threadIdx.x;
-    const auto& data_schedule_size = module_spec->data_schedule_size;
-    auto** stimuli_data = new Transition*[data_schedule_size]; // (capacities[i], num_inputs + num_outputs)
-    auto* capacities = new unsigned int[data_schedule_size];
-    for (int i = 0; i < data_schedule_size; i++) {
-        stimuli_data[i] = data[i].ptr + data[i].capacity * stimuli_idx;
-        capacities[i] = data[i].capacity;
-    }
-    compute_delay(
-        stimuli_data,
-        data_schedule_size,
-        capacities,
-        module_spec->data_schedule_indices,
-        module_spec->num_module_input, module_spec->num_module_output,
-        sdf_spec
-    );
-    delete[] stimuli_data;
-    delete[] capacities;
-}
-
 __device__ __host__ void resolve_collisions_for_single_stimuli(
     Transition** data,
     unsigned int* lengths,
-    unsigned int data_schedule_size,
-    unsigned int* capacities,
-    unsigned int* data_schedule_indices,
-    unsigned int num_inputs, unsigned int num_outputs
+    const unsigned int* capacities,
+    const unsigned int num_outputs, const unsigned int* output_indices
 ) {
-    auto* output_indices = new unsigned int[num_outputs];
-    get_output_indices(output_indices, data_schedule_indices, data_schedule_size, num_inputs, num_outputs);
     for (int i = 0; i < num_outputs; i++) {
         resolve_collisions_for_single_waveform(
             data[output_indices[i]], capacities[output_indices[i]], lengths + i
@@ -66,15 +25,10 @@ __device__ __host__ void resolve_collisions_for_batch_stimuli(
     Transition** data,
     unsigned int** batch_lengths,
     const unsigned int* lengths,
-    unsigned int data_schedule_size,
-    unsigned int* capacities,
-    unsigned int* data_schedule_indices,
-    unsigned int num_inputs, unsigned int num_outputs
+    const unsigned int* capacities,
+    const unsigned int num_outputs, const unsigned int* output_indices
 ) {
-    auto* output_indices = new unsigned int[num_outputs];
     auto* stimuli_lengths = new unsigned int[INITIAL_CAPACITY];
-
-    get_output_indices(output_indices, data_schedule_indices, data_schedule_size, num_inputs, num_outputs);
     for (int i_output = 0; i_output < num_outputs; i_output++) {
         for(int i_stimuli = 0; i_stimuli < N_STIMULI_PARALLEL; i_stimuli++) {
             stimuli_lengths[i_stimuli] = lengths[num_outputs * i_stimuli + i_output];
@@ -83,75 +37,64 @@ __device__ __host__ void resolve_collisions_for_batch_stimuli(
             data[output_indices[i_output]], capacities[output_indices[i_output]],
             stimuli_lengths, batch_lengths[output_indices[i_output]]
         );
-
     }
     delete[] output_indices;
     delete[] stimuli_lengths;
 }
 
-__device__ void resolve_collisions_on_multiple_stimuli(
-    Data* data,
-    const ModuleSpec* module_spec
+__device__ void resolve_collisions(
+    Transition** data, const unsigned int* capacities, unsigned int** batch_lengths,
+    const unsigned int* output_indices, const unsigned int num_module_output
 ) {
-    unsigned int stimuli_idx = threadIdx.x;
-    const auto& data_schedule_size = module_spec->data_schedule_size;
-
     __shared__ unsigned int lengths[N_STIMULI_PARALLEL * MAX_NUM_MODULE_OUTPUT];
 
-    auto** stimuli_data = new Transition*[data_schedule_size]; // (capacities[i], num_inputs + num_outputs)
-    auto* capacities = new unsigned int[data_schedule_size];
-    auto** batch_lengths = new unsigned int*[data_schedule_size];
-    for (int i = 0; i < data_schedule_size; i++) {
-        stimuli_data[i] = data[i].ptr + data[i].capacity * stimuli_idx;
-        capacities[i] = data[i].capacity;
-        batch_lengths[i] = &data[i].length;
-    }
-
+    unsigned int stimuli_idx = threadIdx.x;
     resolve_collisions_for_single_stimuli(
-        stimuli_data,
-        lengths + stimuli_idx * module_spec->num_module_output,
-        data_schedule_size,
-        capacities,
-        module_spec->data_schedule_indices,
-        module_spec->num_module_input, module_spec->num_module_output
+        data, lengths + stimuli_idx * num_module_output, capacities,
+        num_module_output, output_indices
     );
     __syncthreads();
     if (threadIdx.x == 0) {
         resolve_collisions_for_batch_stimuli(
-            stimuli_data,
-            batch_lengths,
-            lengths,
-            data_schedule_size,
-            capacities,
-            module_spec->data_schedule_indices,
-            module_spec->num_module_input, module_spec->num_module_output
+            data, batch_lengths, lengths, capacities,
+            num_module_output, output_indices
         );
     }
-    delete[] batch_lengths;
-    delete[] stimuli_data;
-    delete[] capacities;
 }
 
-__device__ void simulate_gate_on_multiple_stimuli(
-        GateFnPtr gate_fn_ptr,
-        Data* data,  //(n_stimuli * capacities[i_wire], num_inputs + num_outputs)
-        char* table,
-        unsigned int table_row_num,
-        unsigned int num_inputs, unsigned int num_outputs,
-        bool* overflow
+__device__ void simulate_gate(
+    GateFnPtr gate_fn_ptr,
+    Transition** data,  //(capacities[i_wire], num_inputs + num_outputs)
+    const unsigned int* capacities,
+    const char* table,
+    const unsigned int table_row_num,
+    const unsigned int num_inputs, const unsigned int num_outputs,
+    bool* overflow
 ) {
-    unsigned int stimuli_idx = threadIdx.x;
+    gate_fn_ptr(data, capacities, table, table_row_num, num_inputs, num_outputs, overflow);
+}
 
-    auto** stimuli_data = new Transition*[num_inputs + num_outputs]; // (capacities[i], num_inputs + num_outputs)
-    auto* capacities  = new unsigned int[num_inputs + num_outputs];
-    for (int i = 0; i < num_inputs + num_outputs; i++) {
-        stimuli_data[i] = data[i].ptr + data[i].capacity * stimuli_idx;
-        capacities[i] = data[i].capacity;
+__device__ char get_edge_type(char v1, char v2) {
+    if (v2 == '1' or v1 == '0') return '+';
+    if (v2 == '0' or v1 == '1') return '-';
+    return 'x';
+}
+
+__device__ void init_delay_info(
+    Transition** data, const unsigned int* data_schedule_args, unsigned int data_schedule_size, const unsigned int* capacities,
+    unsigned int num_input
+) {
+    for (unsigned int i = 0; i < data_schedule_size; i++) {
+        const auto& arg = data_schedule_args[i];
+        if (arg >= num_input) continue;
+        if (data[i][0].delay_info.edge_type == 1) continue; // use first edge type as initialize flag
+
+        data[i][0].delay_info.edge_type = 1;
+        for (unsigned int j = 1; j < capacities[i]; j++) {
+            if (data[i][j].value == 0) break;
+            data[i][j].delay_info.arg = arg; data[i][j].delay_info.edge_type = get_edge_type(data[i][j - 1].value, data[i][j].value);
+        }
     }
-    gate_fn_ptr(stimuli_data, capacities, table, table_row_num, num_inputs, num_outputs, overflow);
-
-    delete[] stimuli_data;
-    delete[] capacities;
 }
 
 __device__ void simulate_module(
@@ -160,11 +103,26 @@ __device__ void simulate_module(
     Data* data_schedule,
     bool* overflow
 ) {
+    auto* data_ptrs_for_each_stimuli = new Transition*[module_spec->data_schedule_size];
+    auto* capacities = new unsigned int[module_spec->data_schedule_size];
+    auto** batch_lengths = new unsigned int*[module_spec->data_schedule_size];
+    unsigned stimuli_idx = threadIdx.x;
+    for (unsigned int i = 0; i < module_spec->data_schedule_size; i++) {
+        data_ptrs_for_each_stimuli[i] = data_schedule[i].ptr + stimuli_idx * data_schedule[i].capacity;
+        capacities[i] = data_schedule[i].capacity;
+        batch_lengths[i] = &(data_schedule[i].length);
+    }
+
+    init_delay_info(
+        data_ptrs_for_each_stimuli, module_spec->data_schedule_args, module_spec->data_schedule_size, capacities,
+        module_spec->num_module_input
+    );
     unsigned int data_schedule_idx = 0;
     for (int i = 0; i < module_spec->schedule_size; i++) {
-        simulate_gate_on_multiple_stimuli(
+        simulate_gate(
             module_spec->gate_schedule[i],
-            data_schedule + data_schedule_idx,
+            data_ptrs_for_each_stimuli + data_schedule_idx,
+            capacities + data_schedule_idx,
             module_spec->tables[i],
             module_spec->table_row_num[i],
             module_spec->num_inputs[i], module_spec->num_outputs[i],
@@ -172,8 +130,19 @@ __device__ void simulate_module(
         );
         data_schedule_idx += module_spec->num_inputs[i] + module_spec->num_outputs[i];
     }
-    compute_delay_on_multiple_stimuli(data_schedule, module_spec, sdf_spec);
-    resolve_collisions_on_multiple_stimuli(data_schedule, module_spec);
+    compute_delay(
+        data_ptrs_for_each_stimuli, capacities,
+        module_spec->output_indices, module_spec->num_module_output, module_spec->num_module_input,
+        sdf_spec
+    );
+    resolve_collisions(
+        data_ptrs_for_each_stimuli, capacities, batch_lengths,
+        module_spec->output_indices, module_spec->num_module_output
+    );
+
+    delete[] data_ptrs_for_each_stimuli;
+    delete[] capacities;
+    delete[] batch_lengths;
 }
 
 __global__ void simulate_batch(BatchResource batch_resource) {

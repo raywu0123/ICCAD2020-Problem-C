@@ -90,7 +90,6 @@ TEST_P(BatchWaveformCollisionTestFixture, SimpleCases) {
 
     unsigned int err_num = 0;
     for (int i = 0; i < length; i++) {
-        cout << w[i].timestamp << " " << w[i].value << endl;
         if (w[i] != test_pair.expected[i]) err_num++;
     }
     EXPECT_EQ(err_num, 0);

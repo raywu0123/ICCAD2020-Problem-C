@@ -174,7 +174,7 @@ void Cell::prepare_resource(int session_index, ResourceBuffer& resource_buffer) 
 
     resource_buffer.module_specs.push_back(module_spec);
     resource_buffer.sdf_specs.push_back(sdf_spec);
-    resource_buffer.data_schedule_offsets.push_back(resource_buffer.data_schedule_offsets.size());
+    resource_buffer.data_schedule_offsets.push_back(resource_buffer.data_schedule.size());
 
     for (auto& indexed_wire : wire_schedule) {
         resource_buffer.data_schedule.emplace_back(indexed_wire->load(session_index), indexed_wire->capacity);
