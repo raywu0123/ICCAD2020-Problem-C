@@ -1,0 +1,23 @@
+(DELAYFILE
+(SDFVERSION "OVI 2.1")
+(DESIGN "NV_NVDLA_partition_m")
+(DATE "Wed Jan 29 17:07:13 2020")
+(VENDOR "ICCAD2020 Contest GENERIC Lib")
+(PROGRAM "ICCAD2020 Contest Generator Script")
+(VERSION "Alpha")
+(DIVIDER /)
+(VOLTAGE 9.99:9.99:9.99)
+(PROCESS "fake")
+(TEMPERATURE 111.11:111.11:111.11)
+(TIMESCALE 1ns)
+(CELL
+  (CELLTYPE "GEN_AND2_D1")
+  (INSTANCE AND_GATE)
+  (DELAY
+    (ABSOLUTE
+    (iopath a1 z (0.011:0.011:0.011))
+    (iopath a2 z (0.013:0.013:0.013))
+    )
+  )
+)
+)
