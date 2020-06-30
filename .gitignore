@@ -3,7 +3,6 @@ cmake-build-*
 build/
 CMakeFiles/
 __pycache__/
-test-cases/
+/test-cases/
 Testing/
-vcddiff/
 perf.data*
