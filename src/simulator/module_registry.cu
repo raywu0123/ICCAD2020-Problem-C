@@ -100,6 +100,7 @@ extern __device__ GateFnPtr nor_gate_fn_ptr;
 extern __device__ GateFnPtr xnor_gate_fn_ptr;
 extern __device__ GateFnPtr not_gate_fn_ptr;
 extern __device__ GateFnPtr buf_gate_fn_ptr;
+extern __device__ GateFnPtr primitive_gate_fn_ptr;
 void ModuleRegistry::register_primitives() {
     GateFnPtr host_and_gate_fn_ptr;
     GateFnPtr host_or_gate_fn_ptr;
@@ -109,6 +110,7 @@ void ModuleRegistry::register_primitives() {
     GateFnPtr host_xnor_gate_fn_ptr;
     GateFnPtr host_not_gate_fn_ptr;
     GateFnPtr host_buf_gate_fn_ptr;
+    GateFnPtr host_primitive_gate_fn_ptr;
     cudaMemcpyFromSymbol(&host_and_gate_fn_ptr, and_gate_fn_ptr, sizeof(GateFnPtr));
     cudaMemcpyFromSymbol(&host_or_gate_fn_ptr, or_gate_fn_ptr, sizeof(GateFnPtr));
     cudaMemcpyFromSymbol(&host_xor_gate_fn_ptr, xor_gate_fn_ptr, sizeof(GateFnPtr));
@@ -117,6 +119,7 @@ void ModuleRegistry::register_primitives() {
     cudaMemcpyFromSymbol(&host_xnor_gate_fn_ptr, xnor_gate_fn_ptr, sizeof(GateFnPtr));
     cudaMemcpyFromSymbol(&host_not_gate_fn_ptr, not_gate_fn_ptr, sizeof(GateFnPtr));
     cudaMemcpyFromSymbol(&host_buf_gate_fn_ptr, buf_gate_fn_ptr, sizeof(GateFnPtr));
+    cudaMemcpyFromSymbol(&host_primitive_gate_fn_ptr, primitive_gate_fn_ptr, sizeof(GateFnPtr));
     name_to_gate["and"] = host_and_gate_fn_ptr;
     name_to_gate["or"] = host_or_gate_fn_ptr;
     name_to_gate["xor"] = host_xor_gate_fn_ptr;
@@ -125,6 +128,7 @@ void ModuleRegistry::register_primitives() {
     name_to_gate["xnor"] = host_xnor_gate_fn_ptr;
     name_to_gate["not"] = host_not_gate_fn_ptr;
     name_to_gate["buf"] = host_buf_gate_fn_ptr;
+    name_to_gate["primitive"]= host_primitive_gate_fn_ptr;
 }
 
 void ModuleRegistry::register_user_defined_primitive(
@@ -143,35 +147,32 @@ void ModuleRegistry::register_user_defined_primitive(
     }
     name_to_declares[name] = declares;
 
-    int row_size = table[0].size();
-    Table table_struct;
-    table_struct.num_rows = table.size();
-    table_struct.table = new char[table_struct.num_rows * row_size]; // temporary
+    unsigned int row_size = table[0].size(), num_rows = table.size();
+    auto* char_table = new char[num_rows * row_size]; // temporary
 //    TODO move char_table to constant memory
-    for(int i = 0; i < table_struct.num_rows; i++) {
+    for(int i = 0; i < num_rows; i++) {
         for (int j = 0; j < row_size; j++) {
-            table_struct.table[i * row_size + j] = table[i][j];
+            char_table[i * row_size + j] = table[i][j];
         }
     }
     char* device_char_table;
-    cudaMalloc((void**) &device_char_table, table_struct.num_rows * row_size);
-    cudaMemcpy(device_char_table, table_struct.table, sizeof(table_struct.num_rows) * row_size, cudaMemcpyHostToDevice);
-    delete[] table_struct.table;
-    table_struct.table = device_char_table;
-    name_to_table[name] = table_struct;
+    cudaMalloc((void**) &device_char_table, num_rows * row_size);
+    cudaMemcpy(device_char_table, char_table, sizeof(char) * num_rows * row_size, cudaMemcpyHostToDevice);
+    delete[] char_table;
+    name_to_table[name] = Table{device_char_table, num_rows};
 }
 
 GateFnPtr ModuleRegistry::get_gate_fn(const string &name, char*& table, unsigned int& table_row_num) const {
     const auto& gate_it = name_to_gate.find(name);
-    if (gate_it != name_to_gate.end()) return gate_it->second;
-    const auto& table_it = name_to_table.find(name);
-    if (table_it != name_to_table.end()) {
-        table = table_it->second.table;
-        table_row_num = table_it->second.num_rows;
-        return nullptr;
-    }
+    if (gate_it != name_to_gate.end()) return gate_it->second; // builtin gates
 
-    throw runtime_error("Gate " + name + " not found.\n");
+    // udp
+    const auto& table_it = name_to_table.find(name);
+    if (table_it == name_to_table.end()) throw runtime_error("Gate " + name + " not found.\n");
+
+    table = table_it->second.table;
+    table_row_num = table_it->second.num_rows;
+    return name_to_gate.find("primitive")->second;
 }
 
 void ModuleRegistry::register_module(

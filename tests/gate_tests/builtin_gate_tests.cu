@@ -113,9 +113,9 @@ class PrimitiveGateTestFixture: public ::testing::TestWithParam<PrimitiveTestPai
 {
 protected:
     vector<vector<Transition>> inputs {
-        { Transition{1, '1'}, Transition{2, '1'}, Transition{3, '0'} },
-        { Transition{2, '1'}, Transition{3, '1'}, Transition{4, 'x'} },
-        { Transition{5, '0'}, Transition{6, 'z'}, Transition{7, 'x'} }
+        { Transition{1, '1'}, Transition{2, '0'}, Transition{3, '1'} },
+        { Transition{2, '0'}, Transition{3, '1'}, Transition{4, 'x'} },
+        { Transition{5, 'x'}, Transition{6, '0'}, Transition{7, '1'} }
     };
 };
 
@@ -144,7 +144,7 @@ TEST_P(PrimitiveGateTestFixture, SimpleCases) {
         data_schedule[i + 1] = inputs[i].data();
         capacities.push_back(inputs[i].size());
     }
-    PrimitiveGate(data_schedule, capacities.data(), table, table_row_num, inputs.size(), 1, &overflow);
+    primitive_gate_fn(data_schedule, capacities.data(), table, table_row_num, inputs.size(), 1, &overflow);
 
     int error_num = 0;
     for (int i = 0; i < expected_output.size(); i++) {
@@ -162,8 +162,8 @@ INSTANTIATE_TEST_SUITE_P(
         PrimitiveTestPair{
             vector<string>{"1?01", "0?00", "?111", "?010", "00x0", "11x1"},
             vector<Transition>{
-                Transition{2, '1'}, Transition{3, '0'}, Transition{3, '0'},
-                Transition{4, '0'}, Transition{6, 'x'}, Transition{7, 'x'}
+                Transition{2, '0'}, Transition{3, '1'}, Transition{3, '1'},
+                Transition{4, 'x'}, Transition{6, '1'}, Transition{7, 'x'}
             }
         }
     )

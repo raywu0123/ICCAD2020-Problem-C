@@ -83,6 +83,7 @@ struct ScheduledWire : public IndexedWire {
         return ptr;
     };
     void handle_overflow() override {
+//        TODO reuse loaded ptrs
         IndexedWire::handle_overflow();
         bucket_idx = checkpoint.second;
     }

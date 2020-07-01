@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <ostream>
 
 
 typedef std::pair<int, int> BitWidth;
@@ -55,6 +56,8 @@ struct Transition {
         return not operator==(other);
     }
 };
+
+std::ostream& operator<< (std::ostream& os, const Transition& transition);
 
 typedef void (*GateFnPtr)(
     Transition** data,  // (n_stimuli_parallel * capacity, num_inputs + num_outputs)

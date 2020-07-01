@@ -191,6 +191,7 @@ void Cell::dump_result() {
 }
 
 void Cell::handle_overflow() {
+    for (auto& indexed_wire : input_wires) indexed_wire->handle_overflow();
     for (auto& indexed_wire : cell_wires) indexed_wire->handle_overflow();
     for (auto& indexed_wire : output_wires) indexed_wire->handle_overflow();
 }

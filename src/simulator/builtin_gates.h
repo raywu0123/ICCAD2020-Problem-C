@@ -97,7 +97,7 @@ __host__ __device__ void buf_gate_fn(
 __host__ __device__ char primitive_logic(
     Transition** data, unsigned int num_inputs, const unsigned int* indices, const char* table, unsigned int table_row_num
 );
-__host__ __device__ void PrimitiveGate(
+__host__ __device__ void primitive_gate_fn(
     Transition** data,
     const unsigned int* capacities,
     const char* table, unsigned int table_row_num,
