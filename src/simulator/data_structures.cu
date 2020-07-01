@@ -1,3 +1,4 @@
+#include <iostream>
 #include "data_structures.h"
 
 std::ostream& operator<< (std::ostream& os, const Transition& transition) {
@@ -22,6 +23,7 @@ BatchResource::BatchResource(const ResourceBuffer& resource_buffer) {
 }
 
 BatchResource::~BatchResource() {
+    cudaFree(overflows);
     cudaFree(module_specs);
     cudaFree(sdf_specs);
     cudaFree(data_schedule);

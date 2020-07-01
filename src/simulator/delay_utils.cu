@@ -24,7 +24,7 @@ extern __host__ __device__ void compute_delay(
     for (int i = 0; i < num_output; i++) {
         auto* output_data = data[output_indices[i]];
         auto capacity = capacities[output_indices[i]];
-        for (unsigned int output_transition_index = 0; output_transition_index < capacity; output_transition_index++) {
+        for (unsigned int output_transition_index = 1; output_transition_index < capacity; output_transition_index++) {
             auto& output_transition = output_data[output_transition_index];
             if (output_transition.value == 0) break;
 

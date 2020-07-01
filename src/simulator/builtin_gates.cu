@@ -104,7 +104,7 @@ __host__ __device__ void merge_sort_algorithm(
     auto* indices = new unsigned int[num_inputs + 1];
     bool* advancing = new bool[num_inputs + 1];
 
-    for (int i = 0; i < num_inputs + 1; i++) indices[i] = 0;
+    for (int i = 1; i < num_inputs + 1; i++) indices[i] = 0; indices[0] = 1;
     // TODO shorter implementation
     while (num_finished < num_inputs) {
         // find min timestamp
@@ -155,9 +155,9 @@ __host__ __device__ void single_input_algorithm(
             *overflow = true;
             break;
         }
-        data[0][i - 1].timestamp = data[1][i].timestamp;
-        data[0][i - 1].delay_info = data[1][i].delay_info;
-        data[0][i - 1].value = logic_fn(data[1][i].value);
+        data[0][i].timestamp = data[1][i].timestamp;
+        data[0][i].delay_info = data[1][i].delay_info;
+        data[0][i].value = logic_fn(data[1][i].value);
     }
 }
 __host__ __device__ void and_gate_fn(

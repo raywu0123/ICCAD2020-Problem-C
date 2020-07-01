@@ -168,7 +168,7 @@ void Cell::init() {
     Cell::build_bucket_index_schedule(input_wires, INITIAL_CAPACITY - 1); // leave one for delay calculation
 }
 
-void Cell::prepare_resource(int session_index, ResourceBuffer& resource_buffer)  {
+void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer)  {
     cudaMemset(overflow_ptr, 0, sizeof(bool)); // reset overflow value
     resource_buffer.overflows.push_back(overflow_ptr);
 
@@ -176,8 +176,13 @@ void Cell::prepare_resource(int session_index, ResourceBuffer& resource_buffer) 
     resource_buffer.sdf_specs.push_back(sdf_spec);
     resource_buffer.data_schedule_offsets.push_back(resource_buffer.data_schedule.size());
 
+    for (auto& indexed_wire : input_wires) indexed_wire->load(session_id);
+    for (auto& indexed_wire : output_wires) indexed_wire->load(session_id);
+    for (auto& indexed_wire : cell_wires) indexed_wire->load(session_id);
+
     for (auto& indexed_wire : wire_schedule) {
-        resource_buffer.data_schedule.emplace_back(indexed_wire->load(session_index), indexed_wire->capacity);
+        if (indexed_wire->first_free_data_ptr_index - 1 >= indexed_wire->data_ptrs.size()) throw runtime_error("invalid access to indexed_wire's data_ptrs");
+        resource_buffer.data_schedule.emplace_back(indexed_wire->data_ptrs[indexed_wire->first_free_data_ptr_index - 1], indexed_wire->capacity);
     }
 }
 

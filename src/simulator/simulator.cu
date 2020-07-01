@@ -98,10 +98,10 @@ __device__ void init_delay_info(
 }
 
 __device__ void simulate_module(
-    const ModuleSpec* module_spec,
-    const SDFSpec* sdf_spec,
-    Data* data_schedule,
-    bool* overflow
+    const ModuleSpec* const module_spec,
+    const SDFSpec* const sdf_spec,
+    Data* const data_schedule,
+    bool* const overflow
 ) {
     auto* data_ptrs_for_each_stimuli = new Transition*[module_spec->data_schedule_size];
     auto* capacities = new unsigned int[module_spec->data_schedule_size];
