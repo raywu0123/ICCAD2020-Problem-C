@@ -167,14 +167,14 @@ void Simulator::run() {
         const auto& schedule_layer = circuit.cell_schedule[i_layer];
         for (auto* cell : schedule_layer) cell->init();
         queue<Cell*, deque<Cell*>> job_queue(deque<Cell*>(schedule_layer.begin(), schedule_layer.end()));
-        int session_index = 0;
+        int session_id = 0;
 
         while (not job_queue.empty()) {
             unordered_set<Cell*> processing_cells;
 
             for (int i = 0; i < N_GATE_PARALLEL; i++) {
                 auto* cell = job_queue.front(); job_queue.pop(); processing_cells.insert(cell);
-                cell->prepare_resource(session_index, resource_buffer);
+                cell->prepare_resource(session_id, resource_buffer);
                 if (not cell->finished()) job_queue.push(cell);
                 if (job_queue.empty()) break;
             }
@@ -189,9 +189,9 @@ void Simulator::run() {
                     cell->handle_overflow();
                 } else cell->dump_result();
             }
-            session_index++;
+            session_id++;
         }
-        progress_bar.Progressed(i_layer);
+        progress_bar.Progressed(i_layer + 1);
     }
     cout << endl;
 }

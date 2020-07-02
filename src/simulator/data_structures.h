@@ -99,6 +99,7 @@ struct ResourceBuffer {
     void clear() {
         module_specs.clear();
         sdf_specs.clear();
+        overflows.clear();
         data_schedule.clear();
         data_schedule_offsets.clear();
     }

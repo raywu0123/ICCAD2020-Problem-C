@@ -84,7 +84,8 @@ struct ScheduledWire : public IndexedWire {
     };
     void handle_overflow() override {
 //        TODO reuse loaded ptrs
-        IndexedWire::handle_overflow();
+        first_free_data_ptr_index = 0;
+        free();
         bucket_idx = checkpoint.second;
     }
     bool finished() const { return bucket_idx + 1 >= bucket_index_schedule.size(); }
