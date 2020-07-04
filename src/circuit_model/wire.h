@@ -28,10 +28,10 @@ struct Bucket {
         auto offset = (write_index > 0 and v == transitions[write_index - 1].value) ? 1: 0;
 
         auto valid_data_size = capacity * N_STIMULI_PARALLEL - offset;
-        transitions.resize(transitions.size() + valid_data_size);
-        cudaMemcpy(
+        transitions.resize(write_index + valid_data_size);
+        auto status =  cudaMemcpy(
             transitions.data() + write_index,
-            ptr,
+            ptr + offset,
             sizeof(Transition) * valid_data_size,
             cudaMemcpyDeviceToHost
         );

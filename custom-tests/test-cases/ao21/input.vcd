@@ -1,0 +1,42 @@
+$date
+	Sat Mar 21 06:15:00 2020
+$end
+$version
+	vzt2vcd
+$end
+$timescale 1ps $end
+$scope module tbench_NV_NVDLA_partition_m $end
+$scope module u_partition_ma $end
+$var wire 1 A a1 $end
+$var wire 1 B a2 $end
+$var wire 1 C b $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+$dumpvars
+#0
+xA
+xB
+xC
+#100
+0A
+0B
+0C
+#200
+1A
+#300
+0A
+1B
+#400
+1A
+#500
+0A
+0B
+1C
+#600
+1A
+#700
+0A
+1B
+#800
+1A

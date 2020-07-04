@@ -98,10 +98,10 @@ __device__ void init_delay_info(
 }
 
 __device__ void simulate_module(
-    const ModuleSpec* module_spec,
-    const SDFSpec* sdf_spec,
-    Data* data_schedule,
-    bool* overflow
+    const ModuleSpec* const module_spec,
+    const SDFSpec* const sdf_spec,
+    Data* const data_schedule,
+    bool* const overflow
 ) {
     auto* data_ptrs_for_each_stimuli = new Transition*[module_spec->data_schedule_size];
     auto* capacities = new unsigned int[module_spec->data_schedule_size];
@@ -167,14 +167,14 @@ void Simulator::run() {
         const auto& schedule_layer = circuit.cell_schedule[i_layer];
         for (auto* cell : schedule_layer) cell->init();
         queue<Cell*, deque<Cell*>> job_queue(deque<Cell*>(schedule_layer.begin(), schedule_layer.end()));
-        int session_index = 0;
+        int session_id = 0;
 
         while (not job_queue.empty()) {
             unordered_set<Cell*> processing_cells;
 
             for (int i = 0; i < N_GATE_PARALLEL; i++) {
                 auto* cell = job_queue.front(); job_queue.pop(); processing_cells.insert(cell);
-                cell->prepare_resource(session_index, resource_buffer);
+                cell->prepare_resource(session_id, resource_buffer);
                 if (not cell->finished()) job_queue.push(cell);
                 if (job_queue.empty()) break;
             }
@@ -189,9 +189,9 @@ void Simulator::run() {
                     cell->handle_overflow();
                 } else cell->dump_result();
             }
-            session_index++;
+            session_id++;
         }
-        progress_bar.Progressed(i_layer);
+        progress_bar.Progressed(i_layer + 1);
     }
     cout << endl;
 }

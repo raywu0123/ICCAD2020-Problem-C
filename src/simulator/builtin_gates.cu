@@ -104,7 +104,7 @@ __host__ __device__ void merge_sort_algorithm(
     auto* indices = new unsigned int[num_inputs + 1];
     bool* advancing = new bool[num_inputs + 1];
 
-    for (int i = 0; i < num_inputs + 1; i++) indices[i] = 0;
+    for (int i = 1; i < num_inputs + 1; i++) indices[i] = 0; indices[0] = 1;
     // TODO shorter implementation
     while (num_finished < num_inputs) {
         // find min timestamp
@@ -155,9 +155,9 @@ __host__ __device__ void single_input_algorithm(
             *overflow = true;
             break;
         }
-        data[0][i - 1].timestamp = data[1][i].timestamp;
-        data[0][i - 1].delay_info = data[1][i].delay_info;
-        data[0][i - 1].value = logic_fn(data[1][i].value);
+        data[0][i].timestamp = data[1][i].timestamp;
+        data[0][i].delay_info = data[1][i].delay_info;
+        data[0][i].value = logic_fn(data[1][i].value);
     }
 }
 __host__ __device__ void and_gate_fn(
@@ -241,17 +241,15 @@ __host__ __device__ char primitive_logic(
         bool all_match = true;
         for (int i = 1; i < num_inputs + 1; i++) {
             auto value = data[i][indices[i]].value;
-            value = value == 'z' ? 'x' : value;  // z is treated as x
+            value = (value == 'z' ? 'x' : value);  // z is treated as x
             const auto& table_value = table[i_table_row * (num_inputs + 1) + (i - 1)];
             if (table_value != '?' and table_value != value) all_match = false;
         }
-        if (all_match) {
-            output = table[i_table_row * (num_inputs + 1) + num_inputs];
-        }
+        if (all_match) output = table[i_table_row * (num_inputs + 1) + num_inputs];
     }
     return output;
 }
-__host__ __device__ void PrimitiveGate(
+__host__ __device__ void primitive_gate_fn(
     Transition** data,
     const unsigned int* capacities,
     const char* table, const unsigned int table_row_num,
@@ -270,3 +268,4 @@ __device__ GateFnPtr nor_gate_fn_ptr = nor_gate_fn;
 __device__ GateFnPtr xnor_gate_fn_ptr = xnor_gate_fn;
 __device__ GateFnPtr not_gate_fn_ptr = not_gate_fn;
 __device__ GateFnPtr buf_gate_fn_ptr = buf_gate_fn;
+__device__ GateFnPtr primitive_gate_fn_ptr = primitive_gate_fn;

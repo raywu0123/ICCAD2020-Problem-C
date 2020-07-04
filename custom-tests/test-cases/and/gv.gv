@@ -1,0 +1,8 @@
+module NV_NVDLA_partition_m ( i1, i2, o1 );
+  input  i1, i2;
+  output o1;
+  wire w;
+
+  GEN_NAND2_D1 NAND1 (.a1(i1), .a2(i2), .zn(w));
+  GEN_NAND2_D1 NAND2 (.a1(w), .a2(w), .zn(o1));
+endmodule

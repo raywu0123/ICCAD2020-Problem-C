@@ -1,0 +1,6 @@
+module NV_NVDLA_partition_m ( a1, a2, b, z );
+  input a1, a2, b;
+  output z;
+
+  GEN_AO21_D1 AO21 (.a1(a1), .a2(a2), .b(b), .z(z));
+endmodule

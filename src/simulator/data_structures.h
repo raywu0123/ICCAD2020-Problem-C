@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <ostream>
 
 
 typedef std::pair<int, int> BitWidth;
@@ -56,6 +57,8 @@ struct Transition {
     }
 };
 
+std::ostream& operator<< (std::ostream& os, const Transition& transition);
+
 typedef void (*GateFnPtr)(
     Transition** data,  // (n_stimuli_parallel * capacity, num_inputs + num_outputs)
     const unsigned int* capacities,
@@ -96,6 +99,7 @@ struct ResourceBuffer {
     void clear() {
         module_specs.clear();
         sdf_specs.clear();
+        overflows.clear();
         data_schedule.clear();
         data_schedule_offsets.clear();
     }

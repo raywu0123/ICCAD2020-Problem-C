@@ -34,27 +34,27 @@ INSTANTIATE_TEST_CASE_P(
     SingleWaveformCollisionTestFixture,
     ::testing::Values(
         SingleWaveformTestPair{
-            vector<Transition>{ Transition{0, '0'}, Transition{3, '0'}, Transition{5, '1'}, Transition{0, 0} },
+            vector<Transition>{ Transition{}, Transition{0, '0'}, Transition{3, '0'}, Transition{5, '1'}, Transition{0, 0} },
             vector<Transition>{ Transition{0, '0'}, Transition{5, '1'} }
         },
         SingleWaveformTestPair{
-            vector<Transition>{ Transition{0, '0'}, Transition{3, '1'}, Transition{5, '0'}, Transition{4, '0'}, Transition{6, '1'}, Transition{0, 0} },
+            vector<Transition>{ Transition{}, Transition{0, '0'}, Transition{3, '1'}, Transition{5, '0'}, Transition{4, '0'}, Transition{6, '1'}, Transition{0, 0} },
             vector<Transition>{ Transition{0, '0'}, Transition{3, '1'}, Transition{4, '0'}, Transition{6, '1'} }
         },
         SingleWaveformTestPair{
-            vector<Transition>{ Transition{0, '0'}, Transition{5, 'x'}, Transition{5, 'y'}, Transition{0, 0} },
+            vector<Transition>{ Transition{}, Transition{0, '0'}, Transition{5, 'x'}, Transition{5, 'y'}, Transition{0, 0} },
             vector<Transition>{ Transition{0, '0'}, Transition{5, 'y'} }
         },
         SingleWaveformTestPair{
-            vector<Transition>{ Transition{0, '0'}, Transition{5, '1'}, Transition{4, '0'}, Transition{6, '1'}, Transition{3, '0'} },
+            vector<Transition>{ Transition{}, Transition{0, '0'}, Transition{5, '1'}, Transition{4, '0'}, Transition{6, '1'}, Transition{3, '0'} },
             vector<Transition>{ Transition{0, '0'} }
         },
         SingleWaveformTestPair{
-            vector<Transition>{ Transition{10, '0'}, Transition{11, '1'}, Transition{0, '0'}, Transition{5, '1'} },
+            vector<Transition>{ Transition{}, Transition{10, '0'}, Transition{11, '1'}, Transition{0, '0'}, Transition{5, '1'} },
             vector<Transition>{ Transition{0, '0'}, Transition{5, '1'} }
         },
         SingleWaveformTestPair{
-            vector<Transition>{ Transition{0, 0} },
+            vector<Transition>{ Transition{}, Transition{0, 0} },
             vector<Transition>{}
         }
     )

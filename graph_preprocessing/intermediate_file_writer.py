@@ -135,7 +135,8 @@ class IntermediateFileWriter:
                 else:
                     path.insert(0, 'x')
 
-                assert len(path[-1]) == 3 or (len(path[-1])) == 4
+                if not (len(path[-1]) == 3 or len(path[-1]) == 6):
+                    raise ValueError(f"Invalid path {path[-1]}")
                 if len(path[-1]) == 3:
                     path[-1] = (path[-1][0], path[-1][0])
                 else:

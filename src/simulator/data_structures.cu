@@ -1,4 +1,10 @@
+#include <iostream>
 #include "data_structures.h"
+
+std::ostream& operator<< (std::ostream& os, const Transition& transition) {
+    os << "(" << transition.timestamp << ", " << transition.value << ")";
+    return os;
+}
 
 BatchResource::BatchResource(const ResourceBuffer& resource_buffer) {
     num_modules = resource_buffer.size();
@@ -17,6 +23,7 @@ BatchResource::BatchResource(const ResourceBuffer& resource_buffer) {
 }
 
 BatchResource::~BatchResource() {
+    cudaFree(overflows);
     cudaFree(module_specs);
     cudaFree(sdf_specs);
     cudaFree(data_schedule);
