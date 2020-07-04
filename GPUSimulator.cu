@@ -12,7 +12,7 @@ using namespace std;
 
 
 void print_usage() {
-    cout << "Usage: GPUSimulator.cu.py "
+    cout << "| Usage: GPUSimulator.cu.py "
             "<intermediate_representation.file> "
             "<input.vcd> <SAIF_or_VCD_flag> "
             "[SAIF_or_output_VCD.saif.vcd]" << endl;
@@ -21,19 +21,27 @@ void print_usage() {
 
 bool arguments_valid(int argc, char* argv[1]) {
     if (argc != 5) {
-        cerr << "Wrong number of arguments" << endl;
+        cerr << "| Error: Wrong number of arguments" << endl;
         print_usage();
         return false;
     }
     string output_flag = string(argv[3]);
     if (output_flag != "SAIF" and output_flag != "VCD") {
-        cerr << "The third argument should be either 'SAIF' or 'VCD'" << endl;
+        cerr << "| Error: The third argument should be either 'SAIF' or 'VCD'" << endl;
         return false;
     }
     return true;
 }
 
+void check_cuda_device() {
+    int device;
+    cudaError_t err = cudaGetDevice(&device);
+    if (err != cudaSuccess) cerr << "| Error: " << cudaGetErrorString(err) << endl;
+}
+
 int main(int argc, char* argv[]) {
+    check_cuda_device();
+
     if (not arguments_valid(argc, argv))
         return -1;
 
