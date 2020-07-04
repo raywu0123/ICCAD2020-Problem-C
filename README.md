@@ -3,10 +3,14 @@
 
 ## Usage
 
-### Setup 
+### Setup
+* Initialize Git Submodules:
+```
+git submodule init && git submodule update --remote
+``` 
 * python interpreter version for pyenv is specified in `.python-version`.
 You may delete this file if you want to use your own interpreter version. 
-* Use pipenv to setup python environment
+* Use pipenv to setup python environment.
 
 ### Simulation
 1. Preprocess:  
