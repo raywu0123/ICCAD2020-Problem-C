@@ -7,51 +7,27 @@ $end
 $timescale 1ps $end
 $scope module tbench_NV_NVDLA_partition_m $end
 $scope module u_partition_ma $end
-$var wire 1 A i1 $end
-$var wire 1 B i2 $end
-$var wire 1 C o1 $end
+$var wire 2 A i [1:0] $end
 $upscope $end
 $upscope $end
 $enddefinitions $end
 $dumpvars
 #0
-xA
+bx A
 xB
-xC
 #100
-1A
-1B
-#111
-1C
+b11 A
 #200
-0A
-#211
-0C
+b10 A
 #300
-0B
+b0 A
 #400
-1A
-zB
-#411
-xC
-#450
-0A
-#461
-0C
+b1 A
 #500
-1A
-1B
-#511
-1C
+bz1 A
 #600
-0B
-#613
-0C
+bz A
 #700
-1B
-#713
-1C
+bx A
 #800
-0B
-#813
-0C
+b0x A
