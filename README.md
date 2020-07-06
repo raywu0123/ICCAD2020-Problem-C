@@ -14,17 +14,27 @@ You may delete this file if you want to use your own interpreter version.
 
 ### Simulation
 1. Preprocess:  
-`pipenv run python GraphPreprocessing.py <gv_file> <sdf_file> <sdf_lib> <intermediate_file>`
+```
+pipenv run python GraphPreprocessing.py <gv_file> <sdf_file> <sdf_lib> <intermediate_file>
+```
 
 2. Build simulator  
-`./script/build`
+```
+./script/build
+```
 
 3. Run simulation:  
-`./build/GPUSimulator <intermediate_file> <input_vcd> <SAIF or VCD Flag> <output_file>`
+```
+./build/GPUSimulator <intermediate_file> <input_vcd> <SAIF or VCD Flag> <dumpon_time> <dumpoff_time> <output_file>
+```
 
 ### Testing
 * Run unit tests  
-`./script/test.sh`
+```
+./script/test.sh
+```
 
 * Run end-to-end tests    
-`pipenv run python ./custom-tests/test-custom-cases.py [-s path_to_results]`
+```
+pipenv run python ./custom-tests/test-custom-cases.py [-s path_to_results]
+```
