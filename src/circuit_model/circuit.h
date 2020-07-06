@@ -51,9 +51,9 @@ public:
     std::string dumps_result();
     static std::string index_to_identifier(unsigned int);
     static std::string simplify_msb(const std::string&);
+    std::vector<Bus> buses;
 
 private:
-    std::vector<Bus> buses;
     std::vector<std::string> index_to_identifier_map;
     std::unordered_set<std::pair<Bus*, unsigned int>, pair_hash> used_buses_in_current_time;
 };

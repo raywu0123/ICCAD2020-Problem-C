@@ -14,13 +14,16 @@ using namespace std;
 void print_usage() {
     cout << "| Usage: GPUSimulator.cu.py "
             "<intermediate_representation.file> "
-            "<input.vcd> <SAIF_or_VCD_flag> "
+            "<input.vcd> "
+            "<SAIF_or_VCD_flag> "
+            "<dumpon_time> "
+            "<dumpoff_time> "
             "[SAIF_or_output_VCD.saif.vcd]" << endl;
 }
 
 
 bool arguments_valid(int argc, char* argv[1]) {
-    if (argc != 5) {
+    if (argc != 7) {
         cerr << "| Error: Wrong number of arguments" << endl;
         print_usage();
         return false;
@@ -48,7 +51,9 @@ int main(int argc, char* argv[]) {
     char* inter_repr_file = argv[1];
     char* input_vcd_file = argv[2];
     string output_flag = string(argv[3]);
-    char* output_file = argv[4];
+    Timestamp dumpon_time = atoll(argv[4]);
+    Timestamp dumpoff_time = atoll(argv[5]);
+    char* output_file = argv[6];
 
     ifstream fin_intermediate = ifstream(inter_repr_file);
     ModuleRegistry module_registry;
@@ -75,13 +80,16 @@ int main(int argc, char* argv[]) {
         simulation_result = new SAIFResult(
             circuit.wires,
             input_info.scopes,
-            input_info.timescale_pair
+            input_info.timescale_pair,
+            dumpon_time, dumpoff_time,
+            bus_manager
         );
     } else if (output_flag == "VCD") {
         simulation_result = new VCDResult(
             circuit.wires,
             input_info.scopes,
             input_info.timescale_pair,
+            dumpon_time, dumpoff_time,
             bus_manager
         );
     }

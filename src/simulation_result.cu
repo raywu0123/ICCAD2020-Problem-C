@@ -1,5 +1,7 @@
 #include <iostream>
 #include <vector>
+#include <ctime>
+#include <chrono>
 
 #include "simulation_result.h"
 
@@ -15,8 +17,9 @@ VCDResult::VCDResult(
     const std::vector<Wire*>& wires,
     vector<string>& scopes,
     pair<int, string>& timescale_pair,
+    Timestamp dumpon_time, Timestamp dumpoff_time,
     BusManager& bus_manager
-): SimulationResult(wires, scopes, timescale_pair), bus_manager(bus_manager) {}
+): SimulationResult(wires, scopes, timescale_pair, dumpon_time, dumpoff_time, bus_manager) {}
 
 void VCDResult::write(char *path) {
     SimulationResult::write(path);
@@ -41,6 +44,11 @@ void VCDResult::write(char *path) {
     int buffer_index = 0;
     for (const auto& group : timestamp_groups) {
         const auto& timestamp = group.first;
+
+//        TODO handle dumpon/dumpoff earlier
+        if (timestamp < dumpon_time) continue;
+        if (timestamp >= dumpoff_time) break;
+
         const auto& num_transitions = group.second;
         for (int i = 0; i < num_transitions; i++) {
             const auto& wire_index = buffer[buffer_index].first;
@@ -104,9 +112,76 @@ void VCDResult::group_timestamps(const vector<Timestamp>& timestamps, vector<pai
 }
 
 SAIFResult::SAIFResult(
-    const std::vector<Wire*>& wires, vector<string>& scopes, pair<int, string>& timescale_pair
-) : SimulationResult(wires, scopes, timescale_pair) {}
+    const std::vector<Wire*>& wires, vector<string>& scopes, pair<int, string>& timescale_pair,
+    Timestamp dumpon_time, Timestamp dumpoff_time,
+    BusManager& bus_manager
+) : SimulationResult(wires, scopes, timescale_pair, dumpon_time, dumpoff_time, bus_manager) {}
 
 void SAIFResult::write(char *path) {
     SimulationResult::write(path);
+    f_out << "(SAIFILE" << endl;
+    f_out << "(SAIFVERSION \"2.0\")" << endl;
+    f_out << "(DIRECTION \"backward\")" << endl;
+    f_out << "(DESIGN )" << endl;
+    std::time_t t_now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    f_out << "(DATE \"" << strtok(std::ctime(&t_now), "\n") << "\")" << endl;
+    f_out << "(VENDOR \"Synopsys, Inc\")" << endl;
+    f_out << "(PROGRAM_NAME \"VCS K-2015.09-SP2_Full64\")" << endl;
+    f_out << "(VERSION \"1.0\")" << endl;
+    f_out << "(DIVIDER / )" << endl;
+    f_out << "(TIMESCALE " << timescale_pair.first << " " << timescale_pair.second << ")" << endl;
+    f_out << "(DURATION " << dumpoff_time - dumpon_time << ")" << endl;
+    f_out << "(INSTANCE " << scopes[0] << endl;
+    f_out << indent << "(INSTANCE " << scopes[1] << endl;
+    f_out << indent << indent << "(NET" << endl;
+
+    for (const auto& wire : wires) {
+        const auto wire_stats = calculate_wire_stats(wire->bucket, dumpon_time, dumpoff_time);
+        for (const auto& wireinfo : wire->wire_infos){
+            const auto& bus = bus_manager.buses[wireinfo.bus_index];
+            write_wirekey_result(bus.bitwidth, wireinfo.wirekey, wire_stats);
+        }
+    }
+
+    f_out << indent << indent << ")" << endl; // NET
+    f_out << indent << ")" << endl;  // Second INSTANCE
+    f_out << ")" << endl;  // First INSTANCE
+    f_out << ")" << endl;  // SAIFILE
+}
+
+void SAIFResult::write_wirekey_result(const BitWidth& bitwidth, const Wirekey &wirekey, const WireStat &wirestat) {
+    f_out   << indent << indent << indent
+            << "(" << wirekey.first;
+
+    if (bitwidth.first != bitwidth.second) f_out   << "\\[" << wirekey.second << "\\]";
+    f_out   << endl;
+
+    f_out   << indent << indent << indent << indent
+            << "(T0 " << wirestat.T0 << ") (T1 " << wirestat.T1 << ") (TX " << wirestat.TX << ")";
+    if (wirestat.TZ != 0) f_out << " (TZ " << wirestat.TZ << ")";
+    f_out   << endl;
+
+    f_out   << indent << indent << indent
+            << ")" << endl;
+}
+
+WireStat SAIFResult::calculate_wire_stats(const Bucket& bucket, Timestamp dumpon_time, Timestamp dumpoff_time) {
+    WireStat wirestat{};
+    const auto& transitions = bucket.transitions;
+    const auto& size = transitions.size();
+    for (unsigned idx = 1; idx < size; idx++) {
+        const auto &t_curr = transitions[idx], &t_prev = transitions[idx - 1];
+        if (t_curr.timestamp <= dumpon_time) continue;
+        if (t_prev.timestamp >= dumpoff_time) break;
+
+        auto d = min(t_curr.timestamp, dumpoff_time) - max(t_prev.timestamp, dumpon_time);
+        auto& prev_v = t_prev.value;
+        wirestat.update(prev_v, d);
+    }
+
+    const auto last_transition = transitions.back();
+    if (last_transition.timestamp < dumpoff_time) {
+        wirestat.update(last_transition.value, dumpoff_time - max(last_transition.timestamp, dumpon_time));
+    }
+    return wirestat;
 }
