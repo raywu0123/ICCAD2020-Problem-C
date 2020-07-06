@@ -70,6 +70,8 @@ for i in range(len(NETS_1)):
     else:
         TZ = 0
     dict_1[NETS_1[i][0]] = [T0, T1, TX, TZ]
+    if sum(dict_1[NETS_1[i][0]]) != DURATION_1:
+        print(f'NET1 values for {NETS_1[i][0]} don\'t sum to duration')
 
 NETS_2 = re.findall(r'\s+\(\s*([_a-zA-Z\\\[\]0-9]+)\s*((\(\s*[TI][01XZCG]\s+[0-9]+\s*\)\s*){3,6})\)', f2_string)
 
@@ -82,6 +84,8 @@ for i in range(len(NETS_2)):
     else:
         TZ = 0
     dict_2[NETS_2[i][0]] = [T0, T1, TX, TZ]
+    if sum(dict_2[NETS_2[i][0]]) != DURATION_2:
+        print(f'NET2 values for {NETS_2[i][0]} don\'t sum to duration')
 
 if dict_1 == dict_2:
     print("SAIFs match! No Errors! Congratulations!")
@@ -102,6 +106,7 @@ cnt = 0
 for key in dict_1.keys():
     if dict_1[key] != dict_2[key]:
         print('signal values for ' + str(key) + ' is not the same!')
+    else:
         cnt += 1
 
-print(f'Passed {cnt}/{len(dict_1)}')
+print(f'Passed {cnt / len(dict_1):.0%} ({cnt}/{len(dict_1)})')
