@@ -61,8 +61,9 @@ def run_validation(test_dir: str, tmpdir: str):
         subprocess.call([exec_path, output_path, ans_path], stdout=tmp_stdout, stderr=tmp_stderr)
         tmp_stdout.seek(0, 0)
         stdout_content = tmp_stdout.read()
-        if "ERROR" in stdout_content or "WARNING" in stdout_content:
+        if len(stdout_content) != 0:
             print(f"{bcolors.FAIL}{'FAILED':>10}{bcolors.ENDC}", file=sys.stderr)
+            print(stdout_content)
         else:
             print(f"{bcolors.OKGREEN}{'SUCCESS':>10}{bcolors.ENDC}")
 
@@ -82,7 +83,8 @@ if __name__ == '__main__':
     if args.saving_directory is not None and not os.path.isdir(args.saving_directory):
         os.mkdir(args.saving_directory)
 
+    max_test_case_name = max([len(test_case) for test_case in os.listdir(test_cases_dir)])
     for test_case in os.listdir(test_cases_dir):
-        print(f"-- Testing {test_case:<20} ... ", end='', flush=True)
+        print(f"-- Testing {test_case:<{max_test_case_name}} ... ", end='', flush=True)
         test_case_dir = os.path.join(test_cases_dir, test_case)
         run_test(test_case_dir, standard_cell_library_path, args.saving_directory)

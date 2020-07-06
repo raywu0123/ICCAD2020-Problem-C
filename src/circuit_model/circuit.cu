@@ -47,11 +47,20 @@ std::string BusManager::dumps_result() {
         if (bus->bitwidth.first == bus->bitwidth.second) {
             ss << bus->state << bus_identifier << endl;
         } else {
-            ss << "b" << bus->state << " " << bus_identifier << endl;
+            ss << "b" << simplify_msb(bus->state) << " " << bus_identifier << endl;
         }
     }
     used_buses_in_current_time.clear();
     return ss.str();
+}
+
+std::string BusManager::simplify_msb(const std::string& full_state) {
+    if (full_state[0] == '1') return full_state;
+    auto first_not_of_idx = full_state.find_first_not_of(full_state[0]);
+
+    if (first_not_of_idx == string::npos) return full_state.substr(full_state.size() - 1);
+    if (full_state[0] == '0' and full_state[first_not_of_idx] == '1') return full_state.substr(first_not_of_idx);
+    return full_state.substr(first_not_of_idx - 1);
 }
 
 Circuit::Circuit(const ModuleRegistry &module_registry): module_registry(module_registry) {}

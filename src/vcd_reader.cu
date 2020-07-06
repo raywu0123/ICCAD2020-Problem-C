@@ -61,13 +61,14 @@ void VCDReader::read_vars() {
 }
 
 void VCDReader::get_buckets(Circuit& circuit) {
-    for (auto& it : token_to_wire ) {
+    for (auto& it : token_to_wire) {
         auto& token_info = it.second;
         token_info.bucket_index = buckets.size();
         const auto& bitwidth = token_info.bitwidth;
-        int bit_range = abs(bitwidth.first - bitwidth.second) + 1;
-        for (int bit_index = 0; bit_index < bit_range; bit_index++) {
-            const auto& wire = circuit.get_wire(Wirekey{token_info.wire_name, min(bitwidth.first, bitwidth.second) + bit_index});
+        int step = bitwidth.first > bitwidth.second ? -1 : 1;
+        for (int bit_index = bitwidth.first; bit_index != bitwidth.second + step; bit_index += step) {
+            // buckets in MSB -> LSB order
+            const auto& wire = circuit.get_wire(Wirekey{token_info.wire_name, bit_index});
             buckets.push_back(&wire->bucket);
         }
     }
@@ -126,7 +127,8 @@ void VCDReader::emplace_transition(const string& token, Timestamp timestamp, con
             bit_value = value[bit_index - pad_size];
         }
         auto* bucket = buckets[token_info.bucket_index + bit_index];
-        bucket->transitions.emplace_back(timestamp, bit_value);
+        // ignore redundant ("transitions" with no value change)
+        bucket->emplace_transition(timestamp, bit_value);
     }
 }
 

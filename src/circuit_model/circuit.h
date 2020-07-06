@@ -50,6 +50,7 @@ public:
     void add_transition(const std::vector<WireInfo>&, const Transition&);
     std::string dumps_result();
     static std::string index_to_identifier(unsigned int);
+    static std::string simplify_msb(const std::string&);
 
 private:
     std::vector<Bus> buses;

@@ -16,7 +16,14 @@ struct WireInfo {
 struct Bucket {
     std::vector<Transition> transitions{ Transition{0, 'x'} };
 
+    void emplace_transition(Timestamp t, char v) {
+        // for storing input
+        auto& back = transitions.back();
+        if (t > back.timestamp and v != back.value) transitions.emplace_back(t, v); // check validity of incoming transition
+    }
+
     void push_back(const Transition* ptr, const unsigned int capacity) {
+        // for storing output
         Transition first_transition;
         cudaMemcpy(&first_transition, ptr, sizeof(Transition), cudaMemcpyDeviceToHost);
         const auto& t = first_transition.timestamp;

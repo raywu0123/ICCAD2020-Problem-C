@@ -1,0 +1,6 @@
+module NV_NVDLA_partition_m ( i, o1 );
+  input  [1:0] i ;
+  output o1;
+
+  GEN_AND2_D1 AND_GATE (.a1(i[0]), .a2(i[1]), .z(o1));
+endmodule
