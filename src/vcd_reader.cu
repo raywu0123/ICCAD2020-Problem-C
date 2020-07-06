@@ -127,7 +127,8 @@ void VCDReader::emplace_transition(const string& token, Timestamp timestamp, con
             bit_value = value[bit_index - pad_size];
         }
         auto* bucket = buckets[token_info.bucket_index + bit_index];
-        bucket->transitions.emplace_back(timestamp, bit_value);
+        // ignore redundant ("transitions" with no value change)
+        bucket->emplace_transition(timestamp, bit_value);
     }
 }
 
