@@ -106,6 +106,7 @@ __host__ __device__ void merge_sort_algorithm(
 
     for (int i = 1; i < num_inputs + 1; i++) indices[i] = 0; indices[0] = 1;
     // TODO shorter implementation
+    data[0][0].value = logic_fn(data, num_inputs, indices, table, table_row_num);
     while (num_finished < num_inputs) {
         // find min timestamp
         Timestamp min_timestamp = LONG_LONG_MAX;
@@ -150,6 +151,7 @@ __host__ __device__ void merge_sort_algorithm(
 __host__ __device__ void single_input_algorithm(
     Transition** data, const unsigned int* capacities, char(*logic_fn)(char), bool* overflow
 ) {
+    data[0][0].value = logic_fn(data[1][0].value);
     for (unsigned int i = 1; i < capacities[1]; i++) {
         if (i > capacities[0]) {
             *overflow = true;

@@ -61,41 +61,41 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
             SingleWaveformTestPair{
             and_gate_fn,
-            vector<Transition>{ Transition{}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'} }
+            vector<Transition>{ Transition{0, '0'}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'} }
         },
             SingleWaveformTestPair{
             or_gate_fn,
-            vector<Transition>{ Transition{}, Transition{1, '1'}, Transition{2, '1'}, Transition{2, '1'} }
+            vector<Transition>{ Transition{0, '1'}, Transition{1, '1'}, Transition{2, '1'}, Transition{2, '1'} }
         },
             SingleWaveformTestPair{
             xor_gate_fn,
-            vector<Transition>{ Transition{}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'} }
+            vector<Transition>{ Transition{0, '1'}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'} }
         },
             SingleWaveformTestPair{
             nand_gate_fn,
-            vector<Transition>{ Transition{}, Transition{1, '1'}, Transition{2, 'x'}, Transition{2, 'x'} }
+            vector<Transition>{ Transition{0, '1'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{2, 'x'} }
         },
             SingleWaveformTestPair{
             nor_gate_fn,
-            vector<Transition>{ Transition{}, Transition{1, '0'}, Transition{2, '0'}, Transition{2, '0'} }
+            vector<Transition>{ Transition{0, '0'}, Transition{1, '0'}, Transition{2, '0'}, Transition{2, '0'} }
         },
             SingleWaveformTestPair{
             xnor_gate_fn,
-            vector<Transition>{ Transition{}, Transition{1, '1'}, Transition{2, 'x'}, Transition{2, 'x'} }
+            vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{2, 'x'} }
         },
             SingleWaveformTestPair{
             not_gate_fn,
-            vector<Transition>{ Transition{}, Transition{1, '0'}, Transition{2, 'x'}, Transition{3, 'x'} }
+            vector<Transition>{ Transition{0, '1'}, Transition{1, '0'}, Transition{2, 'x'}, Transition{3, 'x'} }
         },
             SingleWaveformTestPair{
             buf_gate_fn,
-            vector<Transition>{ Transition{}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, 'x'} }
+            vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, 'x'} }
         },
         // capacity larger than needed
         SingleWaveformTestPair{
             and_gate_fn,
             vector<Transition>{
-                Transition{},
+                Transition{0, '0'},
                 Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'},
                 Transition{3, 'x'}, Transition{3, 'x'}, Transition{4, 'x'}, Transition{5, '0'},
                 Transition{6, 'x'}, Transition{7, 'x'}, Transition{0, 0}, Transition{0, 0}
@@ -163,7 +163,7 @@ INSTANTIATE_TEST_SUITE_P(
         PrimitiveTestPair{
             vector<string>{"1?01", "0?00", "?111", "?010", "00x0", "11x1"},
             vector<Transition>{
-                Transition{},
+                Transition{0, 'x'},
                 Transition{2, '0'}, Transition{3, '1'}, Transition{3, '1'},
                 Transition{4, 'x'}, Transition{6, '1'}, Transition{7, 'x'}
             }
