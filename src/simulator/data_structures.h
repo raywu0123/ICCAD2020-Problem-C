@@ -48,6 +48,7 @@ struct Transition {
     DelayInfo delay_info;
     explicit Transition(): timestamp(0), value(0) {};
     Transition(Timestamp t, char v): timestamp(t), value(v) {};
+    Transition(Timestamp t, char v, DelayInfo d): timestamp(t), value(v), delay_info(d) {};
 
     bool operator== (const Transition& other) const {
         return timestamp == other.timestamp and value == other.value;
@@ -86,7 +87,6 @@ struct Data {
     Data(Transition* ptr, unsigned int capacity): ptr(ptr), capacity(capacity) {};
     Transition* ptr;
     unsigned int capacity;
-    unsigned int length = 0;
 };
 
 struct ResourceBuffer {

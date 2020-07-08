@@ -163,7 +163,7 @@ INSTANTIATE_TEST_SUITE_P(
         PrimitiveTestPair{
             vector<string>{"1?01", "0?00", "?111", "?010", "00x0", "11x1"},
             vector<Transition>{
-                Transition{0, 'x'},
+                Transition{1, 'x'},
                 Transition{2, '0'}, Transition{3, '1'}, Transition{3, '1'},
                 Transition{4, 'x'}, Transition{6, '1'}, Transition{7, 'x'}
             }

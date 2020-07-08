@@ -37,5 +37,6 @@ void Wire::store_to_bucket(const vector<Transition*>& data_ptrs, unsigned int ca
 }
 
 ConstantWire::ConstantWire(char value): value(value) {
+    bucket.transitions.clear();
     bucket.transitions.emplace_back(0, value);
 }
