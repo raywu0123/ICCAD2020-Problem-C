@@ -82,6 +82,12 @@ INSTANTIATE_TEST_SUITE_P(
                 {0, 100, 300, 400, 500, 600, 700, 800}
             },
             vector<vector<unsigned int>> { {0, 3, 4, 4}, {0, 2, 5, 8} }
+        },
+        SingleWaveformTestPair{
+            vector<vector<Timestamp>> {
+                {0, 100, 200, 300, 400, 500, 600, 700},
+            },
+            vector<vector<unsigned int>> { {0, 3, 6, 8} }
         }
     )
 );

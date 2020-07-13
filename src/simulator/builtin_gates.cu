@@ -1,4 +1,5 @@
 #include "builtin_gates.h"
+#include "constants.h"
 
 
 __host__ __device__ char and_logic(
@@ -70,7 +71,7 @@ __host__ __device__ char nor_logic(
 __host__ __device__ char xnor_logic(
     Transition** data, unsigned int num_inputs, const unsigned int* indices, const char* table, const unsigned int table_row_num
 ) {
-    char ret = '0';
+    char ret = '1';
     bool has_xz = false;
     for (int i = 1; i < num_inputs + 1; i++) {
         const auto& value = data[i][indices[i]].value;
@@ -98,16 +99,18 @@ __host__ __device__ void merge_sort_algorithm(
     LogicFn logic_fn,
     bool* overflow
 ) {
-    unsigned int num_finished = 0;
-    for (int i = 1; i < num_inputs + 1; i++) if (capacities[i] == 0 or data[i][1].value == 0) num_finished++;
+    if (data[1][0].value == 0) return;
 
-    auto* indices = new unsigned int[num_inputs + 1];
-    bool* advancing = new bool[num_inputs + 1];
-
-    for (int i = 1; i < num_inputs + 1; i++) indices[i] = 0; indices[0] = 1;
-    // TODO shorter implementation
+    unsigned int indices[MAX_NUM_GATE_INPUT + 1] = {0}; indices[0] = 1;
     data[0][0].timestamp = data[1][0].timestamp;
     data[0][0].value = logic_fn(data, num_inputs, indices, table, table_row_num);
+
+    unsigned int num_finished = 0;
+    for (int i = 1; i < num_inputs + 1; i++) if (data[i][1].value == 0) num_finished++;
+    if (num_finished == num_inputs) return;
+    bool advancing[MAX_NUM_GATE_INPUT + 1];
+
+    // TODO shorter implementation
     while (num_finished < num_inputs) {
         // find min timestamp
         Timestamp min_timestamp = LONG_LONG_MAX;
@@ -145,17 +148,17 @@ __host__ __device__ void merge_sort_algorithm(
         }
         if (*overflow) break;
     }
-
-    delete[] advancing;
-    delete[] indices;
 }
 __host__ __device__ void single_input_algorithm(
     Transition** data, const unsigned int* capacities, char(*logic_fn)(char), bool* overflow
 ) {
+    if (data[1][0].value == 0) return;
+
     data[0][0].timestamp = data[1][0].timestamp;
     data[0][0].value = logic_fn(data[1][0].value);
     for (unsigned int i = 1; i < capacities[1]; i++) {
-        if (i > capacities[0]) {
+        if (data[1][i].value == 0) break;
+        if (i >= capacities[0]) {
             *overflow = true;
             break;
         }

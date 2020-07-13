@@ -218,14 +218,14 @@ void Circuit::read_cells(ifstream& fin) {
             auto wire_ptr = get_wire(wire_index);
             free_wires.push_back(wire_ptr);
         }
-        cells.emplace(cell_name, create_cell(cell_type, args, alloc_wires, free_wires));
+        cells.emplace(cell_name, create_cell(cell_type, args, cell_name));
     }
 }
 
 Cell* Circuit::create_cell(
     const string& cell_type,
     const vector<PinSpec>& pin_specs,
-    const vector<Wire*>& alloc_wires, const vector<Wire*>& free_wires
+    const string& cell_name
 ) {
     const ModuleSpec* module_spec = module_registry.get_module_spec(cell_type);
     const vector<SubmoduleSpec>* submodule_specs = module_registry.get_submodule_specs(cell_type);
@@ -237,7 +237,7 @@ Cell* Circuit::create_cell(
         submodule_specs,
         declare,
         pin_specs, supply1_wire, supply0_wire,
-        alloc_wires, free_wires
+        cell_name
     );
 }
 

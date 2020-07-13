@@ -1,4 +1,5 @@
 #include <iostream>
+#include <utility>
 #include "cell.h"
 
 using namespace std;
@@ -10,8 +11,8 @@ Cell::Cell(
     const StdCellDeclare* declare,
     const vector<PinSpec> &pin_specs,
     Wire* supply1_wire, Wire* supply0_wire,
-    const vector<Wire*>& alloc_wires_param, const vector<Wire*>& free_wires_param
-) : module_spec(module_spec)
+    string name
+) : module_spec(module_spec), name(std::move(name))
 {
     cudaMalloc((void**) &overflow_ptr, sizeof(bool));
 

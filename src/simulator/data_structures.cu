@@ -6,7 +6,7 @@ std::ostream& operator<< (std::ostream& os, const Transition& transition) {
     return os;
 }
 
-BatchResource::BatchResource(const ResourceBuffer& resource_buffer) {
+void BatchResource::init(const ResourceBuffer& resource_buffer) {
     num_modules = resource_buffer.size();
 
     cudaMalloc((void**) &overflows, sizeof(bool*) * num_modules);
@@ -22,7 +22,7 @@ BatchResource::BatchResource(const ResourceBuffer& resource_buffer) {
     cudaMemcpy(data_schedule_offsets, resource_buffer.data_schedule_offsets.data(), sizeof(unsigned int) * num_modules, cudaMemcpyHostToDevice);
 }
 
-BatchResource::~BatchResource() {
+void BatchResource::free() const {
     cudaFree(overflows);
     cudaFree(module_specs);
     cudaFree(sdf_specs);

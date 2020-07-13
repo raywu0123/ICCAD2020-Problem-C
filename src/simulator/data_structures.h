@@ -96,21 +96,14 @@ struct ResourceBuffer {
     std::vector<Data> data_schedule;
     std::vector<unsigned int> data_schedule_offsets;
 
-    void clear() {
-        module_specs.clear();
-        sdf_specs.clear();
-        overflows.clear();
-        data_schedule.clear();
-        data_schedule_offsets.clear();
-    }
-
     int size() const { return module_specs.size(); }
 };
 
 
 struct BatchResource {
-    explicit BatchResource(const ResourceBuffer&);
-    ~BatchResource();
+    void init(const ResourceBuffer&);
+    void free() const;
+
     const ModuleSpec** module_specs;
     const SDFSpec** sdf_specs;
     bool** overflows;

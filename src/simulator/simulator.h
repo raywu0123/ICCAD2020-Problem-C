@@ -25,7 +25,6 @@ public:
     void run();
 
     Circuit& circuit;
-    ResourceBuffer resource_buffer;
 };
 
 #endif
