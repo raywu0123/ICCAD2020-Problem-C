@@ -12,12 +12,10 @@ __host__ __device__ int lookup_delay(
 );
 
 __host__ __device__ void compute_delay(
-    Transition**, const unsigned int*,
+    Transition**, unsigned int,
     const unsigned int*, unsigned int, unsigned int,
-    const SDFSpec* sdf_spec, unsigned int* lengths
+    const SDFSpec* sdf_spec, unsigned int* lengths, bool verbose = false
 );
-
-__host__ __device__ char get_edge_type(char, char);
 
 class Simulator {
 public:
@@ -25,7 +23,6 @@ public:
     void run();
 
     Circuit& circuit;
-    ResourceBuffer resource_buffer;
 };
 
 #endif

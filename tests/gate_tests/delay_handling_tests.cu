@@ -53,7 +53,7 @@ TEST_P(DelayTestFixture, SimpleCases) {
 
     compute_delay(
         transitions,
-        &capacity,
+        capacity,
         &output_index,
         1, 0,
         &sdf_spec,
@@ -83,7 +83,6 @@ INSTANTIATE_TEST_CASE_P(
                 Transition{29091, '0', DelayInfo{2, '+'}},
             },
             vector<Transition>{
-                Transition{0, '1'},
                 Transition{29119, '0'},
             },
             vector<char>{'x', 'x', 'x'},
@@ -96,7 +95,6 @@ INSTANTIATE_TEST_CASE_P(
                 Transition{21000, '0', DelayInfo{0, '-'}}, Transition{21000, '0', DelayInfo{1, '-'}},
             },
             vector<Transition>{
-                Transition{0, '1'},
                 Transition{21015, '0'},
             },
             vector<char>{'x', 'x'},
@@ -109,7 +107,6 @@ INSTANTIATE_TEST_CASE_P(
                 Transition{22000, '1', DelayInfo{0, '+'}}, Transition{22000, '1', DelayInfo{1, '+'}},
             },
             vector<Transition>{
-                Transition{0, '0'},
                 Transition{22022, '1'},
             },
             vector<char>{'x', 'x'},
@@ -118,11 +115,10 @@ INSTANTIATE_TEST_CASE_P(
         },
         TestPair{
             vector<Transition>{
-                Transition{0, '0'},
                 Transition{50, '1', DelayInfo{1, '+'}}, Transition{60, '0', DelayInfo{0, '-'}},
             },
             vector<Transition>{
-                Transition{0, '0'},
+                Transition{65, '0'},
             },
             vector<char>{'x', 'x'},
             vector<unsigned int>{0, 1}, vector<unsigned int>{0, 0},
@@ -134,7 +130,6 @@ INSTANTIATE_TEST_CASE_P(
                 Transition{22091, '1', DelayInfo{0, '+'}}, Transition{22091, '1', DelayInfo{1, '-'}}, Transition{22091, '1', DelayInfo{2, '-'}},
             },
             vector<Transition>{
-                Transition{0, '0'},
                 Transition{22095, '1'}
             },
             vector<char>{'x', 'x', 'x'},
