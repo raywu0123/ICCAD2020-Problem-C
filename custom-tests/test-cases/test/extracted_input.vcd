@@ -1,0 +1,13 @@
+$date
+	Mon Jun  8 01:06:53 2020
+$end
+$version
+	vzt2vcd
+$end
+$timescale 1ps $end
+$scope module tbench_NV_NVDLA_partition_m $end
+$scope module u_partition_ma $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+$dumpvars

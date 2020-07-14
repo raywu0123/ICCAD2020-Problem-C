@@ -113,7 +113,7 @@ public:
         const StdCellDeclare* declare,
         const std::vector<PinSpec>&  pin_specs,
         Wire* supply1_wire, Wire* supply0_wire,
-        const std::vector<Wire*>& alloc_wires, const std::vector<Wire*>& free_wires
+        std::string  name
     );
     ~Cell();
 
@@ -132,6 +132,7 @@ public:
 
     std::vector<ScheduledWire*> input_wires;
     bool* overflow_ptr;
+    std::string name;
 
 private:
     void build_wire_map(

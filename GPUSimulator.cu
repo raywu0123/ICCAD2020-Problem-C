@@ -71,7 +71,6 @@ int main(int argc, char* argv[]) {
     vcd_reader.summary();
     circuit.summary();
 
-    MemoryManager::init();
     Simulator simulator(circuit);
     simulator.run();
 

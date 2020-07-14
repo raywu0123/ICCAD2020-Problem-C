@@ -81,7 +81,7 @@ INSTANTIATE_TEST_SUITE_P(
         },
             SingleWaveformTestPair{
             xnor_gate_fn,
-            vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{2, 'x'} }
+            vector<Transition>{ Transition{0, '1'}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'} }
         },
             SingleWaveformTestPair{
             not_gate_fn,

@@ -1,0 +1,6 @@
+module NV_NVDLA_partition_m ( i0, i1, s, z );
+  input  n17335, n17334, n17333, n17350, n17352;
+
+  GEN_FA_D1 U19907 ( .a(n17335), .b(n17334), .ci(n17333), .co(n17350), .s(n17352)
+         );
+endmodule
