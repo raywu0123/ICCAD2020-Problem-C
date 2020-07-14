@@ -5,83 +5,61 @@
 
 using namespace std;
 
-TEST(circuit_test, trivial) {
-    int a = 1, b = 2;
-    int c = a + b;
-    EXPECT_EQ(c, 3);
-}
-
-struct SingleWaveformTestPair {
-    vector<vector<Timestamp>> transition_timestamps;
-    vector<vector<unsigned int>> expected_schedule_indices;
+struct TestPair {
+    vector<vector<Transition>> buckets;
+    vector<vector<Transition>> ans_scheduled_buckets;
+    vector<unsigned int> ans_starting_indices;
 };
 
-class CellBuildBucketIndexScheduleTestFixture : public ::testing::TestWithParam<SingleWaveformTestPair> {
-};
+class ScheduledBucketTestFixture: public ::testing::TestWithParam<TestPair>{};
 
-TEST_P(CellBuildBucketIndexScheduleTestFixture, cases) {
-    vector<ScheduledWire*> wires;
-    auto& test_pair = GetParam();
+TEST_P(ScheduledBucketTestFixture, SimpleCases) {
+    auto test_pair = GetParam();
+    auto buckets = test_pair.buckets;
+    auto num_wires = test_pair.buckets.size();
 
-    for (const auto& wire_transitions : test_pair.transition_timestamps) {
-        auto* w = new Wire();
-        w->bucket.transitions.clear();
-        for (const auto& t : wire_transitions) w->bucket.transitions.emplace_back(t, 0);
-        wires.push_back(new ScheduledWire(w));
+    vector<Wire> inner_wires; inner_wires.resize(num_wires);
+    for (int i = 0; i < num_wires; i++) inner_wires[i].bucket.transitions = buckets[i];
+
+    vector<ScheduledWire*> scheduled_wires;
+    for (auto& w : inner_wires) scheduled_wires.push_back(new ScheduledWire(&w));
+
+    vector<unsigned int> starting_indices;
+    Cell::build_scheduled_buckets(scheduled_wires, starting_indices);
+
+    const auto& ans_scheduled_buckets = test_pair.ans_scheduled_buckets;
+    for (int i = 0; i < num_wires; i++) {
+        ASSERT_EQ(scheduled_wires[i]->scheduled_bucket, ans_scheduled_buckets[i]);
     }
-
-    Cell::build_bucket_index_schedule(wires, 3);
-
-    int num_error = 0;
-    const auto& expected_schedule_indices = test_pair.expected_schedule_indices;
-    ASSERT_EQ(test_pair.expected_schedule_indices.size(), wires.size());
-    for (int i = 0; i < wires.size(); i++) {
-        ASSERT_EQ(wires[i]->bucket_index_schedule.size(), expected_schedule_indices[i].size());
-        for (int j = 0; j < expected_schedule_indices[i].size(); j++) {
-            if (wires[i]->bucket_index_schedule[j] != expected_schedule_indices[i][j]) num_error++;
-        }
-    }
-    ASSERT_EQ(num_error, 0);
-    for (const auto& scheduled_wire : wires) {
-        delete scheduled_wire->wire;
-        delete scheduled_wire;
-    }
+    const auto& ans_starting_indices = test_pair.ans_starting_indices;
+    ASSERT_EQ(starting_indices, ans_starting_indices);
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    CircuitTests,
-    CellBuildBucketIndexScheduleTestFixture,
+    GateTests,
+    ScheduledBucketTestFixture,
     ::testing::Values(
-        SingleWaveformTestPair{
-            vector<vector<Timestamp>> {
-                {0, 3,     6, 9, 12,  15, 18, 21,  24, 27, 30},
-                {0, 2, 5,  10,                     31}
-            },
-            vector<vector<unsigned int>> {
-                {0, 2, 5, 8, 11},
-                {0, 3, 4, 4, 5}
-            }
+        TestPair{
+            vector<vector<Transition>> {{
+                Transition{0, 'x'}, Transition{1, '1'}, Transition{2, '0'}
+            }},
+            vector<vector<Transition>> {{
+                Transition{0, 'x'}, Transition{1, '1', DelayInfo{0, '+'}}, Transition{2, '0', DelayInfo{0, '-'}}
+            }},
+            vector<unsigned int> {1, 2, 3}
         },
-        SingleWaveformTestPair{
-            vector<vector<Timestamp>> {
-                {0, 3, 5},
-                {0, 1}
+        TestPair{
+            vector<vector<Transition>> {
+                { Transition{0, 'x'}, Transition{1, '1'}, Transition{2, '0'} },
+                { Transition{0, 'x'}, Transition{1, '0'}, Transition{3, 'z'} }
             },
-            vector<vector<unsigned int>> { {0, 3}, {0, 2} }
-        },
-        SingleWaveformTestPair{
-            vector<vector<Timestamp>> {
-                {0, 3, 5, 10},
-                {0, 100}
+            vector<vector<Transition>> {
+                { Transition{0, 'x'}, Transition{1, '1', DelayInfo{0, '+'}}, Transition{1, '1', DelayInfo{1, '-'}},
+                  Transition{2, '0', DelayInfo{0, '-'}}, Transition{3, '0', DelayInfo{1, '+'}} },
+                { Transition{0, 'x'}, Transition{1, '0', DelayInfo{0, '+'}}, Transition{1, '0', DelayInfo{1, '-'}},
+                  Transition{2, '0', DelayInfo{0, '-'}}, Transition{3, 'z', DelayInfo{1, '+'}} }
             },
-            vector<vector<unsigned int>> { {0, 3, 4}, {0, 1, 2} }
-        },
-        SingleWaveformTestPair{
-            vector<vector<Timestamp>> {
-                {0, 100, 200, 400},
-                {0, 100, 300, 400, 500, 600, 700, 800}
-            },
-            vector<vector<unsigned int>> { {0, 3, 4, 4}, {0, 2, 5, 8} }
+            vector<unsigned int> {1, 3, 4, 5}
         }
     )
 );

@@ -1,3 +1,5 @@
+#include <cassert>
+
 #include "wire.h"
 
 using namespace std;
@@ -21,15 +23,16 @@ void Wire::assign(const Wire& other_wire) {
 }
 
 void Wire::load_from_bucket(
-    Transition* ptr, unsigned int capacity,
-    unsigned int stimuli_index, unsigned int bucket_index, unsigned int size
+    Transition* ptr, unsigned int capacity, unsigned int stimuli_index,
+    const vector<Transition>& bucket, unsigned int start_bucket_index, unsigned int end_bucket_index
 ) {
-    cudaMemcpy(
+    auto status = cudaMemcpy(
         ptr + capacity * stimuli_index,
-        bucket.transitions.data() + bucket_index,
-        sizeof(Transition) * size,
+        bucket.data() + start_bucket_index,
+        sizeof(Transition) * (end_bucket_index - start_bucket_index),
         cudaMemcpyHostToDevice
     );
+    if (status != cudaSuccess) throw runtime_error(cudaGetErrorString(status));
 }
 
 void Wire::store_to_bucket(const vector<Transition*>& data_ptrs, unsigned int capacity) {

@@ -7,7 +7,6 @@
 #include "vcd_reader.h"
 #include "circuit_model/circuit.h"
 #include "simulator/data_structures.h"
-#include "circuit_model/accumulators.h"
 
 
 class SimulationResult {
@@ -42,7 +41,12 @@ public:
     static void group_timestamps(const std::vector<Timestamp>&, std::vector<std::pair<Timestamp, int>>&);
 
 private:
-    void merge_sort(std::vector<std::pair<unsigned int, unsigned int>>&, std::vector<Timestamp>&);
+    static void merge_sort(
+        const std::vector<Wire*>&,
+        std::vector<std::pair<unsigned int, unsigned int>>&,
+        std::vector<Timestamp>&
+    );
+    static void filter_wires(const std::vector<Wire*>&, std::vector<Wire*>&);
 };
 
 struct WireStat {

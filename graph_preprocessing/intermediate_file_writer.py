@@ -138,9 +138,9 @@ class IntermediateFileWriter:
                 if not (len(path[-1]) == 3 or len(path[-1]) == 6):
                     raise ValueError(f"Invalid path {path[-1]}")
                 if len(path[-1]) == 3:
-                    path[-1] = (path[-1][0], path[-1][0])
+                    path[-1] = (path[-1][1], path[-1][1])
                 else:
-                    path[-1] = (path[-1][0], path[-1][3])
+                    path[-1] = (path[-1][1], path[-1][4])
                 self.print(
                     f'{path[0]} '
                     f'{str(module.to_index(path[1]))} '

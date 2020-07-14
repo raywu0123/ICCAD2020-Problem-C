@@ -22,36 +22,10 @@ struct PinSpec {
 struct IndexedWire {
     explicit IndexedWire(Wire* w) : wire(w) {};
 
-    Transition* alloc(int session_index) {
-        if (session_index != previous_session_index) {
-            first_free_data_ptr_index = 0;
-            previous_session_index = session_index;
-        }
-        unsigned int size = capacity * N_STIMULI_PARALLEL;
-
-        if (first_free_data_ptr_index >= data_ptrs.size())
-            data_ptrs.push_back(MemoryManager::alloc(size));
-
-        if (first_free_data_ptr_index >= data_ptrs.size())
-            throw std::runtime_error("Invalid access to data_ptrs");
-
-        Transition* data_ptr = data_ptrs[first_free_data_ptr_index];
-        cudaMemset(data_ptr, 0, sizeof(Transition) * size);
-
-        first_free_data_ptr_index++;
-        return data_ptr;
-    }
-    virtual Transition* load(int session_index) { return alloc(session_index); }
-    void free() {
-        for (auto* data_ptr : data_ptrs) MemoryManager::free(data_ptr);
-        data_ptrs.clear();
-    };
-    virtual void handle_overflow() {
-        capacity *= 2;
-        first_free_data_ptr_index = 0;
-        free();
-    }
-    void store_to_bucket() const { wire->store_to_bucket(data_ptrs, capacity); }
+    Transition* alloc(int session_index);
+    Transition* load(int session_index);
+    virtual void free();
+    void store_to_bucket() const;
 
     // records capacity
     Wire* wire;
@@ -62,46 +36,15 @@ struct IndexedWire {
     int previous_session_index = -1;
 };
 
+
+
 struct ScheduledWire : public IndexedWire {
     explicit ScheduledWire(Wire* wire): IndexedWire(wire) {};
 
-    Transition* load(int session_index) override {
-//        FIXME what if bucket is empty?
-        auto* ptr = IndexedWire::alloc(session_index);
-        if (session_index > checkpoint.first) checkpoint = std::make_pair(session_index, bucket_idx);
-
-        for (unsigned int stimuli_index = 0; stimuli_index < N_STIMULI_PARALLEL; stimuli_index++) {
-            auto index = bucket_index_schedule[bucket_idx];
-            auto size = bucket_index_schedule[bucket_idx + 1] - index;
-
-            if (index != 0) index--, size++;  // leave one for delay calculation
-
-            wire->load_from_bucket(ptr, capacity, stimuli_index, index, size);
-            bucket_idx++;
-            if (finished()) break;
-        }
-        return ptr;
-    };
-    void handle_overflow() override {
-//        TODO reuse loaded ptrs
-        first_free_data_ptr_index = 0;
-        free();
-        bucket_idx = checkpoint.second;
-    }
-    bool finished() const { return bucket_idx + 1 >= bucket_index_schedule.size(); }
-    void push_back_schedule_index(unsigned int i) {
-        if (i > wire->bucket.size())
-            throw std::runtime_error("Schedule index out of range.");
-        if (not bucket_index_schedule.empty() and i < bucket_index_schedule.back())
-            throw std::runtime_error("Schedule index in incorrect order.");
-
-        bucket_index_schedule.push_back(i);
-    }
-    unsigned int size() const { return wire->bucket.size(); }
-
-    std::vector<unsigned int> bucket_index_schedule{0};
-    unsigned int bucket_idx = 0;
-    std::pair<int, unsigned int> checkpoint = {0, 0};
+    unsigned int load(int session_index, const std::vector<unsigned int>&, unsigned int);
+    void free() override;
+    unsigned int size() const;
+    std::vector<Transition> scheduled_bucket;
 };
 
 
@@ -113,25 +56,22 @@ public:
         const StdCellDeclare* declare,
         const std::vector<PinSpec>&  pin_specs,
         Wire* supply1_wire, Wire* supply0_wire,
-        const std::vector<Wire*>& alloc_wires, const std::vector<Wire*>& free_wires
+        std::string  name
     );
     ~Cell();
 
     void set_paths(const std::vector<SDFPath>& ps);
 
-    static void build_bucket_index_schedule(std::vector<ScheduledWire*>&, unsigned int);
-    static unsigned int find_end_index(const Bucket&, unsigned int, Timestamp, unsigned int);
-
     bool finished() const;
-    bool overflow() const;
 
     void init();
+    static void build_scheduled_buckets(std::vector<ScheduledWire*>&, std::vector<unsigned int>&);
     void prepare_resource(int, ResourceBuffer&);
-    void handle_overflow();
     void dump_result();
 
     std::vector<ScheduledWire*> input_wires;
-    bool* overflow_ptr;
+    std::vector<unsigned int> starting_indices;
+    std::string name;
 
 private:
     void build_wire_map(
@@ -142,10 +82,13 @@ private:
 
     const ModuleSpec* module_spec;
     SDFSpec* sdf_spec = nullptr;
+    unsigned int capacity = INITIAL_CAPACITY;
 
     std::vector<IndexedWire*> wire_schedule;
     std::unordered_map<unsigned int, IndexedWire*> wire_map;
     std::vector<IndexedWire*> cell_wires, output_wires;
+
+    unsigned int progress_index = 0;
 };
 
 #endif
