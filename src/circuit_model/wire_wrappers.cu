@@ -31,7 +31,10 @@ void IndexedWire::free() {
     data_ptrs.clear();
 }
 
-void IndexedWire::store_to_bucket() const { wire->store_to_bucket(data_ptrs, capacity); }
+void IndexedWire::store_to_bucket() const {
+    auto num_ptrs = first_free_data_ptr_index;
+    wire->store_to_bucket(data_ptrs, num_ptrs, capacity);
+}
 
 unsigned int ScheduledWire::load(int session_index, const vector<unsigned int>& starting_indices, unsigned int progress_index) {
 //        FIXME what if bucket is empty?

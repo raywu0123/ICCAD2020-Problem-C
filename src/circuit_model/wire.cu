@@ -35,8 +35,9 @@ void Wire::load_from_bucket(
     if (status != cudaSuccess) throw runtime_error(cudaGetErrorString(status));
 }
 
-void Wire::store_to_bucket(const vector<Transition*>& data_ptrs, unsigned int capacity) {
-    for (const auto& data_ptr : data_ptrs) bucket.push_back(data_ptr, capacity);
+void Wire::store_to_bucket(const vector<Transition*>& data_ptrs, unsigned int num_ptrs, unsigned int capacity) {
+    assert(num_ptrs <= data_ptrs.size());
+    for (unsigned int i = 0; i < num_ptrs; i++) bucket.push_back(data_ptrs[i], capacity);
 }
 
 ConstantWire::ConstantWire(char value): value(value) {

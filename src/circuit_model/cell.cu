@@ -153,6 +153,7 @@ void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer)  {
     resource_buffer.sdf_specs.push_back(sdf_spec);
     resource_buffer.data_schedule_offsets.push_back(resource_buffer.data_schedule.size());
     resource_buffer.capacities.push_back(capacity);
+    resource_buffer.verbose.push_back(name == "U19106");
 
     unsigned int progress = 0;
     for (auto& indexed_wire : input_wires) progress = indexed_wire->load(session_id, starting_indices, progress_index);
