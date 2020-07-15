@@ -18,7 +18,7 @@ public:
     explicit VCDReader(char* path) { fin = std::ifstream(path); };
     InputInfo read_input_info();
     void read_input_waveforms(Circuit& circuit);
-    void summary();
+    void summary() const;
 
 private:
     static void ignore_vcd_header(std::ifstream&);

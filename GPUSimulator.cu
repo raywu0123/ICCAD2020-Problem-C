@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
     string output_flag = string(argv[3]);
     Timestamp dumpon_time = atoll(argv[4]);
     Timestamp dumpoff_time = atoll(argv[5]);
-    char* output_file = argv[6];
+    char* output_file_name = argv[6];
 
     ifstream fin_intermediate = ifstream(inter_repr_file);
     ModuleRegistry module_registry;
@@ -67,6 +67,7 @@ int main(int argc, char* argv[]) {
     input_info.summary();
 
     circuit.read_intermediate_file(fin_intermediate, input_info.timescale, bus_manager);
+    fin_intermediate.close();
     vcd_reader.read_input_waveforms(circuit);
     vcd_reader.summary();
     circuit.summary();
@@ -93,5 +94,5 @@ int main(int argc, char* argv[]) {
         );
     }
 
-    simulation_result->write(output_file);
+    simulation_result->write(output_file_name);
 }

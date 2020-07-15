@@ -18,7 +18,8 @@ struct Bucket {
     void emplace_transition(Timestamp t, char v) {
         // for storing input
         auto& back = transitions.back();
-        if (t > back.timestamp and v != back.value) transitions.emplace_back(t, v); // check validity of incoming transition
+        if (back.timestamp == 0 and t == 0 and v != back.value) back.value = v;
+        else if (t > back.timestamp and v != back.value) transitions.emplace_back(t, v); // check validity of incoming transition
     }
 
     void push_back(const Transition* ptr, const unsigned int capacity, bool verbose=false) {

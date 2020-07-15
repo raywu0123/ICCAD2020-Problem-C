@@ -37,8 +37,7 @@ void VCDResult::write(char *path) {
     vector<pair<unsigned int, unsigned int>> buffer;
     vector<Timestamp> timestamps;
 
-    vector<Wire*> f_wires;
-    filter_wires(wires, f_wires);
+    auto& f_wires = wires;
     merge_sort(f_wires, buffer, timestamps);
 
     vector<pair<Timestamp, int>> timestamp_groups;
@@ -119,13 +118,12 @@ void VCDResult::group_timestamps(const vector<Timestamp>& timestamps, vector<pai
 }
 
 void VCDResult::filter_wires(const vector<Wire*>& ws, vector<Wire*>& f_ws) {
-    f_ws = ws;
-//    for (auto* w : ws) {
-//        if (w->wire_infos.empty()) continue;
-//        const auto& name = w->wire_infos[0].wirekey.first;
-//        if (name == "n14625" or name == "n14624" or name == "n14623" or name == "n14628"
-//        ) f_ws.push_back(w);
-//    }
+    for (auto* w : ws) {
+        if (w->wire_infos.empty()) continue;
+        const auto& name = w->wire_infos[0].wirekey.first;
+        if (name == "n14625" or name == "n14624" or name == "n14623" or name == "n14628"
+        ) f_ws.push_back(w);
+    }
 }
 
 SAIFResult::SAIFResult(
