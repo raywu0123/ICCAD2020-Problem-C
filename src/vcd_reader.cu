@@ -3,7 +3,6 @@
 #include <functional>
 
 #include "vcd_reader.h"
-#include "utils.h"
 
 using namespace std;
 
@@ -31,7 +30,7 @@ InputInfo VCDReader::read_input_info() {
     return info;
 }
 
-void VCDReader::summary() {
+void VCDReader::summary() const {
     cout << "Summary of Input Waveforms" << endl;
     cout << "Num dumps: " << n_dump << endl;
     cout << endl;
@@ -42,6 +41,7 @@ void VCDReader::read_input_waveforms(Circuit& circuit) {
     read_vars();
     get_buckets(circuit);
     read_dump();
+    fin.close();
 }
 
 void VCDReader::read_vars() {
@@ -103,7 +103,6 @@ void VCDReader::read_single_time_dump(Timestamp timestamp) {
 }
 
 void VCDReader::emplace_transition(const string& token, Timestamp timestamp, const string& value) {
-    if (timestamp == 0) return;
     const auto& it = token_to_wire.find(token);
     if (it == token_to_wire.end())
         throw runtime_error("Token " + token + " not found\n");
@@ -133,7 +132,6 @@ void VCDReader::emplace_transition(const string& token, Timestamp timestamp, con
 }
 
 void VCDReader::emplace_transition(const string& token, Timestamp timestamp, const char& value) {
-    if (timestamp == 0) return;
     const auto& it = token_to_wire.find(token);
     if (it == token_to_wire.end())
         throw runtime_error("Token " + token + " not found\n");

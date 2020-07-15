@@ -61,14 +61,6 @@ __host__ __device__ char nor_logic(
 __host__ __device__ char xnor_logic(
     Transition** data, unsigned int num_inputs, const unsigned int index, const char* table, const unsigned int table_row_num
 ) {
-//    char ret = '1';
-//    bool has_xz = false;
-//    for (int i = 1; i < num_inputs + 1; i++) {
-//        const auto& value = data[i][index].value;
-//        has_xz |= (value == 'x' or value == 'z');
-//        ret = (ret == value) ? '1' : '0';
-//    }
-//    return has_xz ? 'x' : ret;
     char ret = '0';
     bool has_xz = false;
     for (int i = 1; i < num_inputs + 1; i++) {
