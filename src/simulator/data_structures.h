@@ -90,6 +90,7 @@ struct ResourceBuffer {
     std::vector<Transition*> data_schedule;
     std::vector<unsigned int> data_schedule_offsets;
     std::vector<unsigned int> capacities;
+    std::vector<int> verbose;
 
     int size() const { return module_specs.size(); }
 };
@@ -103,6 +104,7 @@ struct BatchResource {
     const SDFSpec** sdf_specs;
     Transition** data_schedule;
     unsigned int* capacities;
+    int* verbose;
     unsigned int* data_schedule_offsets; // offsets to each module
     unsigned int num_modules;
 };

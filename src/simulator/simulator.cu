@@ -22,7 +22,7 @@ __device__ __host__ void resolve_collisions_for_batch_stimuli(
         }
         resolve_collisions_for_batch_waveform(
             data[output_indices[i_output]], capacity,
-            stimuli_lengths
+            stimuli_lengths, N_STIMULI_PARALLEL
         );
     }
 }
@@ -31,8 +31,25 @@ __device__ void simulate_module(
     const ModuleSpec* const module_spec,
     const SDFSpec* const sdf_spec,
     Transition** const data_schedule,
-    const unsigned int capacity
+    const unsigned int capacity,
+    const bool verbose
 ) {
+    assert(module_spec->data_schedule_size <= MAX_DATA_SCHEDULE_SIZE);
+//    bool cond = data_schedule[1][0].timestamp <= 2740534051 and threadIdx.x == 0;
+//    if (cond) {
+//        printf("INIT data_schedule_size=%d capacity=%d num_module_input=%d num_module_output=%d\n",
+//                module_spec->data_schedule_size, capacity, module_spec->num_module_input, module_spec->num_module_output);
+//        printf("INITIAL\n");
+//        int i = 44;
+//        for (int g = 0; g < 11; g++) {
+//            printf("WIRE %d addr=%p\n", g, data_schedule[g]);
+//            for (int j = 0; j < capacity; j++) {
+//                printf("(%lld %c) ", data_schedule[g][i * capacity + j].timestamp, data_schedule[g][i * capacity + j].value);
+//            }
+//            printf("\n");
+//        }
+//    }
+    __syncthreads();
     Transition* data_ptrs_for_each_stimuli[MAX_DATA_SCHEDULE_SIZE];
     unsigned stimuli_idx = threadIdx.x;
     for (unsigned int i = 0; i < module_spec->data_schedule_size; i++) {
@@ -41,29 +58,41 @@ __device__ void simulate_module(
     unsigned int data_schedule_idx = 0;
     for (int i = 0; i < module_spec->schedule_size; i++) {
         module_spec->gate_schedule[i](
-            data_ptrs_for_each_stimuli + data_schedule_idx,
-            capacity,
-            module_spec->tables[i], module_spec->table_row_num[i],
-            module_spec->num_inputs[i], module_spec->num_outputs[i]
+                data_ptrs_for_each_stimuli + data_schedule_idx,
+                capacity,
+                module_spec->tables[i], module_spec->table_row_num[i],
+                module_spec->num_inputs[i], module_spec->num_outputs[i]
         );
         data_schedule_idx += module_spec->num_inputs[i] + module_spec->num_outputs[i];
     }
-
+    __syncthreads();
+//    if (cond) {
+//        printf("BEFORE DELAY\n");
+//        int i = 44;
+//        for (int g = 0; g < 11; g++) {
+//            printf("WIRE %d addr=%p\n", g, data_schedule[g]);
+//            for (int j = 0; j < capacity; j++) {
+//                printf("(%lld %c) ", data_schedule[g][i * capacity + j].timestamp, data_schedule[g][i * capacity + j].value);
+//            }
+//            printf("\n");
+//        }
+//    }
     assert(module_spec->num_module_output <= MAX_NUM_MODULE_OUTPUT);
     __shared__ unsigned int lengths[N_STIMULI_PARALLEL * MAX_NUM_MODULE_OUTPUT];
     compute_delay(
-        data_ptrs_for_each_stimuli, capacity,
-        module_spec->output_indices, module_spec->num_module_output, module_spec->num_module_input,
-        sdf_spec, lengths + stimuli_idx * module_spec->num_module_output
+            data_ptrs_for_each_stimuli, capacity,
+            module_spec->output_indices, module_spec->num_module_output, module_spec->num_module_input,
+            sdf_spec, lengths + stimuli_idx * module_spec->num_module_output
     );
 
     __syncthreads();
-//    if (threadIdx.x == 0 and cond) {
-//        printf("hit\n");
-//        for (int i = 0; i < N_STIMULI_PARALLEL; i++) {
-//            printf("i=%d\n", i);
-//            for (int j = 0; j < lengths[i * module_spec->num_module_output + 1]; j++) {
-//                printf("(%lld %c) ", data_schedule[13][i * capacity + j].timestamp, data_schedule[13][i * capacity + j].value);
+//    if (cond) {
+//        printf("AFTER DELAY\n");
+//        int g = 9;
+//        for (int i = 43; i < 53; i++){
+//            printf("WIRE %d addr=%p\n", g, data_schedule[g]);
+//            for (int j = 0; j < lengths[i * module_spec->num_module_output]; j++) {
+//                printf("(%lld %c) ", data_schedule[g][i * capacity + j].timestamp, data_schedule[g][i * capacity + j].value);
 //            }
 //            printf("\n");
 //        }
@@ -83,7 +112,8 @@ __global__ void simulate_batch(BatchResource batch_resource) {
         const auto& sdf_spec = batch_resource.sdf_specs[blockIdx.x];
         auto* module_data_schedule = &batch_resource.data_schedule[offset];
         const auto& capacity = batch_resource.capacities[blockIdx.x];
-        simulate_module(module_spec, sdf_spec, module_data_schedule, capacity);
+        const auto& verbose = batch_resource.verbose[blockIdx.x];
+        simulate_module(module_spec, sdf_spec, module_data_schedule, capacity, verbose);
     }
 }
 
@@ -99,6 +129,8 @@ void Simulator::run() {
         for (auto* cell : schedule_layer) cell->init();
         stack<Cell*, std::vector<Cell*>> job_queue(schedule_layer);
         int session_id = 0;
+//        bool should_break = false;
+//        for (auto* cell : schedule_layer) should_break |= cell->name == "U17087";
 
         while (not job_queue.empty()) {
             unordered_set<Cell*> processing_cells;
@@ -118,6 +150,7 @@ void Simulator::run() {
             session_id++;
         }
         progress_bar.Progressed(i_layer + 1);
+//        if (should_break) break;
     }
     cout << endl;
 }

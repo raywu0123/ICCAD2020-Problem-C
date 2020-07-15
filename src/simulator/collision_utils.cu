@@ -25,15 +25,15 @@ extern __host__ __device__ void resolve_collisions_for_batch_waveform(
     unsigned int num_stimuli
 ) {
     unsigned int write_index = 0;
-    Timestamp prev_t = LONG_LONG_MIN;
     for (unsigned int stimuli_index = 0; stimuli_index < num_stimuli; stimuli_index++) {
         const unsigned int& stimuli_length = stimuli_lengths[stimuli_index];
         assert(stimuli_length <= capacity);
         if (stimuli_length == 0) continue;
 
         Timestamp& t = waveform[capacity * stimuli_index].timestamp;
-        if (write_index >= 1 and t <= prev_t) write_index = binary_search(waveform, write_index - 1, t);
-        prev_t = waveform[capacity * stimuli_index + stimuli_length - 1].timestamp;
+        if (write_index >= 1 and t <= waveform[write_index - 1].timestamp){
+            write_index = binary_search(waveform, write_index - 1, t);
+        }
 
         auto offset = (write_index >= 1 and waveform[capacity * stimuli_index].value == waveform[write_index - 1].value) ? 1: 0;
         for (unsigned int i = offset; i < stimuli_length; i++) {

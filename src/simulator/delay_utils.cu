@@ -16,6 +16,7 @@ extern __host__ __device__ int lookup_delay(
             else if (output_edge_type == '-') delay += sdf_spec->falling_delay[i_row];
         }
     }
+    assert(delay < 1000 and delay >= 0);
     return delay;
 }
 
