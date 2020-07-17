@@ -74,14 +74,12 @@ typedef char (*LogicFn)(Transition**, unsigned int, const unsigned int, const ch
 struct ModuleSpec{
     GateFnPtr* gate_schedule;
     unsigned int schedule_size; // number of gates
-    unsigned int data_schedule_size = 0;  // number of wires in the whole schedule
-    unsigned int num_module_input, num_module_output;
+    unsigned int num_module_input, num_module_output, num_module_args;
     char** tables;
     unsigned int* table_row_num;
+    unsigned int* gate_specs;
     unsigned int* num_inputs;  // how many inputs for every gate
     unsigned int* num_outputs;  // how many outputs for every gate, currently assume its always 1
-    unsigned int* output_indices; // indices of output wires in the data_schedule
-    unsigned int* data_schedule_args;
 };
 
 struct ResourceBuffer {

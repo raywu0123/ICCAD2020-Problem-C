@@ -12,8 +12,9 @@ __device__ __host__ void resolve_collisions_for_batch_stimuli(
     Transition** data,
     const unsigned int* lengths,
     const unsigned int capacity,
-    const unsigned int num_outputs, const unsigned int* output_indices
+    const unsigned int num_inputs, const unsigned int num_outputs
 ) {
+//    TODO parallelize
     unsigned int stimuli_lengths[N_STIMULI_PARALLEL];
     for (int i_output = 0; i_output < num_outputs; i_output++) {
         for(int i_stimuli = 0; i_stimuli < N_STIMULI_PARALLEL; i_stimuli++) {
@@ -21,7 +22,7 @@ __device__ __host__ void resolve_collisions_for_batch_stimuli(
             assert(stimuli_lengths[i_stimuli] <= capacity);
         }
         resolve_collisions_for_batch_waveform(
-            data[output_indices[i_output]], capacity,
+            data[num_inputs + i_output], capacity,
             stimuli_lengths, N_STIMULI_PARALLEL
         );
     }
@@ -30,38 +31,45 @@ __device__ __host__ void resolve_collisions_for_batch_stimuli(
 __device__ void simulate_module(
     const ModuleSpec* const module_spec,
     const SDFSpec* const sdf_spec,
-    Transition** const data_schedule,
+    Transition** const data,
     const unsigned int capacity
 ) {
-    assert(module_spec->data_schedule_size <= MAX_DATA_SCHEDULE_SIZE);
-    Transition* data_ptrs_for_each_stimuli[MAX_DATA_SCHEDULE_SIZE];
     unsigned stimuli_idx = threadIdx.x;
-    for (unsigned int i = 0; i < module_spec->data_schedule_size; i++) {
-        data_ptrs_for_each_stimuli[i] = data_schedule[i] + stimuli_idx * capacity;
+    Transition* data_ptrs_for_each_stimuli[MAX_NUM_MODULE_ARGS];
+    for (unsigned int i = 0; i < module_spec->num_module_args; i++) {
+        data_ptrs_for_each_stimuli[i] = data[i] + stimuli_idx * capacity;
     }
-    unsigned int data_schedule_idx = 0;
+
+    unsigned int offset = 0;
     for (int i = 0; i < module_spec->schedule_size; i++) {
+        Transition* data_schedule_for_gate[MAX_NUM_GATE_ARGS] = { nullptr };
+        const unsigned int num_gate_args = module_spec->num_inputs[i] + module_spec->num_outputs[i];
+        assert(num_gate_args <= MAX_NUM_GATE_ARGS);
+        for (int j = 0; j < num_gate_args; ++j) {
+            const auto& arg = module_spec->gate_specs[offset + j];
+            data_schedule_for_gate[j] = data_ptrs_for_each_stimuli[arg];
+        }
         module_spec->gate_schedule[i](
-                data_ptrs_for_each_stimuli + data_schedule_idx,
-                capacity,
-                module_spec->tables[i], module_spec->table_row_num[i],
-                module_spec->num_inputs[i], module_spec->num_outputs[i]
+            data_schedule_for_gate,
+            capacity,
+            module_spec->tables[i], module_spec->table_row_num[i],
+            module_spec->num_inputs[i], module_spec->num_outputs[i]
         );
-        data_schedule_idx += module_spec->num_inputs[i] + module_spec->num_outputs[i];
+        offset += num_gate_args;
     }
     assert(module_spec->num_module_output <= MAX_NUM_MODULE_OUTPUT);
     __shared__ unsigned int lengths[N_STIMULI_PARALLEL * MAX_NUM_MODULE_OUTPUT];
     compute_delay(
-            data_ptrs_for_each_stimuli, capacity,
-            module_spec->output_indices, module_spec->num_module_output, module_spec->num_module_input,
-            sdf_spec, lengths + stimuli_idx * module_spec->num_module_output
+        data_ptrs_for_each_stimuli, capacity,
+        module_spec->num_module_output, module_spec->num_module_input,
+        sdf_spec, lengths + stimuli_idx * module_spec->num_module_output
     );
 
     __syncthreads();
     if (threadIdx.x == 0) {
         resolve_collisions_for_batch_stimuli(
-            data_schedule, lengths, capacity,
-            module_spec->num_module_output, module_spec->output_indices
+            data, lengths, capacity,
+            module_spec->num_module_input, module_spec->num_module_output
         );
     }
 }
@@ -71,9 +79,9 @@ __global__ void simulate_batch(BatchResource batch_resource) {
         const auto& offset = batch_resource.data_schedule_offsets[blockIdx.x];
         const auto& module_spec = batch_resource.module_specs[blockIdx.x];
         const auto& sdf_spec = batch_resource.sdf_specs[blockIdx.x];
-        auto* module_data_schedule = &batch_resource.data_schedule[offset];
+        auto* module_data = &batch_resource.data_schedule[offset];
         const auto& capacity = batch_resource.capacities[blockIdx.x];
-        simulate_module(module_spec, sdf_spec, module_data_schedule, capacity);
+        simulate_module(module_spec, sdf_spec, module_data, capacity);
     }
 }
 

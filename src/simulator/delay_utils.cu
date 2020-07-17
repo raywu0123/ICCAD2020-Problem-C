@@ -21,12 +21,11 @@ extern __host__ __device__ int lookup_delay(
 }
 
 extern __host__ __device__ void compute_delay(
-    Transition** data, const unsigned int capacity,
-    const unsigned int* output_indices, unsigned int num_output, unsigned int num_input,
+    Transition** data, const unsigned int capacity, unsigned int num_output, unsigned int num_input,
     const SDFSpec* sdf_spec, unsigned int* lengths, bool verbose
 ) {
     for (int i = 0; i < num_output; i++) {
-        auto* output_data = data[output_indices[i]];
+        auto* output_data = data[num_input + i];
         unsigned int write_idx = 0;
         unsigned int timeblock_start = 1;
         char prev_v = output_data[0].value;

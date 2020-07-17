@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <fstream>
 #include <unordered_map>
 
 #include "data_structures.h"
@@ -26,7 +27,6 @@ public:
     void summary() const;
     GateFnPtr get_gate_fn(const std::string& name, char*& table, unsigned int& table_row_num) const;
     const ModuleSpec* get_module_spec(const std::string& cell_type) const;
-    const std::vector<SubmoduleSpec>* get_submodule_specs(const std::string& cell_type) const;
     const StdCellDeclare* get_module_declare(const std::string& cell_type) const;
 
 private:

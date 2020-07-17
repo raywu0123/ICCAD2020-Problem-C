@@ -13,7 +13,7 @@ __host__ __device__ int lookup_delay(
 
 __host__ __device__ void compute_delay(
     Transition**, unsigned int,
-    const unsigned int*, unsigned int, unsigned int,
+    unsigned int, unsigned int,
     const SDFSpec* sdf_spec, unsigned int* lengths, bool verbose = false
 );
 

@@ -37,7 +37,7 @@ ResourceBuffer::ResourceBuffer() {
     sdf_specs.reserve(N_CELL_PARALLEL);
     data_schedule_offsets.reserve(N_CELL_PARALLEL);
     capacities.reserve(N_CELL_PARALLEL);
-    data_schedule.reserve(N_CELL_PARALLEL * MAX_DATA_SCHEDULE_SIZE);
+    data_schedule.reserve(N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
 }
 
 int ResourceBuffer::size() const {

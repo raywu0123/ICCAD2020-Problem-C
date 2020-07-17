@@ -28,7 +28,6 @@ TEST_P(DelayTestFixture, SimpleCases) {
     transitions[0] = new Transition[waveform.size()];
     for (int i = 0; i < capacity; i++) transitions[0][i] = waveform[i];
 
-    unsigned int output_index = 0;
     unsigned int lengths = 0;
 
     unsigned int num_rows = params.edge_types.size();
@@ -54,7 +53,6 @@ TEST_P(DelayTestFixture, SimpleCases) {
     compute_delay(
         transitions,
         capacity,
-        &output_index,
         1, 0,
         &sdf_spec,
         &lengths
