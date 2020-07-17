@@ -80,6 +80,9 @@ void Cell::build_wire_map(
         auto* indexed_wire = new IndexedWire(new Wire());
         wire_map.set(arg, indexed_wire); cell_wires.push_back(indexed_wire);
     }
+    for (unsigned int arg = 0; arg < num_args; arg++) {
+        if (wire_map.get(arg) == nullptr) cerr << "|WARNING: Arg (" + to_string(arg) + ") not found in wiremap of cell " << name  << endl;
+    }
 }
 
 
@@ -156,10 +159,13 @@ void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer)  {
     progress_index = progress;
 
     for (unsigned int arg = 0; arg < num_args; ++arg) {
-        const auto& indexed_wire = wire_map.get(arg);
+        const auto* indexed_wire = wire_map.get(arg);
+        assert(indexed_wire != nullptr);
         if (indexed_wire->first_free_data_ptr_index - 1 >= indexed_wire->data_ptrs.size())
             throw runtime_error("Invalid access to indexed_wire's data_ptrs");
-        resource_buffer.data_schedule.push_back(indexed_wire->data_ptrs[indexed_wire->first_free_data_ptr_index - 1]);
+        resource_buffer.data_schedule.push_back(
+            indexed_wire->data_ptrs[indexed_wire->first_free_data_ptr_index - 1]
+        );
     }
 }
 

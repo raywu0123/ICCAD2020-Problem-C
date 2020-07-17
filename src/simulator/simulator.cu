@@ -42,9 +42,9 @@ __device__ void simulate_module(
 
     unsigned int offset = 0;
     for (int i = 0; i < module_spec->schedule_size; i++) {
-        Transition* data_schedule_for_gate[MAX_NUM_GATE_ARGS] = { nullptr };
         const unsigned int num_gate_args = module_spec->num_inputs[i] + module_spec->num_outputs[i];
         assert(num_gate_args <= MAX_NUM_GATE_ARGS);
+        Transition* data_schedule_for_gate[MAX_NUM_GATE_ARGS] = { nullptr };
         for (int j = 0; j < num_gate_args; ++j) {
             const auto& arg = module_spec->gate_specs[offset + j];
             data_schedule_for_gate[j] = data_ptrs_for_each_stimuli[arg];
