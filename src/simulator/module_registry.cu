@@ -21,13 +21,13 @@ void ModuleRegistry::summary() const {
 
 
 void ModuleRegistry::read_file(ifstream& fin) {
-    int num_primitive_cells, num_modules;
+    unsigned int num_primitive_cells, num_modules;
     fin >> num_primitive_cells >> num_modules;
 
-    for (int i = 0; i < num_primitive_cells; i++) {
+    for (unsigned int i = 0; i < num_primitive_cells; i++) {
         read_vlib_primitive(fin);
     }
-    for (int i = 0; i < num_modules; i++) {
+    for (unsigned int i = 0; i < num_modules; i++) {
         read_vlib_module(fin);
     }
 }
@@ -78,13 +78,14 @@ void ModuleRegistry::read_vlib_module(ifstream& fin) {
 
 string ModuleRegistry::read_vlib_common(ifstream& fin, StdCellDeclare& declares) {
     string name;
-    fin >> name;
+    fin >> name >> declares.num_args;
+    cout << name << " " << declares.num_args << endl;
     for (auto& arg_bucket : declares.buckets) {
-        int num_args;
+        int bucket_num_args;
         unsigned int arg_index;
         string s;
-        fin >> s >> num_args;
-        for (int i = 0; i < num_args; i++){
+        fin >> s >> bucket_num_args;
+        for (int i = 0; i < bucket_num_args; i++){
             fin >> arg_index;
             arg_bucket.push_back(arg_index);
         }

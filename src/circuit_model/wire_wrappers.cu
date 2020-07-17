@@ -39,13 +39,13 @@ void IndexedWire::store_to_bucket() const {
 unsigned int ScheduledWire::load(int session_index, const vector<unsigned int>& starting_indices, unsigned int progress_index) {
 //        FIXME what if bucket is empty?
     auto* ptr = IndexedWire::alloc(session_index);
-
+    const auto& num_starting_indices = starting_indices.size();
     for (unsigned int stimuli_index = 0; stimuli_index < N_STIMULI_PARALLEL; stimuli_index++) {
-        if (progress_index >= starting_indices.size() - 1) break;
+        if (progress_index >= num_starting_indices - 1) break;
         unsigned int size = 1; // one for header
         unsigned int end_progress_index = progress_index;
         while (size <= capacity) {
-            if (end_progress_index >= starting_indices.size() - 1) break;
+            if (end_progress_index >= num_starting_indices - 1) break;
             size += starting_indices[end_progress_index + 1] - starting_indices[end_progress_index];
             end_progress_index++;
         }

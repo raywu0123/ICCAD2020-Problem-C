@@ -7,6 +7,7 @@ const unsigned int N_CELL_PARALLEL = 1024;
 const unsigned int N_STIMULI_PARALLEL = 256;
 const unsigned int INITIAL_CAPACITY = 16;
 const unsigned int MAX_NUM_MODULE_OUTPUT = 10;
+const unsigned int MAX_NUM_MODULE_ARGS = 20;
 const unsigned int MAX_DATA_SCHEDULE_SIZE = 30;
 
 const Wirekey SUPPLY1_WIREKEY = Wirekey{"1'b1", 0};

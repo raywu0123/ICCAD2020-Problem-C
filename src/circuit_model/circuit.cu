@@ -186,37 +186,11 @@ void Circuit::read_cells(ifstream& fin) {
         unsigned int num_args;
         fin >> cell_type >> cell_name >> num_args;
 
-        vector<PinSpec> args;
-        args.reserve(num_args);
+        WireMap<Wire> args{};
         for (int j = 0; j < num_args; j++) {
-            char c;
-            unsigned int wire_index;
-            PinSpec pin_spec;
-            fin >> pin_spec.index >> c >> wire_index;
-            pin_spec.wire = get_wire(wire_index);
-            args.push_back(pin_spec);
-        }
-
-        unsigned int num_alloc_wires;
-        fin >> num_alloc_wires;
-        vector<Wire*> alloc_wires;
-        alloc_wires.reserve(num_alloc_wires);
-        for (int j = 0; j < num_alloc_wires; j++) {
-            unsigned int wire_index;
-            fin >> wire_index;
-            auto wire_ptr = get_wire(wire_index);
-            alloc_wires.push_back(wire_ptr);
-        }
-
-        unsigned int num_free_wires;
-        fin >> num_free_wires;
-        vector<Wire*> free_wires;
-        free_wires.reserve(num_free_wires);
-        for (int j = 0; j < num_free_wires; j++) {
-            unsigned int wire_index;
-            fin >> wire_index;
-            auto wire_ptr = get_wire(wire_index);
-            free_wires.push_back(wire_ptr);
+            unsigned int arg, wire_index;
+            fin >> arg >> wire_index;
+            args.set(arg, get_wire(wire_index));
         }
         cells.emplace(cell_name, create_cell(cell_type, args, cell_name));
     }
@@ -224,17 +198,14 @@ void Circuit::read_cells(ifstream& fin) {
 
 Cell* Circuit::create_cell(
     const string& cell_type,
-    const vector<PinSpec>& pin_specs,
+    const WireMap<Wire>& pin_specs,
     const string& cell_name
 ) {
     const ModuleSpec* module_spec = module_registry.get_module_spec(cell_type);
-    const vector<SubmoduleSpec>* submodule_specs = module_registry.get_submodule_specs(cell_type);
-
     const StdCellDeclare* declare = module_registry.get_module_declare(cell_type);
     Wire *supply1_wire = get_wire(SUPPLY1_WIREKEY), *supply0_wire = get_wire(SUPPLY0_WIREKEY);
     return new Cell(
         module_spec,
-        submodule_specs,
         declare,
         pin_specs, supply1_wire, supply0_wire,
         cell_name

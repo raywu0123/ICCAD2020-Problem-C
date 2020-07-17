@@ -8,8 +8,9 @@ from graph_preprocessing.constants import SINGLE_BIT_INDEX
 class Module:
 
     def __init__(self, declares):
-        self.declares = declares
-        self.arg_to_index_map = self.build_arg_to_index_map(declares)
+        self.arg_declares = deepcopy(declares)
+        del self.arg_declares['gates']
+        self.arg_to_index_map = self.build_arg_to_index_map(self.arg_declares)
 
     @staticmethod
     def build_arg_to_index_map(declares):
@@ -38,15 +39,13 @@ class IntermediateFileWriter:
         print(*args, file=self.file)
 
     def write_vlib_common(self, name):
-        self.print(f'{name}')
         module = self.module_lib[name]
-        declare_types = deepcopy(list(module.declares.keys()))
-        declare_types.remove('gates')
-        for declare_type in declare_types:
+        self.print(f'{name} {len(module.arg_to_index_map)}')
+        for declare_type, arg_declares in module.arg_declares.items():
             self.print(
                 f'{declare_type} '
-                f'{len(module.declares[declare_type])} '
-                f'{" ".join([str(module.to_index(arg)) for arg in module.declares[declare_type]])}'
+                f'{len(arg_declares)} '
+                f'{" ".join([str(module.to_index(arg)) for arg in arg_declares])}'
             )
 
     def write_vlib_module(self, name: str, m: dict):
@@ -106,13 +105,8 @@ class IntermediateFileWriter:
             cell_type = cell["type"]
             module = self.module_lib[cell_type]
             self.print(f'{cell_type} {cell_id} {len(cell["parameters"])}')
-            for pin_name, pin_type, wirekey in cell["parameters"]:
-                self.print(f"{module.to_index(pin_name)} {pin_type[0]} {wirekey_to_index[wirekey]}")
-            wirekey_schedule = circuit.mem_schedule[cell_id]
-            for schedule in [wirekey_schedule["alloc"], wirekey_schedule["free"]]:
-                self.print(f'{len(schedule)}')
-                for wirekey in schedule:
-                    self.print(f'{wirekey_to_index[wirekey]}')
+            for pin_name, _, wirekey in cell["parameters"]:
+                self.print(f"{module.to_index(pin_name)} {wirekey_to_index[wirekey]}")
 
         self.print(len(circuit.schedule_layers))
         for cell_ids in circuit.schedule_layers:

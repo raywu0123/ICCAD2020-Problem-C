@@ -9,20 +9,17 @@ using namespace std;
 
 Cell::Cell(
     const ModuleSpec* module_spec,
-    const vector<SubmoduleSpec>* submodule_specs,
     const StdCellDeclare* declare,
-    const vector<PinSpec> &pin_specs,
+    const WireMap<Wire>& pin_specs,
     Wire* supply1_wire, Wire* supply0_wire,
     string name
-) : module_spec(module_spec), name(std::move(name))
+) : module_spec(module_spec), name(std::move(name)), num_args(declare->num_args)
 {
     build_wire_map(declare, pin_specs, supply1_wire, supply0_wire);
-    create_wire_schedule(submodule_specs);
 }
 
 Cell::~Cell() {
     for (auto& cell_wire : cell_wires) delete cell_wire->wire;
-    for (auto& it : wire_map) delete it.second;
 }
 
 void Cell::set_paths(const vector<SDFPath>& ps) {
@@ -58,44 +55,33 @@ void Cell::set_paths(const vector<SDFPath>& ps) {
 
 void Cell::build_wire_map(
     const StdCellDeclare* declare,
-    const vector<PinSpec> &pin_specs,
+    const WireMap<Wire>& pin_specs,
     Wire *supply1_wire, Wire *supply0_wire
-)
-{
-    if (not wire_map.empty()) throw runtime_error("wire_map not empty.");
-    unordered_map<unsigned int, Wire*> index_to_wire_ptr;
-    for (const auto& pin_spec: pin_specs) index_to_wire_ptr.emplace(pin_spec.index, pin_spec.wire);
-
-    for (const auto& arg: declare->buckets[STD_CELL_INPUT]) {
-        bool specified = index_to_wire_ptr.find(arg) != index_to_wire_ptr.end();
-        if (not specified) continue;
-        auto* scheduled_wire = new ScheduledWire(index_to_wire_ptr[arg]);
-        wire_map.emplace(arg, scheduled_wire); input_wires.push_back(scheduled_wire);
+) {
+    if (declare->num_args > MAX_NUM_MODULE_ARGS) {
+        throw runtime_error("Too many module args (" + to_string(declare->num_args) + ")\n");
     }
-    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY1]) wire_map.emplace(arg, new IndexedWire(supply1_wire));
-    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY0]) wire_map.emplace(arg, new IndexedWire(supply0_wire));
+    for (const auto& arg: declare->buckets[STD_CELL_INPUT]) {
+        auto* wire_ptr = pin_specs.get(arg);
+        if (wire_ptr == nullptr) continue;
+        auto* scheduled_wire = new ScheduledWire(wire_ptr);
+        wire_map.set(arg, scheduled_wire); input_wires.push_back(scheduled_wire);
+    }
+    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY1]) wire_map.set(arg, new IndexedWire(supply1_wire));
+    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY0]) wire_map.set(arg,  new IndexedWire(supply0_wire));
 
     for (const auto& arg: declare->buckets[STD_CELL_OUTPUT]) {
-        bool specified = index_to_wire_ptr.find(arg) != index_to_wire_ptr.end();
-        if (not specified) continue;
-        auto* indexed_wire = new IndexedWire(index_to_wire_ptr[arg]);
-        wire_map.emplace(arg, indexed_wire); output_wires.push_back(indexed_wire);
+        auto* wire_ptr = pin_specs.get(arg);
+        if (wire_ptr == nullptr) continue;
+        auto* indexed_wire = new IndexedWire(wire_ptr);
+        wire_map.set(arg, indexed_wire); output_wires.push_back(indexed_wire);
     }
     for (const auto& arg: declare->buckets[STD_CELL_WIRE]) {
         auto* indexed_wire = new IndexedWire(new Wire());
-        wire_map.emplace(arg, indexed_wire); cell_wires.push_back(indexed_wire);
+        wire_map.set(arg, indexed_wire); cell_wires.push_back(indexed_wire);
     }
 }
 
-void Cell::create_wire_schedule(const vector<SubmoduleSpec>* submodule_specs)  {
-    for(const auto& submodule_spec: *submodule_specs) {
-        for (const auto& arg: submodule_spec.args) {
-            const auto& it = wire_map.find(arg);
-            if (it != wire_map.end()) wire_schedule.emplace_back(it->second);
-            else throw runtime_error("Wire not found in wire_map.");
-        }
-    }
-}
 
 void Cell::init() {
     build_scheduled_buckets(input_wires, starting_indices);
@@ -104,11 +90,19 @@ void Cell::init() {
 void Cell::build_scheduled_buckets(vector<ScheduledWire*>& wires, vector<unsigned int>& starting_indices) {
     // initialize indices, num_finished
     unsigned int num_finished = 0; const auto& num_wires = wires.size();
+
+    unsigned int sum_size = 0;
+    for (const auto& wire : wires) {
+        const auto& size = wire->wire->bucket.size();
+        sum_size += size;
+        if (size <= 1) num_finished++;
+    }
     for (auto& wire : wires) {
         const auto& transitions = wire->wire->bucket.transitions;
+        wire->scheduled_bucket.reserve(sum_size);
         wire->scheduled_bucket.push_back(transitions.front());
-        if (transitions.size() <= 1) num_finished++;
     }
+    starting_indices.reserve(sum_size);
     vector<unsigned int> indices; indices.resize(num_wires);
 
     // merge sort
@@ -123,22 +117,23 @@ void Cell::build_scheduled_buckets(vector<ScheduledWire*>& wires, vector<unsigne
         assert(min_t != LONG_LONG_MAX);
         starting_indices.push_back(wires.front()->scheduled_bucket.size());
 
-        vector<unsigned int> advancing;
+        vector<unsigned int> advancing; advancing.reserve(num_wires);
         for (unsigned int i = 0; i < num_wires; i++) {
             const auto& b = wires[i]->wire->bucket;
-            if (b[indices[i] + 1].timestamp == min_t) {
+            auto& index = indices[i];
+            if (b[index + 1].timestamp == min_t) {
                 advancing.push_back(i);
-                indices[i] += 1;
-                if (indices[i] + 1 >= b.size()) num_finished++;
+                index += 1;
+                if (index + 1 >= b.size()) num_finished++;
             }
         }
-        for(auto advancing_wire_index : advancing) {
+        for(const auto& advancing_wire_index : advancing) {
             const auto& advancing_inner_bucket = wires[advancing_wire_index]->wire->bucket;
             auto edge_type = get_edge_type(
                 advancing_inner_bucket[indices[advancing_wire_index] - 1].value,
                 advancing_inner_bucket[indices[advancing_wire_index]].value
             );
-            DelayInfo d = {advancing_wire_index, edge_type};
+            DelayInfo d{advancing_wire_index, edge_type};
             for (unsigned int i = 0; i < num_wires; i++) {
                 auto& wire = wires[i];
                 wire->scheduled_bucket.emplace_back(min_t, wire->wire->bucket[indices[i]].value, d);
@@ -153,7 +148,6 @@ void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer)  {
     resource_buffer.sdf_specs.push_back(sdf_spec);
     resource_buffer.data_schedule_offsets.push_back(resource_buffer.data_schedule.size());
     resource_buffer.capacities.push_back(capacity);
-    resource_buffer.verbose.push_back(name == "U19106");
 
     unsigned int progress = 0;
     for (auto& indexed_wire : input_wires) progress = indexed_wire->load(session_id, starting_indices, progress_index);
@@ -161,8 +155,10 @@ void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer)  {
     for (auto& indexed_wire : cell_wires) indexed_wire->load(session_id);
     progress_index = progress;
 
-    for (auto& indexed_wire : wire_schedule) {
-        if (indexed_wire->first_free_data_ptr_index - 1 >= indexed_wire->data_ptrs.size()) throw runtime_error("invalid access to indexed_wire's data_ptrs");
+    for (unsigned int arg = 0; arg < num_args; ++arg) {
+        const auto& indexed_wire = wire_map.get(arg);
+        if (indexed_wire->first_free_data_ptr_index - 1 >= indexed_wire->data_ptrs.size())
+            throw runtime_error("Invalid access to indexed_wire's data_ptrs");
         resource_buffer.data_schedule.push_back(indexed_wire->data_ptrs[indexed_wire->first_free_data_ptr_index - 1]);
     }
 }
@@ -179,3 +175,4 @@ void Cell::dump_result() {
 bool Cell::finished() const {
     return progress_index >= starting_indices.size() - 1;
 }
+

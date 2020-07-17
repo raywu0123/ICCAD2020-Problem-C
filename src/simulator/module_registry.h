@@ -9,6 +9,7 @@
 
 struct StdCellDeclare {
     std::vector<std::vector<unsigned int>> buckets{5};
+    unsigned int num_args = 0;
 };
 
 struct Table {

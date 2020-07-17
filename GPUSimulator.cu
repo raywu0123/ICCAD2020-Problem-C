@@ -56,6 +56,7 @@ int main(int argc, char* argv[]) {
     char* output_file_name = argv[6];
 
     ifstream fin_intermediate = ifstream(inter_repr_file);
+    if (!fin_intermediate) throw runtime_error("Bad intermediate file.");
     ModuleRegistry module_registry;
     module_registry.read_file(fin_intermediate);
     module_registry.summary();

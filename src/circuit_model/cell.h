@@ -12,12 +12,6 @@ struct SDFPath {
     int rising_delay, falling_delay;
 };
 
-struct PinSpec {
-    unsigned int index{};
-    Wire* wire{};
-    PinSpec() = default;
-    PinSpec(unsigned int index, Wire* wire): index(index), wire(wire) {};
-};
 
 struct IndexedWire {
     explicit IndexedWire(Wire* w) : wire(w) {};
@@ -47,14 +41,33 @@ struct ScheduledWire : public IndexedWire {
     std::vector<Transition> scheduled_bucket;
 };
 
+template<class T>
+class WireMap {
+public:
+    T* get(unsigned int i) const {
+        if (i >= MAX_NUM_MODULE_ARGS)
+            throw std::runtime_error("Out-of-bounds access (" + std::to_string(i) + ") to getter of WireMap\n");
+        auto* w = map[i];
+        return w;
+    }
+    void set(unsigned int i, T* ptr) {
+        if (i >= MAX_NUM_MODULE_ARGS)
+            throw std::runtime_error("Out-of-bounds access (" + std::to_string(i) + ") to setter of WireMap\n");
+        auto& entry = map[i];
+        if (entry != nullptr) throw std::runtime_error("Duplicate setting to WireMap\n");
+        entry = ptr;
+    }
+
+private:
+    T* map[MAX_NUM_MODULE_ARGS] = { nullptr };
+};
 
 class Cell {
 public:
     Cell(
         const ModuleSpec* module_spec,
-        const std::vector<SubmoduleSpec>* submodule_specs,
         const StdCellDeclare* declare,
-        const std::vector<PinSpec>&  pin_specs,
+        const WireMap<Wire>&  pin_specs,
         Wire* supply1_wire, Wire* supply0_wire,
         std::string  name
     );
@@ -75,17 +88,16 @@ public:
 
 private:
     void build_wire_map(
-        const StdCellDeclare* declare, const std::vector<PinSpec>& pin_specs,
+        const StdCellDeclare* declare, const WireMap<Wire>& pin_specs,
         Wire* supply1_wire, Wire* supply0_wire
     );
-    void create_wire_schedule(const std::vector<SubmoduleSpec>* submodule_specs);
 
     const ModuleSpec* module_spec;
     SDFSpec* sdf_spec = nullptr;
+    unsigned int num_args = 0;
     unsigned int capacity = INITIAL_CAPACITY;
 
-    std::vector<IndexedWire*> wire_schedule;
-    std::unordered_map<unsigned int, IndexedWire*> wire_map;
+    WireMap<IndexedWire> wire_map;
     std::vector<IndexedWire*> cell_wires, output_wires;
 
     unsigned int progress_index = 0;
