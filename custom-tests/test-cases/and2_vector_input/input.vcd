@@ -14,7 +14,6 @@ $enddefinitions $end
 $dumpvars
 #0
 bx A
-xB
 #100
 b11 A
 #200

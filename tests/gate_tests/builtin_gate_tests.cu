@@ -16,8 +16,8 @@ class BuiltinGateTestFixture: public ::testing::TestWithParam<SingleWaveformTest
 protected:
     vector<vector<Transition>> inputs {
         { Transition{0, '0'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, 'z'} },
-        { Transition{0, '0'}, Transition{2, '1'}, Transition{3, '1'}, Transition{4, '1'} },
-        { Transition{0, '1'}, Transition{5, '0'}, Transition{6, 'z'}, Transition{7, 'x'}}
+        { Transition{0, '0'}, Transition{1, '1'}, Transition{2, '1'}, Transition{3, '1'} },
+        { Transition{0, '1'}, Transition{1, '0'}, Transition{2, 'z'}, Transition{3, 'x'}}
     };
 };
 
@@ -31,17 +31,15 @@ TEST_P(BuiltinGateTestFixture, SimpleCases) {
     output.resize(output_capacity);
 
     vector<unsigned int> capacities;
-    capacities.push_back(output_capacity);
 
     auto** data_schedule = new Transition*[inputs.size() + 1];
     data_schedule[0] = output.data();
-    bool overflow = false;
     for (int i = 0; i < inputs.size(); i++) {
         data_schedule[i + 1] = inputs[i].data();
         capacities.push_back(inputs[i].size());
     }
 
-    gate_fn(data_schedule, capacities.data(), nullptr, 0, inputs.size(), 1, &overflow);
+    gate_fn(data_schedule, output_capacity, nullptr, 0, inputs.size(), 1);
 
     int error_num = 0;
     for (int i = 0; i < expected_output.size(); i++) {
@@ -61,27 +59,27 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
             SingleWaveformTestPair{
             and_gate_fn,
-            vector<Transition>{ Transition{0, '0'}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'} }
+            vector<Transition>{ Transition{0, '0'}, Transition{1, '0'}, Transition{2, 'x'}, Transition{3, 'x'} }
         },
             SingleWaveformTestPair{
             or_gate_fn,
-            vector<Transition>{ Transition{0, '1'}, Transition{1, '1'}, Transition{2, '1'}, Transition{2, '1'} }
+            vector<Transition>{ Transition{0, '1'}, Transition{1, '1'}, Transition{2, '1'}, Transition{3, '1'} }
         },
             SingleWaveformTestPair{
             xor_gate_fn,
-            vector<Transition>{ Transition{0, '1'}, Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'} }
+            vector<Transition>{ Transition{0, '1'}, Transition{1, '0'}, Transition{2, 'x'}, Transition{3, 'x'} }
         },
             SingleWaveformTestPair{
             nand_gate_fn,
-            vector<Transition>{ Transition{0, '1'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{2, 'x'} }
+            vector<Transition>{ Transition{0, '1'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, 'x'} }
         },
             SingleWaveformTestPair{
             nor_gate_fn,
-            vector<Transition>{ Transition{0, '0'}, Transition{1, '0'}, Transition{2, '0'}, Transition{2, '0'} }
+            vector<Transition>{ Transition{0, '0'}, Transition{1, '0'}, Transition{2, '0'}, Transition{3, '0'} }
         },
             SingleWaveformTestPair{
             xnor_gate_fn,
-            vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{2, 'x'} }
+            vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, 'x'} }
         },
             SingleWaveformTestPair{
             not_gate_fn,
@@ -90,16 +88,6 @@ INSTANTIATE_TEST_SUITE_P(
             SingleWaveformTestPair{
             buf_gate_fn,
             vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{2, 'x'}, Transition{3, 'x'} }
-        },
-        // capacity larger than needed
-        SingleWaveformTestPair{
-            and_gate_fn,
-            vector<Transition>{
-                Transition{0, '0'},
-                Transition{1, '0'}, Transition{2, 'x'}, Transition{2, 'x'},
-                Transition{3, 'x'}, Transition{3, 'x'}, Transition{4, 'x'}, Transition{5, '0'},
-                Transition{6, 'x'}, Transition{7, 'x'}, Transition{0, 0}, Transition{0, 0}
-            }
         }
     )
 );
@@ -115,8 +103,8 @@ class PrimitiveGateTestFixture: public ::testing::TestWithParam<PrimitiveTestPai
 protected:
     vector<vector<Transition>> inputs {
         { Transition{1, '1'}, Transition{2, '0'}, Transition{3, '1'} },
-        { Transition{2, '0'}, Transition{3, '1'}, Transition{4, 'x'} },
-        { Transition{5, 'x'}, Transition{6, '0'}, Transition{7, '1'} }
+        { Transition{1, '0'}, Transition{2, '1'}, Transition{3, 'x'} },
+        { Transition{1, 'x'}, Transition{2, '0'}, Transition{3, '1'} }
     };
 };
 
@@ -134,18 +122,14 @@ TEST_P(PrimitiveGateTestFixture, SimpleCases) {
     auto expected_output = test_pair.expected_output;
 
     auto** data_schedule = new Transition*[inputs.size() + 1];
-    vector<unsigned int> capacities;
 
     vector<Transition> output;
     output.resize(expected_output.size());
-    capacities.push_back(output.size());
     data_schedule[0] = output.data();
-    bool overflow = false;
     for (int i = 0; i < inputs.size(); i++) {
         data_schedule[i + 1] = inputs[i].data();
-        capacities.push_back(inputs[i].size());
     }
-    primitive_gate_fn(data_schedule, capacities.data(), table, table_row_num, inputs.size(), 1, &overflow);
+    primitive_gate_fn(data_schedule, expected_output.size(), table, table_row_num, inputs.size(), 1);
 
     int error_num = 0;
     for (int i = 0; i < expected_output.size(); i++) {
@@ -163,9 +147,7 @@ INSTANTIATE_TEST_SUITE_P(
         PrimitiveTestPair{
             vector<string>{"1?01", "0?00", "?111", "?010", "00x0", "11x1"},
             vector<Transition>{
-                Transition{1, 'x'},
-                Transition{2, '0'}, Transition{3, '1'}, Transition{3, '1'},
-                Transition{4, 'x'}, Transition{6, '1'}, Transition{7, 'x'}
+                Transition{1, 'x'}, Transition{2, '0'}, Transition{3, 'x'},
             }
         }
     )

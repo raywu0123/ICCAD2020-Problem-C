@@ -18,17 +18,17 @@ public:
     explicit VCDReader(char* path) { fin = std::ifstream(path); };
     InputInfo read_input_info();
     void read_input_waveforms(Circuit& circuit);
-    void summary();
+    void summary() const;
 
 private:
     static void ignore_vcd_header(std::ifstream&);
     void read_vars();
     void get_buckets(Circuit& circuit);
     void read_dump();
-    void read_single_time_dump(Timestamp);
+    void read_single_time_dump(const Timestamp&);
 
-    void emplace_transition(const std::string&, Timestamp, const std::string&);
-    void emplace_transition(const std::string&, Timestamp, const char&);
+    void emplace_transition(const std::string&, const Timestamp&, const std::string&);
+    void emplace_transition(const std::string&, const Timestamp&, const char&);
 
     std::ifstream fin;
 

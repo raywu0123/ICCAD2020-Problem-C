@@ -7,7 +7,6 @@
 
 class MemoryManager {
 public:
-    static void init();
     static Transition* alloc(size_t size);
     static void free(Transition*);
 

@@ -36,7 +36,9 @@ void VCDResult::write(char *path) {
 
     vector<pair<unsigned int, unsigned int>> buffer;
     vector<Timestamp> timestamps;
-    merge_sort(buffer, timestamps);
+
+    auto& f_wires = wires;
+    merge_sort(f_wires, buffer, timestamps);
 
     vector<pair<Timestamp, int>> timestamp_groups;
     group_timestamps(timestamps, timestamp_groups);
@@ -53,9 +55,9 @@ void VCDResult::write(char *path) {
         for (int i = 0; i < num_transitions; i++) {
             const auto& wire_index = buffer[buffer_index].first;
             const auto& transition_index = buffer[buffer_index].second;
-            const auto& bucket = wires[wire_index]->bucket;
+            const auto& bucket = f_wires[wire_index]->bucket;
             const auto& transition = bucket.transitions[transition_index];
-            const auto& wire_infos = wires[wire_index]->wire_infos;
+            const auto& wire_infos = f_wires[wire_index]->wire_infos;
 
             bus_manager.add_transition(wire_infos, transition);
             buffer_index++;
@@ -66,11 +68,15 @@ void VCDResult::write(char *path) {
     f_out.close();
 }
 
-void VCDResult::merge_sort(vector<pair<unsigned int, unsigned int>>& buffer, vector<Timestamp>& timestamps) {
+void VCDResult::merge_sort(
+    const vector<Wire*>& f_wires,
+    vector<pair<unsigned int, unsigned int>>& buffer,
+    vector<Timestamp>& timestamps
+) {
     vector<unsigned int> indices;
-    const auto num_wires = wires.size();
+    const auto num_wires = f_wires.size();
     unsigned int num_finished = 0;
-    for (auto& wire: wires) {
+    for (auto& wire: f_wires) {
         const auto& bucket = wire->bucket;
         if (bucket.transitions.empty()) num_finished++;
     }
@@ -79,7 +85,7 @@ void VCDResult::merge_sort(vector<pair<unsigned int, unsigned int>>& buffer, vec
         unsigned int min_index;
         Timestamp min_timestamp = LONG_LONG_MAX;
         for (int i = 0; i < num_wires; i++) {
-            const auto& bucket = wires[i]->bucket;
+            const auto& bucket = f_wires[i]->bucket;
             const auto& transitions = bucket.transitions;
             if(indices[i] >= transitions.size()) continue;
             const auto& transition = transitions[indices[i]];
@@ -88,7 +94,7 @@ void VCDResult::merge_sort(vector<pair<unsigned int, unsigned int>>& buffer, vec
                 min_index = i;
             }
         }
-        const auto& min_bucket = wires[min_index]->bucket;
+        const auto& min_bucket = f_wires[min_index]->bucket;
         const auto& transitions = min_bucket.transitions;
 
         buffer.emplace_back(min_index, indices[min_index]);
@@ -108,6 +114,15 @@ void VCDResult::group_timestamps(const vector<Timestamp>& timestamps, vector<pai
             timestamps_groups.emplace_back(timestamps[i], group_size);
             group_size = 0;
         }
+    }
+}
+
+void VCDResult::filter_wires(const vector<Wire*>& ws, vector<Wire*>& f_ws) {
+    for (auto* w : ws) {
+        if (w->wire_infos.empty()) continue;
+        const auto& name = w->wire_infos[0].wirekey.first;
+        if (name == "n14625" or name == "n14624" or name == "n14623" or name == "n14628"
+        ) f_ws.push_back(w);
     }
 }
 

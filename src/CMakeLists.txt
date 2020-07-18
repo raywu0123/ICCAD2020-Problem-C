@@ -10,7 +10,6 @@ set(HEADER_FILES
         circuit_model/circuit.h
         circuit_model/cell.h
         circuit_model/wire.h
-        circuit_model/accumulators.h
         include/progress_bar.h
         utils.h
         )
@@ -27,7 +26,7 @@ set(SOURCE_FILES
         circuit_model/circuit.cu
         circuit_model/cell.cu
         circuit_model/wire.cu
-        circuit_model/accumulators.cu
+        circuit_model/wire_wrappers.cu
         include/progress_bar.cu
         utils.cu
         )

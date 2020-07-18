@@ -1,9 +1,9 @@
 #include <iostream>
 #include <string>
 #include <functional>
+#include <cassert>
 
 #include "vcd_reader.h"
-#include "utils.h"
 
 using namespace std;
 
@@ -31,7 +31,7 @@ InputInfo VCDReader::read_input_info() {
     return info;
 }
 
-void VCDReader::summary() {
+void VCDReader::summary() const {
     cout << "Summary of Input Waveforms" << endl;
     cout << "Num dumps: " << n_dump << endl;
     cout << endl;
@@ -42,6 +42,7 @@ void VCDReader::read_input_waveforms(Circuit& circuit) {
     read_vars();
     get_buckets(circuit);
     read_dump();
+    fin.close();
 }
 
 void VCDReader::read_vars() {
@@ -85,7 +86,7 @@ void VCDReader::read_dump() {
     }
 }
 
-void VCDReader::read_single_time_dump(Timestamp timestamp) {
+void VCDReader::read_single_time_dump(const Timestamp& timestamp) {
     char c;
     fin >> c;
     while (c != '#' and c != EOF and not fin.eof()) {
@@ -102,38 +103,28 @@ void VCDReader::read_single_time_dump(Timestamp timestamp) {
     }
 }
 
-void VCDReader::emplace_transition(const string& token, Timestamp timestamp, const string& value) {
-    if (timestamp == 0) return;
+void VCDReader::emplace_transition(const string& token, const Timestamp& timestamp, const string& value) {
     const auto& it = token_to_wire.find(token);
     if (it == token_to_wire.end())
         throw runtime_error("Token " + token + " not found\n");
     const auto& token_info = it->second;
 
     const auto& bitwidth = token_info.bitwidth;
-    int bit_range = abs(bitwidth.first - bitwidth.second) + 1;
-    int pad_size = bit_range - value.size();
-    if (pad_size < 0) {
-        throw runtime_error(
-            "Value: " + value +
-            " and bitwidth: " + to_string(bitwidth.first) + " " + to_string(bitwidth.second) + " incompatible"
-        );
+    unsigned int bit_range = abs(bitwidth.first - bitwidth.second) + 1;
+    const auto& value_size = value.size();
+    assert(bit_range >= value_size);
+    unsigned pad_size = bit_range - value_size;
+    for (unsigned int bit_index = 0; bit_index < pad_size; ++bit_index) {
+        char bit_value = value[0] == '1' ? '0' : value[0];
+        buckets[token_info.bucket_index + bit_index]->emplace_transition(timestamp, bit_value);
     }
-    for (int bit_index = 0; bit_index < bit_range; bit_index++) {
-        char bit_value;
-        if (bit_index - pad_size < 0) {
-            if (value[0] == '1') bit_value = '0';
-            else bit_value = value[0];
-        } else {
-            bit_value = value[bit_index - pad_size];
-        }
-        auto* bucket = buckets[token_info.bucket_index + bit_index];
-        // ignore redundant ("transitions" with no value change)
-        bucket->emplace_transition(timestamp, bit_value);
+    for (unsigned int bit_index = pad_size; bit_index < bit_range; ++bit_index) {
+        const char& bit_value = value[bit_index - pad_size];
+        buckets[token_info.bucket_index + bit_index]->emplace_transition(timestamp, bit_value);
     }
 }
 
-void VCDReader::emplace_transition(const string& token, Timestamp timestamp, const char& value) {
-    if (timestamp == 0) return;
+void VCDReader::emplace_transition(const string& token, const Timestamp& timestamp, const char& value) {
     const auto& it = token_to_wire.find(token);
     if (it == token_to_wire.end())
         throw runtime_error("Token " + token + " not found\n");

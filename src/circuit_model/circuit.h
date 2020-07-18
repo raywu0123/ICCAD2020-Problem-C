@@ -82,7 +82,7 @@ private:
     void read_wires(std::ifstream& fin);
     void read_assigns(std::ifstream& fin);
     void read_cells(std::ifstream& fin);
-    Cell* create_cell(const std::string&, const std::vector<PinSpec>&, const std::vector<Wire*>&, const std::vector<Wire*>&);
+    Cell* create_cell(const std::string&, const WireMap<Wire>&, const std::string&);
 
     void read_schedules(std::ifstream& fin);
     void read_sdf(std::ifstream& fin, double input_timescale) const;

@@ -18,3 +18,9 @@ double get_timescale(int num, const string& unit) {
 
     return num * unit_num;
 }
+
+__host__ __device__ char get_edge_type(const char& v1, const char& v2) {
+    if (v2 == '1' or v1 == '0') return '+';
+    if (v2 == '0' or v1 == '1') return '-';
+    return 'x';
+}
