@@ -67,10 +67,11 @@ typedef void (*GateFnPtr)(
     const unsigned int capacity,
     const char* table,
     const unsigned int table_row_num,
-    const unsigned int num_inputs, const unsigned int num_outputs
+    const unsigned int num_inputs, const unsigned int num_outputs,
+    bool* overflow_ptr
 );
 
-typedef char (*LogicFn)(Transition**, unsigned int, const unsigned int, const char* table, const unsigned int table_row_num);
+typedef char (*LogicFn)(Transition**, unsigned int, const unsigned int*, const char* table, const unsigned int table_row_num);
 struct ModuleSpec{
     GateFnPtr* gate_schedule;
     unsigned int schedule_size; // number of gates
@@ -88,6 +89,7 @@ struct ResourceBuffer {
     std::vector<Transition*> data_schedule;
     std::vector<unsigned int> data_schedule_offsets;
     std::vector<unsigned int> capacities;
+    std::vector<bool*> overflows;
 
     ResourceBuffer ();
     int size() const;
@@ -104,6 +106,7 @@ struct BatchResource {
     unsigned int* capacities;
     unsigned int* data_schedule_offsets; // offsets to each module
     unsigned int num_modules;
+    bool** overflows;
 };
 
 #endif

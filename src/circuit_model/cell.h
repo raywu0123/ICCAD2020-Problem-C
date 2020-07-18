@@ -14,16 +14,17 @@ struct SDFPath {
 
 
 struct IndexedWire {
-    explicit IndexedWire(Wire* w) : wire(w) {};
+    explicit IndexedWire(Wire* w, const unsigned int& capacity = INITIAL_CAPACITY) : wire(w), capacity(capacity) {};
 
     Transition* alloc(int session_index);
-    Transition* load(int session_index);
+    virtual Transition* load(int session_index);
     virtual void free();
     void store_to_bucket() const;
+    virtual void handle_overflow();
 
     // records capacity
     Wire* wire;
-    unsigned int capacity = INITIAL_CAPACITY;
+    const unsigned int& capacity;
     std::vector<Transition*> data_ptrs;
 
     unsigned int first_free_data_ptr_index = 0;
@@ -34,11 +35,20 @@ struct IndexedWire {
 
 struct ScheduledWire : public IndexedWire {
     explicit ScheduledWire(Wire* wire): IndexedWire(wire) {};
+    explicit ScheduledWire(Wire* wire, const unsigned int& capacity): IndexedWire(wire, capacity) {};
 
-    unsigned int load(int session_index, const std::vector<unsigned int>&, unsigned int);
+    Transition* load(int session_index) override;
     void free() override;
     unsigned int size() const;
-    std::vector<Transition> scheduled_bucket;
+
+    void handle_overflow() override;
+    bool finished() const;
+
+    void push_back_schedule_index(unsigned int i);
+
+    std::vector<unsigned int> bucket_index_schedule{ 0 };
+    unsigned int bucket_idx = 0;
+    std::pair<int, unsigned int> checkpoint = {0, 0};
 };
 
 template<class T>
@@ -76,21 +86,25 @@ public:
     void set_paths(const std::vector<SDFPath>& ps);
 
     bool finished() const;
+    bool overflow() const;
 
     void init();
-    static void build_scheduled_buckets(std::vector<ScheduledWire*>&, std::vector<unsigned int>&);
+
+    static void build_bucket_index_schedule(std::vector<ScheduledWire*>&, unsigned int);
     void prepare_resource(int, ResourceBuffer&);
     void dump_result();
+    void handle_overflow();
 
     std::vector<ScheduledWire*> input_wires;
-    std::vector<unsigned int> starting_indices;
     std::string name;
+    bool* overflow_ptr;
 
 private:
     void build_wire_map(
         const StdCellDeclare* declare, const WireMap<Wire>& pin_specs,
         Wire* supply1_wire, Wire* supply0_wire
     );
+    static unsigned int find_end_index(const Bucket&, unsigned int, const Timestamp&, unsigned int);
 
     const ModuleSpec* module_spec;
     SDFSpec* sdf_spec = nullptr;
@@ -99,8 +113,6 @@ private:
 
     WireMap<IndexedWire> wire_map;
     std::vector<IndexedWire*> cell_wires, output_wires;
-
-    unsigned int progress_index = 0;
 };
 
 #endif
