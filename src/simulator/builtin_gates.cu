@@ -1,3 +1,5 @@
+#include <cassert>
+
 #include "builtin_gates.h"
 #include "constants.h"
 
@@ -76,7 +78,7 @@ __host__ __device__ char buf_logic(char v) { return  (v == 'z') ? 'x' : v; }
 
 __host__ __device__ void merge_sort_algorithm(
     Transition** data,  // (capacity, num_inputs + num_outputs)
-    unsigned int output_capacity,
+    const unsigned int* capacities,
     const char* table, const unsigned int table_row_num,
     const unsigned int num_inputs,
     LogicFn logic_fn,
@@ -85,6 +87,7 @@ __host__ __device__ void merge_sort_algorithm(
     if (data[1][0].value == 0) return;
 
     unsigned int indices[MAX_NUM_GATE_ARGS] = {0}; indices[0] = 1;
+    assert(num_inputs + 1 <= MAX_NUM_GATE_ARGS);
     data[0][0].timestamp = data[1][0].timestamp;
     data[0][0].value = logic_fn(data, num_inputs, indices, table, table_row_num);
 
@@ -96,30 +99,25 @@ __host__ __device__ void merge_sort_algorithm(
         // find min timestamp
         Timestamp min_timestamp = LONG_LONG_MAX;
         for (int i = 1; i < num_inputs + 1; i++) {
-            if (indices[i] + 1 >= INITIAL_CAPACITY) continue;     // out of bound
-            if (data[i][indices[i] + 1].value == 0) continue;  // is padding
-
+            if (indices[i] + 1 >= capacities[i] or data[i][indices[i] + 1].value == 0) continue;
             const auto& transition = data[i][indices[i] + 1];
             if (transition.timestamp < min_timestamp) min_timestamp = transition.timestamp;
         }
 
         // find advancing inputs, outputs
-        bool advancing[MAX_NUM_GATE_ARGS];
+        bool advancing[MAX_NUM_GATE_ARGS] = { false };
         for (int i = 1; i < num_inputs + 1; i++) {
-            advancing[i] = false;
-            if (indices[i] + 1 >= INITIAL_CAPACITY) continue;     // out of bound
-            if (data[i][indices[i] + 1].value == 0) continue;  // is padding
-
+            if (indices[i] + 1 >= capacities[i] or data[i][indices[i] + 1].value == 0) continue;     // out of bound
             const auto& transition = data[i][indices[i] + 1];
             if (transition.timestamp == min_timestamp) {
                 indices[i]++;
                 advancing[i] = true;
-                if (indices[i] + 1 >= INITIAL_CAPACITY or data[i][indices[i] + 1].value == 0) num_finished++;
+                if (indices[i] + 1 >= capacities[i] or data[i][indices[i] + 1].value == 0) num_finished++;
             }
         }
         const char output_value = logic_fn(data, num_inputs, indices, table, table_row_num);
         for (int i = 1; i < num_inputs + 1; i++) {
-            if (indices[0] >= output_capacity) {
+            if (indices[0] >= capacities[0]) {
                 *overflow = true;
                 break;
             }
@@ -132,9 +130,9 @@ __host__ __device__ void merge_sort_algorithm(
     }
 }
 
-__host__ __device__ void stepping_algorithm(Transition** data, const unsigned int capacity, char(*logic_fn)(char)) {
+__host__ __device__ void stepping_algorithm(Transition** data, const unsigned int* capacities, char(*logic_fn)(char)) {
     // single input doesn't overflow
-    for (unsigned int i = 0; i < capacity; i++) {
+    for (unsigned int i = 0; i < capacities[0]; i++) {
         data[0][i].value = data[1][i].value == 0 ? 0 : logic_fn(data[1][i].value);
         data[0][i].timestamp = data[1][i].timestamp;
         data[0][i].delay_info = data[1][i].delay_info;
@@ -142,75 +140,75 @@ __host__ __device__ void stepping_algorithm(Transition** data, const unsigned in
 }
 __host__ __device__ void and_gate_fn(
     Transition** data,  // (capacity, num_inputs + num_outputs)
-    const unsigned int capacity,
+    const unsigned int* capacities,
     const char* table, const unsigned int table_row_num,
     const unsigned int num_inputs, const unsigned int num_outputs,
     bool* overflow_ptr
 ) {
-    merge_sort_algorithm(data, capacity, table, table_row_num, num_inputs, and_logic, overflow_ptr);
+    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, and_logic, overflow_ptr);
 }
 __host__ __device__ void or_gate_fn(
     Transition** data,  // (capacity, num_inputs + num_outputs)
-    const unsigned int capacity,
+    const unsigned int* capacites,
     const char* table, const unsigned int table_row_num,
     const unsigned int num_inputs, const unsigned int num_outputs,
     bool* overflow_ptr
 ) {
-    merge_sort_algorithm(data, capacity, table, table_row_num, num_inputs, or_logic, overflow_ptr);
+    merge_sort_algorithm(data, capacites, table, table_row_num, num_inputs, or_logic, overflow_ptr);
 }
 __host__ __device__ void xor_gate_fn(
     Transition** data,  // (capacity, num_inputs + num_outputs)
-    const unsigned int capacity,
+    const unsigned int* capacities,
     const char* table, const unsigned int table_row_num,
     const unsigned int num_inputs, const unsigned int num_outputs,
     bool* overflow_ptr
 ) {
-    merge_sort_algorithm(data, capacity, table, table_row_num, num_inputs, xor_logic, overflow_ptr);
+    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, xor_logic, overflow_ptr);
 }
 __host__ __device__ void nand_gate_fn(
     Transition** data,  // (capacity, num_inputs + num_outputs)
-    const unsigned int capacity,
+    const unsigned int* capacities,
     const char* table, const unsigned int table_row_num,
     unsigned int num_inputs, unsigned int num_outputs,
     bool* overflow_ptr
 ) {
-    merge_sort_algorithm(data, capacity, table, table_row_num, num_inputs, nand_logic, overflow_ptr);
+    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, nand_logic, overflow_ptr);
 }
 __host__ __device__ void nor_gate_fn(
     Transition** data,  // (capacity, num_inputs + num_outputs)
-    const unsigned int capacity,
+    const unsigned int* capacities,
     const char* table, const unsigned int table_row_num,
     const unsigned int num_inputs, const unsigned int num_outputs,
     bool* overflow_ptr
 ) {
-    merge_sort_algorithm(data, capacity, table, table_row_num, num_inputs, nor_logic, overflow_ptr);
+    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, nor_logic, overflow_ptr);
 }
 __host__ __device__ void xnor_gate_fn(
     Transition** data,  // (capacity, num_inputs + num_outputs)
-    const unsigned int capacity,
+    const unsigned int* capacities,
     const char* table, const unsigned int table_row_num,
     const unsigned int num_inputs, const unsigned int num_outputs,
     bool* overflow_ptr
 ) {
-    merge_sort_algorithm(data, capacity, table, table_row_num, num_inputs, xnor_logic, overflow_ptr);
+    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, xnor_logic, overflow_ptr);
 }
 __host__ __device__ void not_gate_fn(
     Transition** data,  // (capacity, num_inputs + num_outputs)
-    const unsigned int capacity,
+    const unsigned int* capacities,
     const char* table, const unsigned int table_row_num,
     const unsigned int num_inputs, const unsigned int num_outputs,
     bool* overflow_ptr
 ) {
-    stepping_algorithm(data, capacity, not_logic);
+    stepping_algorithm(data, capacities, not_logic);
 }
 __host__ __device__ void buf_gate_fn(
     Transition** data,  // (capacity, num_inputs + num_outputs)
-    const unsigned int capacity,
+    const unsigned int* capacities,
     const char* table, const unsigned int table_row_num,
     const unsigned int num_inputs, const unsigned int num_outputs,
     bool* overflow_ptr
 ) {
-    stepping_algorithm(data, capacity, buf_logic);
+    stepping_algorithm(data, capacities, buf_logic);
 }
 
 __host__ __device__ char primitive_logic(
@@ -232,12 +230,12 @@ __host__ __device__ char primitive_logic(
 }
 __host__ __device__ void primitive_gate_fn(
     Transition** data,
-    const unsigned int capacity,
+    const unsigned int* capacities,
     const char* table, const unsigned int table_row_num,
     const unsigned int num_inputs, const unsigned int num_outputs,
     bool* overflow_ptr
 ) {
-    merge_sort_algorithm(data, capacity, table, table_row_num, num_inputs, primitive_logic, overflow_ptr);
+    merge_sort_algorithm(data, capacities, table, table_row_num, num_inputs, primitive_logic, overflow_ptr);
 };
 
 

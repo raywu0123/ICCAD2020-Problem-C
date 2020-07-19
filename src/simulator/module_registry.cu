@@ -1,6 +1,7 @@
 #include <iostream>
 #include "module_registry.h"
 #include "builtin_gates.h"
+#include "utils.h"
 
 using namespace std;
 
@@ -118,7 +119,7 @@ void ModuleRegistry::register_primitives() {
     cudaMemcpyFromSymbol(&host_xnor_gate_fn_ptr, xnor_gate_fn_ptr, sizeof(GateFnPtr));
     cudaMemcpyFromSymbol(&host_not_gate_fn_ptr, not_gate_fn_ptr, sizeof(GateFnPtr));
     cudaMemcpyFromSymbol(&host_buf_gate_fn_ptr, buf_gate_fn_ptr, sizeof(GateFnPtr));
-    cudaMemcpyFromSymbol(&host_primitive_gate_fn_ptr, primitive_gate_fn_ptr, sizeof(GateFnPtr));
+    cudaErrorCheck(cudaMemcpyFromSymbol(&host_primitive_gate_fn_ptr, primitive_gate_fn_ptr, sizeof(GateFnPtr)));
     name_to_gate["and"] = host_and_gate_fn_ptr;
     name_to_gate["or"] = host_or_gate_fn_ptr;
     name_to_gate["xor"] = host_xor_gate_fn_ptr;
@@ -155,8 +156,8 @@ void ModuleRegistry::register_user_defined_primitive(
         }
     }
     char* device_char_table;
-    cudaMalloc((void**) &device_char_table, num_rows * row_size);
-    cudaMemcpy(device_char_table, char_table, sizeof(char) * num_rows * row_size, cudaMemcpyHostToDevice);
+    cudaErrorCheck(cudaMalloc((void**) &device_char_table, num_rows * row_size));
+    cudaErrorCheck(cudaMemcpy(device_char_table, char_table, sizeof(char) * num_rows * row_size, cudaMemcpyHostToDevice));
     delete[] char_table;
     name_to_table[name] = Table{device_char_table, num_rows};
 }
@@ -229,8 +230,8 @@ void ModuleRegistry::register_module(
     cudaMemcpy(device_module_spec_.gate_specs, gate_specs.data(), sizeof(unsigned int) * gate_specs.size(), cudaMemcpyHostToDevice);
 
     ModuleSpec* device_module_spec;
-    cudaMalloc((void**) &device_module_spec, sizeof(ModuleSpec));
-    cudaMemcpy(device_module_spec, &device_module_spec_, sizeof(ModuleSpec), cudaMemcpyHostToDevice);
+    cudaErrorCheck(cudaMalloc((void**) &device_module_spec, sizeof(ModuleSpec)));
+    cudaErrorCheck(cudaMemcpy(device_module_spec, &device_module_spec_, sizeof(ModuleSpec), cudaMemcpyHostToDevice));
     name_to_module_spec[name] = device_module_spec;
 }
 

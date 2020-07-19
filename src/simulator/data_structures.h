@@ -64,7 +64,7 @@ std::ostream& operator<< (std::ostream& os, const Transition& transition);
 
 typedef void (*GateFnPtr)(
     Transition** data,  // (n_stimuli_parallel * capacity, num_inputs + num_outputs)
-    const unsigned int capacity,
+    const unsigned int* capacities,
     const char* table,
     const unsigned int table_row_num,
     const unsigned int num_inputs, const unsigned int num_outputs,

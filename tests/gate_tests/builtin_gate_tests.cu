@@ -30,8 +30,8 @@ TEST_P(BuiltinGateTestFixture, SimpleCases) {
     vector<Transition> output;
     output.resize(output_capacity);
 
-    vector<unsigned int> capacities;
 
+    vector<unsigned int> capacities { static_cast<unsigned int>(output_capacity) };
     auto** data_schedule = new Transition*[inputs.size() + 1];
     data_schedule[0] = output.data();
     for (int i = 0; i < inputs.size(); i++) {
@@ -40,7 +40,7 @@ TEST_P(BuiltinGateTestFixture, SimpleCases) {
     }
 
     bool overflow = false;
-    gate_fn(data_schedule, output_capacity, nullptr, 0, inputs.size(), 1, &overflow);
+    gate_fn(data_schedule, capacities.data(), nullptr, 0, inputs.size(), 1, &overflow);
 
     int error_num = 0;
     for (int i = 0; i < expected_output.size(); i++) {
@@ -122,16 +122,17 @@ TEST_P(PrimitiveGateTestFixture, SimpleCases) {
 
     auto expected_output = test_pair.expected_output;
 
-    auto** data_schedule = new Transition*[inputs.size() + 1];
-
     vector<Transition> output;
     output.resize(expected_output.size());
+    vector<unsigned int> capacities { static_cast<unsigned int>(expected_output.size())};
+    auto** data_schedule = new Transition*[inputs.size() + 1];
     data_schedule[0] = output.data();
     for (int i = 0; i < inputs.size(); i++) {
         data_schedule[i + 1] = inputs[i].data();
+        capacities.push_back(inputs[i].size());
     }
     bool overflow = false;
-    primitive_gate_fn(data_schedule, expected_output.size(), table, table_row_num, inputs.size(), 1, &overflow);
+    primitive_gate_fn(data_schedule, capacities.data(), table, table_row_num, inputs.size(), 1, &overflow);
 
     int error_num = 0;
     for (int i = 0; i < expected_output.size(); i++) {

@@ -48,7 +48,8 @@ __device__ void simulate_module(
     unsigned stimuli_idx = threadIdx.x;
     Transition* data_ptrs_for_each_stimuli[MAX_NUM_MODULE_ARGS];
     for (unsigned int i = 0; i < module_spec->num_module_args; i++) {
-        data_ptrs_for_each_stimuli[i] = data[i] + stimuli_idx * capacity;
+        unsigned int c = i < module_spec->num_module_input ? INITIAL_CAPACITY : capacity;
+        data_ptrs_for_each_stimuli[i] = data[i] + stimuli_idx * c;
     }
     init_delay_info(data_ptrs_for_each_stimuli, module_spec->num_module_input);
 
@@ -57,13 +58,15 @@ __device__ void simulate_module(
         const unsigned int num_gate_args = module_spec->num_inputs[i] + module_spec->num_outputs[i];
         assert(num_gate_args <= MAX_NUM_GATE_ARGS);
         Transition* data_schedule_for_gate[MAX_NUM_GATE_ARGS] = { nullptr };
+        unsigned int capacities[MAX_NUM_GATE_ARGS] = { 0 };
         for (int j = 0; j < num_gate_args; ++j) {
             const auto& arg = module_spec->gate_specs[offset + j];
             data_schedule_for_gate[j] = data_ptrs_for_each_stimuli[arg];
+            capacities[j] = arg < module_spec->num_module_input ? INITIAL_CAPACITY : capacity;
         }
         module_spec->gate_schedule[i](
             data_schedule_for_gate,
-            capacity,
+            capacities,
             module_spec->tables[i], module_spec->table_row_num[i],
             module_spec->num_inputs[i], module_spec->num_outputs[i],
             overflow_ptr
@@ -101,6 +104,10 @@ __global__ void simulate_batch(BatchResource batch_resource) {
 
 void Simulator::run() {
     cout << "| Status: Running Simulation... " << endl;
+
+    size_t new_heap_size = N_CELL_PARALLEL * N_STIMULI_PARALLEL * MAX_NUM_GATE_ARGS * sizeof(Transition) * INITIAL_CAPACITY * 4;
+    cudaErrorCheck(cudaDeviceSetLimit(cudaLimitMallocHeapSize, new_heap_size));
+    cout << "| Adjusted heap size to be " << new_heap_size  << " bytes" << endl;
 
     unsigned int num_layers = circuit.cell_schedule.size();
     cout << "| Total " << num_layers << " layers" << endl;

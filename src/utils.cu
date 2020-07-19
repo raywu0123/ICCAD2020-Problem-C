@@ -24,3 +24,7 @@ __host__ __device__ char get_edge_type(const char& v1, const char& v2) {
     if (v2 == '0' or v1 == '1') return '-';
     return 'x';
 }
+
+void cudaErrorCheck(cudaError_t status) {
+    if (status != cudaSuccess) throw runtime_error(cudaGetErrorString(status));
+}
