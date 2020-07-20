@@ -38,19 +38,20 @@ void VCDResult::write(char *path) {
     vector<Timestamp> timestamps;
 
     auto& f_wires = wires;
-    merge_sort(f_wires, buffer, timestamps);
+    merge_sort(f_wires, buffer, timestamps, dumpon_time);
 
     vector<pair<Timestamp, int>> timestamp_groups;
     group_timestamps(timestamps, timestamp_groups);
+
+    f_out << "#0" << endl;
+    f_out<< bus_manager.dumps_result();
 
     int buffer_index = 0;
     for (const auto& group : timestamp_groups) {
         const auto& timestamp = group.first;
 
 //        TODO handle dumpon/dumpoff earlier
-        if (timestamp < dumpon_time) continue;
         if (timestamp >= dumpoff_time) break;
-
         const auto& num_transitions = group.second;
         for (int i = 0; i < num_transitions; i++) {
             const auto& wire_index = buffer[buffer_index].first;
@@ -62,6 +63,8 @@ void VCDResult::write(char *path) {
             bus_manager.add_transition(wire_infos, transition);
             buffer_index++;
         }
+        if (timestamp < dumpon_time or dumpon_time == 0) continue; // problem when constant wire with dumpon_time == 0
+
         f_out << "#" << timestamp << endl;
         f_out << bus_manager.dumps_result();
     }
@@ -71,16 +74,19 @@ void VCDResult::write(char *path) {
 void VCDResult::merge_sort(
     const vector<Wire*>& f_wires,
     vector<pair<unsigned int, unsigned int>>& buffer,
-    vector<Timestamp>& timestamps
+    vector<Timestamp>& timestamps,
+    Timestamp dumpon_time
 ) {
-    vector<unsigned int> indices;
     const auto num_wires = f_wires.size();
+    vector<unsigned int> indices; indices.resize(num_wires);
     unsigned int num_finished = 0;
-    for (auto& wire: f_wires) {
+    for (unsigned int i = 0; i < num_wires; ++i) {
+        const auto& wire = f_wires[i];
         const auto& bucket = wire->bucket;
-        if (bucket.transitions.empty()) num_finished++;
+        const auto& bucket_size = bucket.size();
+        indices[i] = binary_search(bucket.transitions.data(), bucket_size - 1, dumpon_time);
+        if (indices[i] + 1 >= bucket_size) num_finished++;
     }
-    indices.resize(num_wires);
     while (num_finished < num_wires) {
         unsigned int min_index;
         Timestamp min_timestamp = LONG_LONG_MAX;

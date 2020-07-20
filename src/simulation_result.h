@@ -44,7 +44,8 @@ private:
     static void merge_sort(
         const std::vector<Wire*>&,
         std::vector<std::pair<unsigned int, unsigned int>>&,
-        std::vector<Timestamp>&
+        std::vector<Timestamp>&,
+        Timestamp dumpon_time
     );
     static void filter_wires(const std::vector<Wire*>&, std::vector<Wire*>&);
 };
