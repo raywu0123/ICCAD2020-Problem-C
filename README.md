@@ -15,12 +15,12 @@ You may delete this file if you want to use your own interpreter version.
 ### Simulation
 1. Preprocess:  
 ```
-pipenv run python GraphPreprocessing.py <gv_file> <sdf_file> <sdf_lib> <intermediate_file>
+pipenv run python GraphPreprocessing.py <gv_file> <sdf_file> <std_lib> <intermediate_file>
 ```
 
 2. Build simulator  
 ```
-./script/build
+./scripts/build
 ```
 
 3. Run simulation:  
@@ -31,10 +31,15 @@ pipenv run python GraphPreprocessing.py <gv_file> <sdf_file> <sdf_lib> <intermed
 ### Testing
 * Run unit tests  
 ```
-./script/test.sh
+./scripts/test.sh
 ```
 
 * Run end-to-end tests    
 ```
 pipenv run python ./custom-tests/test-custom-cases.py [-s path_to_results]
+```
+
+### Export binaries
+```
+./scripts/export_binaries <output_dir>
 ```
