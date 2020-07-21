@@ -21,12 +21,12 @@ protected:
 
 TEST_P(DelayTestFixture, SimpleCases) {
     const auto params = GetParam();
-    const auto& waveform = params.waveform;
+    auto waveform = params.waveform;
+    waveform.resize(INITIAL_CAPACITY);
 
-    unsigned int capacity = waveform.size();
     auto** transitions = new Transition*;
     transitions[0] = new Transition[waveform.size()];
-    for (int i = 0; i < capacity; i++) transitions[0][i] = waveform[i];
+    for (int i = 0; i < INITIAL_CAPACITY; i++) transitions[0][i] = waveform[i];
 
     unsigned int lengths = 0;
 
@@ -50,13 +50,7 @@ TEST_P(DelayTestFixture, SimpleCases) {
         .falling_delay = falling_delays
     };
 
-    compute_delay(
-        transitions,
-        capacity,
-        1, 0,
-        &sdf_spec,
-        &lengths
-    );
+    compute_delay(transitions, 1, 0, &sdf_spec, &lengths);
 
     int err_num = 0;
     const auto& expected = params.expected;

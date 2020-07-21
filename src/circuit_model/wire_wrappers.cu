@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "cell.h"
+#include "utils.h"
 
 using namespace std;
 
@@ -37,45 +38,27 @@ void IndexedWire::store_to_bucket() const {
     wire->store_to_bucket(data_ptrs, num_ptrs, capacity);
 }
 
-void IndexedWire::handle_overflow() {
-    free();
+ScheduledWire::ScheduledWire(Wire *wire): IndexedWire(wire) {
+    cudaErrorCheck(cudaMalloc((void**) &progress_update_ptr, sizeof(unsigned int)));
 }
 
 Transition* ScheduledWire::load(int session_index) {
-//        FIXME what if bucket is empty?
-    auto* ptr = IndexedWire::alloc(session_index);
-    if (session_index > checkpoint.first) checkpoint = make_pair(session_index, bucket_idx);
+    auto* ptr = IndexedWire::load(session_index);
+    unsigned int end_index = min(wire->bucket.size(), bucket_idx - 1 + capacity * N_STIMULI_PARALLEL);
+    Wire::load_from_bucket(ptr, wire->bucket.transitions, bucket_idx - 1, end_index);
+}
 
-    for (unsigned int stimuli_index = 0; stimuli_index < N_STIMULI_PARALLEL; ++stimuli_index) {
-        if (finished()) break;
-        auto start_index = bucket_index_schedule[bucket_idx];
-        const auto& end_index = bucket_index_schedule[bucket_idx + 1];
-
-        if (start_index != 0) start_index--;
-        Wire::load_from_bucket(ptr, capacity, stimuli_index, wire->bucket.transitions, start_index, end_index);
-        bucket_idx++;
-    }
-    return ptr;
+void ScheduledWire::update_progress() {
+    unsigned int host_update_progress = 0;
+    cudaMemcpy(&host_update_progress, progress_update_ptr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+    bucket_idx += host_update_progress;
 }
 
 void ScheduledWire::free() { IndexedWire::free(); }
 
 unsigned int ScheduledWire::size() const { return wire->bucket.size(); }
 
-void ScheduledWire::handle_overflow() {
-    free();
-    bucket_idx = checkpoint.second;
-}
-
 bool ScheduledWire::finished() const {
-    return bucket_idx + 1 >= bucket_index_schedule.size();
-}
-
-void ScheduledWire::push_back_schedule_index(unsigned int i) {
-    if (i > wire->bucket.size())
-        throw std::runtime_error("Schedule index out of range.");
-    if (not bucket_index_schedule.empty() and i < bucket_index_schedule.back())
-        throw std::runtime_error("Schedule index in incorrect order.");
-    bucket_index_schedule.push_back(i);
+    return bucket_idx >= wire->bucket.size();
 }
 

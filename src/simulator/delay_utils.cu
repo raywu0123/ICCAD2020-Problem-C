@@ -21,7 +21,7 @@ extern __host__ __device__ int lookup_delay(
 }
 
 extern __host__ __device__ void compute_delay(
-    Transition** data, const unsigned int capacity, unsigned int num_output, unsigned int num_input,
+    Transition** data, unsigned int num_output, unsigned int num_input,
     const SDFSpec* sdf_spec, unsigned int* lengths, bool verbose
 ) {
     for (int i = 0; i < num_output; i++) {
@@ -29,12 +29,12 @@ extern __host__ __device__ void compute_delay(
         unsigned int write_idx = 0;
         unsigned int timeblock_start = 1;
         char prev_v = output_data[0].value;
-        while (timeblock_start < capacity and output_data[timeblock_start].value != 0) {
+        while (timeblock_start < INITIAL_CAPACITY and output_data[timeblock_start].value != 0) {
             const auto& t = output_data[timeblock_start].timestamp;
             const auto& v = output_data[timeblock_start].value;
             // find edges of timeblock
             unsigned int num = 0;
-            while ( timeblock_start < capacity
+            while ( timeblock_start < INITIAL_CAPACITY
                 and output_data[timeblock_start].timestamp == t
                 and output_data[timeblock_start].value != 0
             ) {
@@ -61,7 +61,7 @@ extern __host__ __device__ void compute_delay(
             }
             if (write_idx >= 1 and output_data[write_idx - 1].value == v) continue;
 
-            assert(write_idx < capacity);
+            assert(write_idx < INITIAL_CAPACITY);
             output_data[write_idx].value = v; output_data[write_idx].timestamp = t + min_delay;
             write_idx++;
         }

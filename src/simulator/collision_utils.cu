@@ -20,28 +20,27 @@ __host__ __device__ unsigned int binary_search(const Transition* const waveform,
 
 extern __host__ __device__ void resolve_collisions_for_batch_waveform(
     Transition* waveform,
-    unsigned int capacity,
     const unsigned int* stimuli_lengths,
     unsigned int num_stimuli
 ) {
     unsigned int write_index = 0;
     for (unsigned int stimuli_index = 0; stimuli_index < num_stimuli; stimuli_index++) {
         const unsigned int& stimuli_length = stimuli_lengths[stimuli_index];
-        assert(stimuli_length <= capacity);
+        assert(stimuli_length <= INITIAL_CAPACITY);
         if (stimuli_length == 0) continue;
 
-        Timestamp& t = waveform[capacity * stimuli_index].timestamp;
+        Timestamp& t = waveform[INITIAL_CAPACITY * stimuli_index].timestamp;
         if (write_index >= 1 and t <= waveform[write_index - 1].timestamp){
             write_index = binary_search(waveform, write_index - 1, t);
         }
 
-        auto offset = (write_index >= 1 and waveform[capacity * stimuli_index].value == waveform[write_index - 1].value) ? 1: 0;
+        auto offset = (write_index >= 1 and waveform[INITIAL_CAPACITY * stimuli_index].value == waveform[write_index - 1].value) ? 1: 0;
         for (unsigned int i = offset; i < stimuli_length; i++) {
-            assert(write_index < capacity * num_stimuli);
-            waveform[write_index] = waveform[capacity * stimuli_index + i];
+            assert(write_index < INITIAL_CAPACITY * num_stimuli);
+            waveform[write_index] = waveform[INITIAL_CAPACITY * stimuli_index + i];
             write_index++;
         }
     }
     // add EOS token
-    if (write_index < capacity * num_stimuli) waveform[write_index].timestamp = 0; waveform[write_index].value = 0;
+    if (write_index < INITIAL_CAPACITY * num_stimuli) waveform[write_index].timestamp = 0; waveform[write_index].value = 0;
 }

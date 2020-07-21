@@ -11,7 +11,6 @@ using namespace std;
 __device__ __host__ void resolve_collisions_for_batch_stimuli(
     Transition** data,
     const unsigned int* lengths,
-    const unsigned int capacity,
     const unsigned int num_inputs, const unsigned int num_outputs
 ) {
 //    TODO parallelize
@@ -19,12 +18,9 @@ __device__ __host__ void resolve_collisions_for_batch_stimuli(
     for (int i_output = 0; i_output < num_outputs; i_output++) {
         for(int i_stimuli = 0; i_stimuli < N_STIMULI_PARALLEL; i_stimuli++) {
             stimuli_lengths[i_stimuli] = lengths[num_outputs * i_stimuli + i_output];
-            assert(stimuli_lengths[i_stimuli] <= capacity);
+            assert(stimuli_lengths[i_stimuli] <= INITIAL_CAPACITY);
         }
-        resolve_collisions_for_batch_waveform(
-            data[num_inputs + i_output], capacity,
-            stimuli_lengths, N_STIMULI_PARALLEL
-        );
+        resolve_collisions_for_batch_waveform(data[num_inputs + i_output], stimuli_lengths, N_STIMULI_PARALLEL);
     }
 }
 
@@ -41,15 +37,12 @@ __device__ void init_delay_info(Transition** data, unsigned num_input) {
 __device__ void simulate_module(
     const ModuleSpec* const module_spec,
     const SDFSpec* const sdf_spec,
-    Transition** const data,
-    const unsigned int capacity,
-    bool* overflow_ptr
+    Transition** const data
 ) {
     unsigned stimuli_idx = threadIdx.x;
     Transition* data_ptrs_for_each_stimuli[MAX_NUM_MODULE_ARGS];
     for (unsigned int i = 0; i < module_spec->num_module_args; i++) {
-        unsigned int c = i < module_spec->num_module_input ? INITIAL_CAPACITY : capacity;
-        data_ptrs_for_each_stimuli[i] = data[i] + stimuli_idx * c;
+        data_ptrs_for_each_stimuli[i] = data[i] + stimuli_idx * INITIAL_CAPACITY;
     }
     init_delay_info(data_ptrs_for_each_stimuli, module_spec->num_module_input);
 
@@ -58,25 +51,21 @@ __device__ void simulate_module(
         const unsigned int num_gate_args = module_spec->num_inputs[i] + module_spec->num_outputs[i];
         assert(num_gate_args <= MAX_NUM_GATE_ARGS);
         Transition* data_schedule_for_gate[MAX_NUM_GATE_ARGS] = { nullptr };
-        unsigned int capacities[MAX_NUM_GATE_ARGS] = { 0 };
         for (int j = 0; j < num_gate_args; ++j) {
             const auto& arg = module_spec->gate_specs[offset + j];
             data_schedule_for_gate[j] = data_ptrs_for_each_stimuli[arg];
-            capacities[j] = arg < module_spec->num_module_input ? INITIAL_CAPACITY : capacity;
         }
         module_spec->gate_schedule[i](
             data_schedule_for_gate,
-            capacities,
             module_spec->tables[i], module_spec->table_row_num[i],
-            module_spec->num_inputs[i], module_spec->num_outputs[i],
-            overflow_ptr
+            module_spec->num_inputs[i], module_spec->num_outputs[i]
         );
         offset += num_gate_args;
     }
     assert(module_spec->num_module_output <= MAX_NUM_MODULE_OUTPUT);
     __shared__ unsigned int lengths[N_STIMULI_PARALLEL * MAX_NUM_MODULE_OUTPUT];
     compute_delay(
-        data_ptrs_for_each_stimuli, capacity,
+        data_ptrs_for_each_stimuli,
         module_spec->num_module_output, module_spec->num_module_input,
         sdf_spec, lengths + stimuli_idx * module_spec->num_module_output
     );
@@ -84,7 +73,7 @@ __device__ void simulate_module(
     __syncthreads();
     if (threadIdx.x == 0) {
         resolve_collisions_for_batch_stimuli(
-            data, lengths, capacity,
+            data, lengths,
             module_spec->num_module_input, module_spec->num_module_output
         );
     }
@@ -96,9 +85,7 @@ __global__ void simulate_batch(BatchResource batch_resource) {
         const auto& module_spec = batch_resource.module_specs[blockIdx.x];
         const auto& sdf_spec = batch_resource.sdf_specs[blockIdx.x];
         auto* module_data = &batch_resource.data_schedule[offset];
-        const auto& capacity = batch_resource.capacities[blockIdx.x];
-        auto* overflow_ptr = batch_resource.overflows[blockIdx.x];
-        simulate_module(module_spec, sdf_spec, module_data, capacity, overflow_ptr);
+        simulate_module(module_spec, sdf_spec, module_data);
     }
 }
 
@@ -115,7 +102,6 @@ void Simulator::run() {
     ProgressBar progress_bar(num_layers);
     for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
         const auto& schedule_layer = circuit.cell_schedule[i_layer];
-        for (auto* cell : schedule_layer) cell->init();
         stack<Cell*, std::vector<Cell*>> job_queue(schedule_layer);
         int session_id = 0;
 
@@ -124,20 +110,16 @@ void Simulator::run() {
             ResourceBuffer resource_buffer;
             for (int i = 0; i < N_CELL_PARALLEL; i++) {
                 if (job_queue.empty()) break;
-                auto* cell = job_queue.top(); processing_cells.insert(cell);
+                auto* cell = job_queue.top(); job_queue.pop(); processing_cells.insert(cell);
                 cell->prepare_resource(session_id, resource_buffer);
-                if (cell->finished()) job_queue.pop();
             }
             BatchResource batch_data{}; batch_data.init(resource_buffer);
             simulate_batch<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL>>>(batch_data);
             cudaDeviceSynchronize();
 
             for (auto* cell : processing_cells) {
-                if (cell->overflow()) {
-                    if (cell->finished()) job_queue.push(cell);
-                    cell->handle_overflow();
-                }
-                else cell->dump_result();
+                cell->gather_results();
+                if (not cell->finished()) job_queue.push(cell);
             }
             batch_data.free();
             session_id++;

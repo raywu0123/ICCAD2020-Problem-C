@@ -79,8 +79,7 @@ public:
     void assign(const Wire&);
 
     static void load_from_bucket(
-        Transition* ptr, unsigned int capacity, unsigned int stimuli_index,
-        const std::vector<Transition>&, unsigned int, unsigned int
+        Transition* ptr, const std::vector<Transition>&, unsigned int, unsigned int
     );
     void store_to_bucket(const std::vector<Transition*>& data_ptrs, unsigned int num_ptrs, unsigned int capacity);
 

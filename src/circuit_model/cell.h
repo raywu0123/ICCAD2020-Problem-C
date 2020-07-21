@@ -20,7 +20,6 @@ struct IndexedWire {
     virtual Transition* load(int session_index);
     virtual void free();
     void store_to_bucket() const;
-    virtual void handle_overflow();
 
     // records capacity
     Wire* wire;
@@ -29,25 +28,22 @@ struct IndexedWire {
 
     unsigned int first_free_data_ptr_index = 0;
     int previous_session_index = -1;
+    unsigned int* progress_update_ptr = nullptr;
 };
 
 
-
 struct ScheduledWire : public IndexedWire {
-    explicit ScheduledWire(Wire* wire): IndexedWire(wire) {};
+    explicit ScheduledWire(Wire* wire);
     explicit ScheduledWire(Wire* wire, const unsigned int& capacity): IndexedWire(wire, capacity) {};
 
     Transition* load(int session_index) override;
+    void update_progress();
     void free() override;
     unsigned int size() const;
 
-    void handle_overflow() override;
     bool finished() const;
 
-    void push_back_schedule_index(unsigned int i);
-
-    std::vector<unsigned int> bucket_index_schedule{ 0 };
-    unsigned int bucket_idx = 0;
+    unsigned int bucket_idx = 1;
     std::pair<int, unsigned int> checkpoint = {0, 0};
 };
 
@@ -86,30 +82,21 @@ public:
     void set_paths(const std::vector<SDFPath>& ps);
 
     bool finished() const;
-    bool overflow() const;
-
-    void init();
-
-    static void build_bucket_index_schedule(std::vector<ScheduledWire*>&, unsigned int);
     void prepare_resource(int, ResourceBuffer&);
-    void dump_result();
-    void handle_overflow();
+    void gather_results();
 
     std::vector<ScheduledWire*> input_wires;
     std::string name;
-    bool* overflow_ptr;
 
 private:
     void build_wire_map(
         const StdCellDeclare* declare, const WireMap<Wire>& pin_specs,
         Wire* supply1_wire, Wire* supply0_wire
     );
-    static unsigned int find_end_index(const Bucket&, unsigned int, const Timestamp&, unsigned int);
 
     const ModuleSpec* module_spec;
     SDFSpec* sdf_spec = nullptr;
     unsigned int num_args = 0;
-    unsigned int capacity = INITIAL_CAPACITY;
 
     WireMap<IndexedWire> wire_map;
     std::vector<IndexedWire*> cell_wires, output_wires;
