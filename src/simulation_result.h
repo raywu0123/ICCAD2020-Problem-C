@@ -28,6 +28,14 @@ public:
     std::ofstream f_out;
 };
 
+struct PriorityQueueEntry {
+    unsigned int bucket_index;
+    Timestamp t;
+
+    PriorityQueueEntry(unsigned int b_id, Timestamp t) : bucket_index(b_id), t(t) {};
+    bool operator< (const PriorityQueueEntry& other) const { return t > other.t; } // smaller t, higher priority
+};
+
 class VCDResult : public SimulationResult {
 public:
     explicit VCDResult(
@@ -45,7 +53,7 @@ private:
         const std::vector<Wire*>&,
         std::vector<std::pair<unsigned int, unsigned int>>&,
         std::vector<Timestamp>&,
-        Timestamp dumpon_time
+        Timestamp dumpon_time, Timestamp dumpoff_time
     );
     static void filter_wires(const std::vector<Wire*>&, std::vector<Wire*>&);
 };

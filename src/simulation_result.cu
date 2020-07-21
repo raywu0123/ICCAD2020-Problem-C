@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <queue>
 #include <ctime>
 #include <chrono>
 
@@ -38,20 +39,24 @@ void VCDResult::write(char *path) {
     vector<Timestamp> timestamps;
 
     auto& f_wires = wires;
-    merge_sort(f_wires, buffer, timestamps, dumpon_time);
+    merge_sort(f_wires, buffer, timestamps, dumpon_time, dumpoff_time);
 
     vector<pair<Timestamp, int>> timestamp_groups;
     group_timestamps(timestamps, timestamp_groups);
 
-    f_out << "#0" << endl;
-    f_out<< bus_manager.dumps_result();
+    bus_manager.write_init(f_wires);
+    f_out << bus_manager.dumps_result(0);
 
     int buffer_index = 0;
+    Timestamp prev_timestamp = LONG_LONG_MIN;
     for (const auto& group : timestamp_groups) {
         const auto& timestamp = group.first;
+        if (prev_timestamp < dumpon_time and timestamp >= dumpon_time and timestamp != 0) {
+            bus_manager.dumpon_init(f_wires);
+            if (timestamp > dumpon_time) f_out << bus_manager.dumps_result(dumpon_time);
+        }
+        prev_timestamp = timestamp;
 
-//        TODO handle dumpon/dumpoff earlier
-        if (timestamp >= dumpoff_time) break;
         const auto& num_transitions = group.second;
         for (int i = 0; i < num_transitions; i++) {
             const auto& wire_index = buffer[buffer_index].first;
@@ -63,10 +68,17 @@ void VCDResult::write(char *path) {
             bus_manager.add_transition(wire_infos, transition);
             buffer_index++;
         }
-        if (timestamp < dumpon_time or dumpon_time == 0) continue; // problem when constant wire with dumpon_time == 0
+        if (timestamp < dumpon_time or timestamp == 0) {
+            // problem when constant wire with dumpon_time == 0
+            bus_manager.dumps_result(timestamp);
+        } else {
+            f_out << bus_manager.dumps_result(timestamp);
+        }
+    }
 
-        f_out << "#" << timestamp << endl;
-        f_out << bus_manager.dumps_result();
+    if (not timestamp_groups.empty() and timestamp_groups.back().first < dumpon_time) {
+        bus_manager.dumpon_init(f_wires);
+        bus_manager.dumps_result(dumpon_time);
     }
     f_out.close();
 }
@@ -75,44 +87,48 @@ void VCDResult::merge_sort(
     const vector<Wire*>& f_wires,
     vector<pair<unsigned int, unsigned int>>& buffer,
     vector<Timestamp>& timestamps,
-    Timestamp dumpon_time
+    Timestamp dumpon_time, Timestamp dumpoff_time
 ) {
+    cout << "| Status: Merge sorting VCD result..." << endl;
     const auto num_wires = f_wires.size();
     vector<unsigned int> indices; indices.resize(num_wires);
-    unsigned int num_finished = 0;
+    unsigned int sum_num_transitions = 0;
     for (unsigned int i = 0; i < num_wires; ++i) {
         const auto& wire = f_wires[i];
         const auto& bucket = wire->bucket;
         const auto& bucket_size = bucket.size();
+        sum_num_transitions += bucket_size;
         indices[i] = binary_search(bucket.transitions.data(), bucket_size - 1, dumpon_time);
-        if (indices[i] + 1 >= bucket_size) num_finished++;
+        indices[i] = indices[i] > 0 and bucket[indices[i]].timestamp >= dumpon_time ? indices[i] - 1: indices[i];
     }
-    while (num_finished < num_wires) {
-        unsigned int min_index;
-        Timestamp min_timestamp = LONG_LONG_MAX;
-        for (int i = 0; i < num_wires; i++) {
-            const auto& bucket = f_wires[i]->bucket;
-            const auto& transitions = bucket.transitions;
-            if(indices[i] >= transitions.size()) continue;
-            const auto& transition = transitions[indices[i]];
-            if (transition.timestamp < min_timestamp) {
-                min_timestamp = transition.timestamp;
-                min_index = i;
-            }
-        }
-        const auto& min_bucket = f_wires[min_index]->bucket;
-        const auto& transitions = min_bucket.transitions;
+    buffer.reserve(sum_num_transitions); timestamps.reserve(sum_num_transitions);
 
-        buffer.emplace_back(min_index, indices[min_index]);
-        timestamps.push_back(transitions[indices[min_index]].timestamp);
+    priority_queue<PriorityQueueEntry> priority_queue;
+    for (int i = 0; i < num_wires; i++) {
+        const auto& wire = f_wires[i];
+        const auto bucket = wire->bucket;
+        if (indices[i] >= bucket.size()) continue;
+        priority_queue.emplace(i, bucket[indices[i]].timestamp);
+    }
 
-        indices[min_index]++;
-        if (indices[min_index] >= transitions.size()) num_finished++;
+    while (not priority_queue.empty()) {
+        const auto top = priority_queue.top();
+        if (top.t > dumpoff_time) break;
+        buffer.emplace_back(top.bucket_index, indices[top.bucket_index]);
+        timestamps.push_back(top.t);
+        priority_queue.pop();
+
+        indices[top.bucket_index]++;
+
+        const auto& bucket = f_wires[top.bucket_index]->bucket;
+        if (indices[top.bucket_index] < bucket.size()) priority_queue.emplace(top.bucket_index, bucket[indices[top.bucket_index]].timestamp);
     }
 }
 
 void VCDResult::group_timestamps(const vector<Timestamp>& timestamps, vector<pair<Timestamp, int>>& timestamps_groups) {
+    cout << "| Status: Grouping timestamps..." << endl;
     unsigned int size = timestamps.size();
+    timestamps_groups.reserve(size);
     int group_size = 0;
     for (int i = 0; i < size; i++) {
         group_size++;

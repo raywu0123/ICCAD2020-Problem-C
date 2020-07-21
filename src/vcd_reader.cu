@@ -130,5 +130,5 @@ void VCDReader::emplace_transition(const string& token, const Timestamp& timesta
         throw runtime_error("Token " + token + " not found\n");
     const auto& token_info = it->second;
     auto* bucket = buckets[token_info.bucket_index];
-    bucket->transitions.emplace_back(timestamp, value);
+    bucket->emplace_transition(timestamp, value);
 }

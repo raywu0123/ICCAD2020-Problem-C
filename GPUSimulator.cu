@@ -33,6 +33,7 @@ bool arguments_valid(int argc, char* argv[1]) {
         cerr << "| Error: The third argument should be either 'SAIF' or 'VCD'" << endl;
         return false;
     }
+    if (atoll(argv[4]) >= atoll(argv[5])) cerr << "| Error: Invalid dumpon/dumpoff time" << endl;
     return true;
 }
 

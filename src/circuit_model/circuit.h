@@ -18,7 +18,7 @@ class Bus {
 public:
     void init(const std::string&, const BitWidth&);
     void update(const Transition& transition, int index);
-
+    bool is_not_initial_state() const;
     BitWidth bitwidth;
     std::string name;
     std::string state;
@@ -47,8 +47,10 @@ class BusManager {
 public:
     void read(std::ifstream&);
     std::string dumps_token_to_bus_map() const;
+    void write_init(const std::vector<Wire*>&);
+    void dumpon_init(const std::vector<Wire*>&);
     void add_transition(const std::vector<WireInfo>&, const Transition&);
-    std::string dumps_result();
+    std::string dumps_result(const Timestamp&);
     static std::string index_to_identifier(unsigned int);
     static std::string simplify_msb(const std::string&);
     std::vector<Bus> buses;
