@@ -30,6 +30,23 @@ std::string BusManager::dumps_token_to_bus_map() const {
     return ss.str();
 }
 
+void BusManager::write_init(const std::vector<Wire*>& wires) {
+    for (const auto* wire : wires) {
+        add_transition(wire->wire_infos, Transition{0, 'x'});
+    }
+}
+
+void BusManager::dumpon_init(const vector<Wire*>& wires) {
+    for (const auto* wire : wires) {
+        for (const auto& wire_info : wire->wire_infos) {
+            auto& bus = buses[wire_info.bus_index];
+            if (bus.is_not_initial_state()) {
+                used_buses_in_current_time.emplace(&bus, wire_info.bus_index);
+            }
+        }
+    }
+}
+
 void BusManager::add_transition(const vector<WireInfo>& wire_infos, const Transition& transition) {
     for (const auto& wire_info: wire_infos) {
         auto& bus = buses[wire_info.bus_index];
@@ -38,8 +55,10 @@ void BusManager::add_transition(const vector<WireInfo>& wire_infos, const Transi
     }
 }
 
-std::string BusManager::dumps_result() {
+std::string BusManager::dumps_result(const Timestamp& t) {
+    if (used_buses_in_current_time.empty()) return "";
     stringstream ss;
+    ss << "#" << t << endl;
     for (const auto& p : used_buses_in_current_time) {
         const auto* bus = p.first;
         const auto& bus_index = p.second;
@@ -276,4 +295,11 @@ void Bus::update(const Transition &transition, int index) {
     if (array_index >= state.size())
         throw runtime_error("Array index " + to_string(array_index) + " out of bounds.");
     state[array_index] = transition.value;
+}
+
+bool Bus::is_not_initial_state() const {
+    for (const auto& s : state) {
+        if (s != 'x') return true;
+    }
+    return false;
 }
