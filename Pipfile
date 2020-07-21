@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 pyparsing = "*"
 tqdm = "*"
+pyinstaller = "*"
 
 [dev-packages]
 ipdb = "*"
