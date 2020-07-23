@@ -44,7 +44,6 @@ struct ScheduledWire : public IndexedWire {
     bool finished() const;
 
     unsigned int bucket_idx = 1;
-    std::pair<int, unsigned int> checkpoint = {0, 0};
 };
 
 template<class T>

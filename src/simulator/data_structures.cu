@@ -15,11 +15,13 @@ void BatchResource::init(const ResourceBuffer& resource_buffer) {
     cudaMalloc((void**) &sdf_specs, sizeof(SDFSpec*) * num_modules);
     cudaMalloc((void**) &data_schedule, sizeof(Transition*) * resource_buffer.data_schedule.size());
     cudaMalloc((void**) &data_schedule_offsets, sizeof(unsigned int) * num_modules);
+    cudaMalloc((void**) &progress_updates, sizeof(unsigned int*) * resource_buffer.progress_updates.size());
 
     cudaMemcpy(module_specs, resource_buffer.module_specs.data(), sizeof(ModuleSpec*) * num_modules, cudaMemcpyHostToDevice);
     cudaMemcpy(sdf_specs, resource_buffer.sdf_specs.data(), sizeof(SDFSpec*) * num_modules, cudaMemcpyHostToDevice);
     cudaMemcpy(data_schedule, resource_buffer.data_schedule.data(), sizeof(Transition*) * resource_buffer.data_schedule.size(), cudaMemcpyHostToDevice);
     cudaMemcpy(data_schedule_offsets, resource_buffer.data_schedule_offsets.data(), sizeof(unsigned int) * num_modules, cudaMemcpyHostToDevice);
+    cudaMemcpy(progress_updates, resource_buffer.progress_updates.data(), sizeof(unsigned int*) * resource_buffer.progress_updates.size(), cudaMemcpyHostToDevice);
 }
 
 void BatchResource::free() const {
@@ -27,6 +29,7 @@ void BatchResource::free() const {
     cudaFree(sdf_specs);
     cudaFree(data_schedule);
     cudaFree(data_schedule_offsets);
+    cudaFree(progress_updates);
 }
 
 ResourceBuffer::ResourceBuffer() {

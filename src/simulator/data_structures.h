@@ -42,13 +42,16 @@ struct DelayInfo {
     DelayInfo(unsigned int arg, char edge_type) : arg(arg), edge_type(edge_type) {};
     unsigned int arg = 0;
     char edge_type = 0;
+    bool operator== (const DelayInfo& other) const {
+        return arg == other.arg and edge_type == other.edge_type;
+    }
 };
 
 struct Transition {
-    Timestamp timestamp ;
-    char value;
-    DelayInfo delay_info;
-    explicit Transition(): timestamp(0), value(0) {};
+    Timestamp timestamp = 0;
+    char value = 0;
+    DelayInfo delay_info{};
+    Transition() = default;
     Transition(Timestamp t, char v): timestamp(t), value(v) {};
     Transition(Timestamp t, char v, DelayInfo d): timestamp(t), value(v), delay_info(d) {};
 
@@ -99,6 +102,7 @@ struct BatchResource {
 
     const ModuleSpec** module_specs;
     const SDFSpec** sdf_specs;
+    unsigned int** progress_updates;
     Transition** data_schedule;
     unsigned int* data_schedule_offsets; // offsets to each module
     unsigned int num_modules;

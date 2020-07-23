@@ -46,6 +46,7 @@ Transition* ScheduledWire::load(int session_index) {
     auto* ptr = IndexedWire::load(session_index);
     unsigned int end_index = min(wire->bucket.size(), bucket_idx - 1 + capacity * N_STIMULI_PARALLEL);
     Wire::load_from_bucket(ptr, wire->bucket.transitions, bucket_idx - 1, end_index);
+    return ptr;
 }
 
 void ScheduledWire::update_progress() {

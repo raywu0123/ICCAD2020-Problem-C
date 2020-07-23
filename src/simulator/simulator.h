@@ -17,6 +17,14 @@ __host__ __device__ void compute_delay(
     const SDFSpec* sdf_spec, unsigned int* lengths, bool verbose = false
 );
 
+__device__ __host__ void slice_waveforms(
+    Timestamp s_timestamps[N_STIMULI_PARALLEL][INITIAL_CAPACITY],
+    DelayInfo s_delay_infos[N_STIMULI_PARALLEL][INITIAL_CAPACITY],
+    char s_values[MAX_NUM_MODULE_ARGS][N_STIMULI_PARALLEL][INITIAL_CAPACITY],
+    Transition** data,
+    const unsigned int num_wires, unsigned int** progress_updates
+);
+
 class Simulator {
 public:
     explicit Simulator(Circuit& c): circuit(c) {};
