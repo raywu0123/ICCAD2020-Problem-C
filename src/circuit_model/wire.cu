@@ -23,9 +23,9 @@ void Wire::assign(const Wire& other_wire) {
 }
 
 void Wire::load_from_bucket(
-    Transition* ptr, const vector<Transition>& bucket, unsigned int start_bucket_index, unsigned int end_bucket_index
+    Transition* ptr, const TransitionContainer& bucket, unsigned int start_bucket_index, unsigned int end_bucket_index
 ) {
-    auto status = cudaMemcpy(
+    auto status = cudaMemcpyAsync(
         ptr,
         bucket.data() + start_bucket_index,
         sizeof(Transition) * (end_bucket_index - start_bucket_index),

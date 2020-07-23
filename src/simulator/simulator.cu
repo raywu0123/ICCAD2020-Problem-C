@@ -227,6 +227,7 @@ void Simulator::run() {
                 cell->prepare_resource(session_id, resource_buffer);
             }
             BatchResource batch_data{}; batch_data.init(resource_buffer);
+            cudaDeviceSynchronize(); // since async memcpy
             simulate_batch<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL>>>(batch_data);
             cudaDeviceSynchronize();
 

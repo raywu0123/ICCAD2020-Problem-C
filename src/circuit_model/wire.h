@@ -12,8 +12,10 @@ struct WireInfo {
     int bus_index;
 };
 
+using TransitionContainer = PinnedMemoryVector<Transition>;
+
 struct Bucket {
-    std::vector<Transition> transitions{ Transition{0, 'x'} };
+    TransitionContainer transitions{Transition{0, 'x'} };
 
     void emplace_transition(Timestamp t, char v) {
         // for storing input
@@ -79,7 +81,7 @@ public:
     void assign(const Wire&);
 
     static void load_from_bucket(
-        Transition* ptr, const std::vector<Transition>&, unsigned int, unsigned int
+        Transition* ptr, const TransitionContainer&, unsigned int, unsigned int
     );
     void store_to_bucket(const std::vector<Transition*>& data_ptrs, unsigned int num_ptrs, unsigned int capacity);
 
