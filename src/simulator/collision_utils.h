@@ -5,7 +5,6 @@ __host__ __device__ unsigned int binary_search(const Transition* waveform, unsig
 
 __host__ __device__ void resolve_collisions_for_batch_waveform(
     Transition* waveform, // (N_STIMULI_PARALLEL, capacity)
-    unsigned int capacity,
     const unsigned int* stimuli_lengths, // (N_STIMULI_PARALLEL,)
     unsigned int num_stimuli=N_STIMULI_PARALLEL
 );
