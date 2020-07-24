@@ -26,7 +26,7 @@ extern __host__ __device__ void compute_delay(
     const SDFSpec* sdf_spec, unsigned int* lengths, bool verbose
 ) {
     for (int i = 0; i < num_output; i++) {
-        auto* output_data = data[num_input + i];
+        auto* output_data = data[i];
         unsigned int write_idx = 0;
         unsigned int timeblock_start = 1;
         char prev_v = output_data[0].value;
