@@ -41,7 +41,6 @@ TEST_P(SliceWaveformTestFixture, SimpleCases) {
     int timestamp_err_num = 0;
     auto expected_s_timestamps = test_data.expected_s_timestamps; expected_s_timestamps.resize(N_STIMULI_PARALLEL * INITIAL_CAPACITY);
     for (int i = 0; i < N_STIMULI_PARALLEL * INITIAL_CAPACITY; ++i) {
-        printf("i=%d t1=%lld t2=%lld\n", i, s_timestamps[i / INITIAL_CAPACITY][i % INITIAL_CAPACITY], expected_s_timestamps[i]);
         if (s_timestamps[i / INITIAL_CAPACITY][i % INITIAL_CAPACITY] == expected_s_timestamps[i]) continue;
         timestamp_err_num++;
     }

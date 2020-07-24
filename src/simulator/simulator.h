@@ -12,7 +12,7 @@ __host__ __device__ int lookup_delay(
 );
 
 __host__ __device__ void compute_delay(
-    Transition**,
+    Transition**, DelayInfo*,
     unsigned int, unsigned int,
     const SDFSpec* sdf_spec, unsigned int* lengths, bool verbose = false
 );
@@ -23,6 +23,11 @@ __device__ __host__ void slice_waveforms(
     char s_values[MAX_NUM_MODULE_ARGS][N_STIMULI_PARALLEL][INITIAL_CAPACITY],
     Transition** data,
     const unsigned int num_wires, unsigned int** progress_updates
+);
+
+__host__ __device__ void stepping_algorithm(
+    Transition** data,  // (capacity, num_inputs + num_outputs)
+    const ModuleSpec* module_spec
 );
 
 class Simulator {

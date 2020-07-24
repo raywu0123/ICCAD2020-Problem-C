@@ -1,14 +1,6 @@
 include(CTest)
 include_directories(${GTEST_SOURCE_DIR}/include ${GTEST_SOURCE_DIR})
 
-add_executable(builtin_gate_tests builtin_gate_tests.cu)
-target_link_libraries(builtin_gate_tests gtest gtest_main)
-target_link_libraries(builtin_gate_tests mylib)
-add_test(
-        NAME builtin_gate_tests
-        COMMAND builtin_gate_tests
-)
-
 add_executable(simulator_tests simulator_tests.cu)
 target_link_libraries(simulator_tests gtest gtest_main)
 target_link_libraries(simulator_tests mylib)

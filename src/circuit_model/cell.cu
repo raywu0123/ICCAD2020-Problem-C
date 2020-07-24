@@ -13,13 +13,10 @@ Cell::Cell(
     const WireMap<Wire>& pin_specs,
     Wire* supply1_wire, Wire* supply0_wire,
     string name
-) : module_spec(module_spec), name(std::move(name)), num_args(declare->num_args)
+) : module_spec(module_spec), name(std::move(name))
 {
+    num_args = declare->num_input + declare->num_output;
     build_wire_map(declare, pin_specs, supply1_wire, supply0_wire);
-}
-
-Cell::~Cell() {
-    for (auto& cell_wire : cell_wires) delete cell_wire->wire;
 }
 
 void Cell::set_paths(const vector<SDFPath>& ps) {
@@ -58,30 +55,23 @@ void Cell::build_wire_map(
     const WireMap<Wire>& pin_specs,
     Wire *supply1_wire, Wire *supply0_wire
 ) {
-    if (declare->num_args > MAX_NUM_MODULE_ARGS) {
-        throw runtime_error("Too many module args (" + to_string(declare->num_args) + ")\n");
+    if (num_args > MAX_NUM_MODULE_ARGS) {
+        throw runtime_error("Too many module args (" + to_string(num_args) + ")\n");
     }
-    for (const auto& arg: declare->buckets[STD_CELL_INPUT]) {
+    for (unsigned int arg = 0; arg < declare->num_input; ++arg) {
         auto* wire_ptr = pin_specs.get(arg);
         if (wire_ptr == nullptr) continue;
         auto* scheduled_wire = new ScheduledWire(wire_ptr);
         wire_map.set(arg, scheduled_wire); input_wires.push_back(scheduled_wire);
     }
-    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY1]) wire_map.set(arg, new IndexedWire(supply1_wire));
-    for (const auto& arg: declare->buckets[STD_CELL_SUPPLY0]) wire_map.set(arg,  new IndexedWire(supply0_wire));
-
-    for (const auto& arg: declare->buckets[STD_CELL_OUTPUT]) {
+    for (unsigned int arg = declare->num_input; arg < num_args; ++arg) {
         auto* wire_ptr = pin_specs.get(arg);
         if (wire_ptr == nullptr) continue;
         auto* indexed_wire = new IndexedWire(wire_ptr);
         wire_map.set(arg, indexed_wire); output_wires.push_back(indexed_wire);
     }
-    for (const auto& arg: declare->buckets[STD_CELL_WIRE]) {
-        auto* indexed_wire = new IndexedWire(new Wire());
-        wire_map.set(arg, indexed_wire); cell_wires.push_back(indexed_wire);
-    }
     for (unsigned int arg = 0; arg < num_args; arg++) {
-        if (wire_map.get(arg) == nullptr) cerr << "|WARNING: Arg (" + to_string(arg) + ") not found in wiremap of cell " << name  << endl;
+        if (wire_map.get(arg) == nullptr) cerr << "| WARNING: Arg (" + to_string(arg) + ") not found in wiremap of cell " << name  << endl;
     }
 }
 
@@ -92,7 +82,6 @@ void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer)  {
 
     for (auto& indexed_wire : input_wires) indexed_wire->load(session_id);
     for (auto& indexed_wire : output_wires) indexed_wire->load(session_id);
-    for (auto& indexed_wire : cell_wires) indexed_wire->load(session_id);
 
     for (unsigned int arg = 0; arg < num_args; ++arg) {
         const auto* indexed_wire = wire_map.get(arg);
@@ -112,7 +101,6 @@ void Cell::gather_results() {
     if (finished()) {
         for (auto& indexed_wire : input_wires) indexed_wire->free();
         for (auto& indexed_wire : output_wires) indexed_wire->free();
-        for (auto& indexed_wire : cell_wires) indexed_wire->free();
     }
 }
 

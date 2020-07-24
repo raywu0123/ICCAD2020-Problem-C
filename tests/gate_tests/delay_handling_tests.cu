@@ -8,6 +8,7 @@ using namespace std;
 
 struct TestPair{
     vector<Transition> waveform;
+    vector<DelayInfo> delay_infos;
     vector<Transition> expected;
     vector<char> edge_types;
     vector<unsigned> input_indices, output_indices;
@@ -21,8 +22,8 @@ protected:
 
 TEST_P(DelayTestFixture, SimpleCases) {
     const auto params = GetParam();
-    auto waveform = params.waveform;
-    waveform.resize(INITIAL_CAPACITY);
+    auto waveform = params.waveform; waveform.resize(INITIAL_CAPACITY);
+    auto delay_infos = params.delay_infos; delay_infos.resize(INITIAL_CAPACITY);
 
     auto** transitions = new Transition*;
     transitions[0] = new Transition[waveform.size()];
@@ -50,7 +51,7 @@ TEST_P(DelayTestFixture, SimpleCases) {
         .falling_delay = falling_delays
     };
 
-    compute_delay(transitions, 1, 0, &sdf_spec, &lengths);
+    compute_delay(transitions, delay_infos.data(), 1, 0, &sdf_spec, &lengths);
 
     int err_num = 0;
     const auto& expected = params.expected;
@@ -72,8 +73,9 @@ INSTANTIATE_TEST_CASE_P(
         TestPair{
             vector<Transition>{
                 Transition{0, '1'},
-                Transition{29091, '0', DelayInfo{2, '+'}},
+                Transition{29091, '0'},
             },
+            vector<DelayInfo>{ {}, {2, '+'} },
             vector<Transition>{
                 Transition{29119, '0'},
             },
@@ -84,8 +86,9 @@ INSTANTIATE_TEST_CASE_P(
         TestPair{
             vector<Transition>{
                 Transition{0, '1'},
-                Transition{21000, '0', DelayInfo{0, '-'}}, Transition{21000, '0', DelayInfo{1, '-'}},
+                Transition{21000, '0'}, Transition{21000, '0'},
             },
+            vector<DelayInfo>{ {}, DelayInfo{0, '-'},  DelayInfo{1, '-'} },
             vector<Transition>{
                 Transition{21015, '0'},
             },
@@ -96,8 +99,9 @@ INSTANTIATE_TEST_CASE_P(
         TestPair{
             vector<Transition>{
                 Transition{0, '0'},
-                Transition{22000, '1', DelayInfo{0, '+'}}, Transition{22000, '1', DelayInfo{1, '+'}},
+                Transition{22000, '1'}, Transition{22000, '1'},
             },
+            vector<DelayInfo>{ {}, DelayInfo{0, '+'}, DelayInfo{1, '+'} },
             vector<Transition>{
                 Transition{22022, '1'},
             },
@@ -107,8 +111,9 @@ INSTANTIATE_TEST_CASE_P(
         },
         TestPair{
             vector<Transition>{
-                Transition{50, '1', DelayInfo{1, '+'}}, Transition{60, '0', DelayInfo{0, '-'}},
+                Transition{50, '1'}, Transition{60, '0'},
             },
+            vector<DelayInfo>{ DelayInfo{1, '+'}, DelayInfo{0, '-'} },
             vector<Transition>{
                 Transition{65, '0'},
             },
@@ -119,8 +124,9 @@ INSTANTIATE_TEST_CASE_P(
         TestPair{
             vector<Transition>{
                 Transition{0, '0'},
-                Transition{22091, '1', DelayInfo{0, '+'}}, Transition{22091, '1', DelayInfo{1, '-'}}, Transition{22091, '1', DelayInfo{2, '-'}},
+                Transition{22091, '1'}, Transition{22091, '1'}, Transition{22091, '1'},
             },
+            vector<DelayInfo>{ {}, DelayInfo{0, '+'}, DelayInfo{1, '-'}, DelayInfo{2, '-'} },
             vector<Transition>{
                 Transition{22095, '1'}
             },

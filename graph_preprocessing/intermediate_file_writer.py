@@ -1,27 +1,9 @@
-from copy import deepcopy
 from itertools import chain
+from typing import Dict
 
 from graph_preprocessing.circuit_model import Circuit
 from graph_preprocessing.constants import SINGLE_BIT_INDEX
-
-
-class Module:
-
-    def __init__(self, declares):
-        self.arg_declares = deepcopy(declares)
-        del self.arg_declares['gates']
-        self.arg_to_index_map = self.build_arg_to_index_map(self.arg_declares)
-
-    @staticmethod
-    def build_arg_to_index_map(declares):
-        m = {}
-        for bucket in declares.values():
-            for arg in bucket:
-                m[arg] = len(m)
-        return m
-
-    def to_index(self, arg: str):
-        return self.arg_to_index_map[arg]
+from .organize_standard_cells import StandardCellModule
 
 
 class IntermediateFileWriter:
@@ -29,7 +11,7 @@ class IntermediateFileWriter:
     def __init__(self, path: str):
         self.path = path
         self.file = None
-        self.module_lib = {}
+        self.module_lib = None
 
     def __enter__(self):
         self.file = open(self.path, 'w')
@@ -38,41 +20,11 @@ class IntermediateFileWriter:
     def print(self, *args):
         print(*args, file=self.file)
 
-    def write_vlib_common(self, name):
-        module = self.module_lib[name]
-        self.print(f'{name} {len(module.arg_to_index_map)}')
-        for declare_type, arg_declares in module.arg_declares.items():
-            self.print(
-                f'{declare_type} '
-                f'{len(arg_declares)} '
-                f'{" ".join([str(module.to_index(arg)) for arg in arg_declares])}'
-            )
-
-    def write_vlib_module(self, name: str, m: dict):
-        self.write_vlib_common(name)
-        self.print(len(m.declares['gates']))
-        module = self.module_lib[name]
-        for gate in chain(m.declares['gates']):
-            self.print(f'gate {gate[0]} {gate[1]} {len(gate[2])} '
-                       f'{" ".join([str(module.to_index(arg)) for arg in gate[2]])}')
-
-    def write_vlib_primitive(self, name: str, m):
-        self.write_vlib_common(name)
-        table = [
-            "".join([''.join(group) for group in row]) for row in m.table
-        ]
-        self.print(f'{len(table)} {" ".join(table)}')
-
-    def write_vlib(self, std_cell_info):
-        self.print(f'{len(std_cell_info.primitives)} {len(std_cell_info.modules)}')
-        for name, module in chain(std_cell_info.primitives.items(), std_cell_info.modules.items()):
-            assert name not in self.module_lib
-            self.module_lib[name] = Module(module.declares)
-
-        for name, m in std_cell_info.primitives.items():
-            self.write_vlib_primitive(name, m)
-        for name, m in std_cell_info.modules.items():
-            self.write_vlib_module(name, m)
+    def write_vlib(self, standard_cell_library: Dict[str, StandardCellModule]):
+        self.module_lib = standard_cell_library
+        self.print(f'{len(standard_cell_library)}')
+        for cell in standard_cell_library.values():
+            self.print(str(cell))
 
     def write_circuit(self, circuit: Circuit, design_name: str):
         self.print(design_name)

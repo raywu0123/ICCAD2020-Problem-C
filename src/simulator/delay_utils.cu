@@ -21,7 +21,8 @@ extern __host__ __device__ int lookup_delay(
 }
 
 extern __host__ __device__ void compute_delay(
-    Transition** data, unsigned int num_output, unsigned int num_input,
+    Transition** data, DelayInfo* delay_infos,
+    unsigned int num_output, unsigned int num_input,
     const SDFSpec* sdf_spec, unsigned int* lengths, bool verbose
 ) {
     for (int i = 0; i < num_output; i++) {
@@ -49,8 +50,8 @@ extern __host__ __device__ void compute_delay(
             auto min_delay = LONG_LONG_MAX;
             for (unsigned int idx = 0; idx < num; idx++) {
                 auto d = lookup_delay(
-                    output_data[timeblock_start - num + idx].delay_info.arg, i + num_input,
-                    output_data[timeblock_start - num + idx].delay_info.edge_type, output_edge_type,
+                    delay_infos[timeblock_start - num + idx].arg, i + num_input,
+                    delay_infos[timeblock_start - num + idx].edge_type, output_edge_type,
                     sdf_spec
                 );
                 min_delay = d < min_delay ? d : min_delay;
