@@ -76,7 +76,6 @@ public:
         Wire* supply1_wire, Wire* supply0_wire,
         std::string  name
     );
-    ~Cell();
 
     void set_paths(const std::vector<SDFPath>& ps);
 
@@ -85,6 +84,7 @@ public:
     void gather_results();
 
     std::vector<ScheduledWire*> input_wires;
+    std::vector<IndexedWire*> output_wires;
     std::string name;
 
 private:
@@ -98,7 +98,6 @@ private:
     unsigned int num_args = 0;
 
     WireMap<IndexedWire> wire_map;
-    std::vector<IndexedWire*> cell_wires, output_wires;
 };
 
 #endif

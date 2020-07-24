@@ -30,22 +30,21 @@ __device__ __host__ bool OOB(unsigned int index, Transition** const data, unsign
 }
 
 __device__ __host__ void prepare_stimuli_head(
-    Timestamp s_timestamps[N_STIMULI_PARALLEL][INITIAL_CAPACITY],
-    char s_values[MAX_NUM_MODULE_ARGS][N_STIMULI_PARALLEL][INITIAL_CAPACITY],
+    Timestamp s_timestamps[INITIAL_CAPACITY],
+    char s_values[INITIAL_CAPACITY][MAX_NUM_MODULE_ARGS],
     Transition** data,
-    unsigned int write_stimuli_index,
     const unsigned int num_wires, unsigned int** progress_updates
 ) {
-    s_timestamps[write_stimuli_index][0] = data[0][*progress_updates[0]].timestamp;
+    s_timestamps[0] = data[0][*progress_updates[0]].timestamp;
     for (int i = 0; i < num_wires; ++i) {
-        s_values[i][write_stimuli_index][0] = data[i][*progress_updates[i]].value;
+        s_values[0][i] = data[i][*progress_updates[i]].value;
     }
 }
 
 __device__ __host__ void slice_waveforms(
     Timestamp s_timestamps[N_STIMULI_PARALLEL][INITIAL_CAPACITY],
     DelayInfo s_delay_infos[N_STIMULI_PARALLEL][INITIAL_CAPACITY],
-    char s_values[MAX_NUM_MODULE_ARGS][N_STIMULI_PARALLEL][INITIAL_CAPACITY],
+    char s_values[N_STIMULI_PARALLEL][INITIAL_CAPACITY][MAX_NUM_MODULE_ARGS],
     Transition** data,
     const unsigned int num_wires, unsigned int** progress_updates
 ) {
@@ -57,7 +56,10 @@ __device__ __host__ void slice_waveforms(
     unsigned int num_finished = 0;
     unsigned int write_stimuli_index = 0, write_transition_index = 1;
 
-    prepare_stimuli_head(s_timestamps, s_values, data, write_stimuli_index, num_wires, progress_updates);
+    prepare_stimuli_head(
+        s_timestamps[write_stimuli_index], s_values[write_stimuli_index],
+        data, num_wires, progress_updates
+    );
     for (int i = 0; i < num_wires; ++i) if (data[i][1].value == 0 ) num_finished++;
 
     while (num_finished < num_wires) {
@@ -84,7 +86,10 @@ __device__ __host__ void slice_waveforms(
         if (write_transition_index + num_advancing - 1 >= INITIAL_CAPACITY) {
             write_transition_index = 1; write_stimuli_index++;
             if (write_stimuli_index >= N_STIMULI_PARALLEL) break;
-            prepare_stimuli_head(s_timestamps, s_values, data, write_stimuli_index, num_wires, progress_updates);
+            prepare_stimuli_head(
+                s_timestamps[write_stimuli_index], s_values[write_stimuli_index],
+                data, num_wires, progress_updates
+            );
         }
         if (write_stimuli_index >= N_STIMULI_PARALLEL) break;
 
@@ -105,16 +110,56 @@ __device__ __host__ void slice_waveforms(
             );
             for (int j = 0; j < num_wires; ++j) {
                 const auto& transition = data[j][*progress_updates[j]];
-                s_values[j][write_stimuli_index][write_transition_index + i] = transition.value;
+                s_values[write_stimuli_index][write_transition_index + i][j] = transition.value;
             }
         }
         write_transition_index += num_advancing;
     }
 }
 
+__host__ __device__ unsigned int get_table_row_index(
+    const char s_input_values[MAX_NUM_MODULE_ARGS], unsigned int num_input
+) {
+    unsigned int row_index = 0;
+    for (unsigned int i_input = 0; i_input < num_input; ++i_input) {
+        unsigned int v;
+        switch (s_input_values[i_input]) {
+            case '0':
+                v = 0;
+                break;
+            case '1':
+                v = 1;
+                break;
+            case 'x':
+                v = 2;
+                break;
+            case 'z':
+                v = 3;
+                break;
+        }
+        row_index = (row_index << 2) + v;
+    }
+    return row_index;
+}
+__host__ __device__ void stepping_algorithm(
+    const Timestamp s_input_timestamps[INITIAL_CAPACITY],
+    const char s_input_values[INITIAL_CAPACITY][MAX_NUM_MODULE_ARGS],
+    Transition** output_data,
+    const ModuleSpec* module_spec
+) {
+    for (unsigned int i = 0; i < INITIAL_CAPACITY; i++) {
+        if (s_input_values[i][0] == 0) break;
+        auto row_index = get_table_row_index(s_input_values[i], module_spec->num_input);
+        for (unsigned int j = 0; j < module_spec->num_output; ++j) {
+            output_data[j][i].value = module_spec->table[row_index * module_spec->num_output + j];
+            output_data[j][i].timestamp = s_input_timestamps[i];
+        }
+    }
+}
+
 __device__ Timestamp sliced_input_timestamps[N_CELL_PARALLEL][N_STIMULI_PARALLEL][INITIAL_CAPACITY];
 __device__ DelayInfo sliced_input_delay_infos[N_CELL_PARALLEL][N_STIMULI_PARALLEL][INITIAL_CAPACITY];
-__device__ char sliced_input_values[N_CELL_PARALLEL][MAX_NUM_MODULE_ARGS][N_STIMULI_PARALLEL][INITIAL_CAPACITY];
+__device__ char sliced_input_values[N_CELL_PARALLEL][N_STIMULI_PARALLEL][INITIAL_CAPACITY][MAX_NUM_MODULE_ARGS];
 
 __device__ void simulate_module(
     const ModuleSpec* const module_spec,
@@ -123,65 +168,44 @@ __device__ void simulate_module(
     unsigned int** progress_updates,
     Timestamp s_input_timestamps[N_STIMULI_PARALLEL][INITIAL_CAPACITY],
     DelayInfo s_input_delay_infos[N_STIMULI_PARALLEL][INITIAL_CAPACITY],
-    char s_input_values[MAX_NUM_MODULE_ARGS][N_STIMULI_PARALLEL][INITIAL_CAPACITY]
+    char s_input_values[N_STIMULI_PARALLEL][INITIAL_CAPACITY][MAX_NUM_MODULE_ARGS]
 ) {
     if (threadIdx.x == 0) {
         slice_waveforms(
             s_input_timestamps, s_input_delay_infos, s_input_values,
-            data, module_spec->num_module_input, progress_updates
+            data, module_spec->num_input, progress_updates
         );
     }
     __syncthreads();
 
-//    pack sliced data
+    assert(module_spec->num_output <= MAX_NUM_MODULE_OUTPUT);
+    Transition* output_data_ptrs_for_stimuli[MAX_NUM_MODULE_OUTPUT] = { nullptr };
     unsigned stimuli_idx = threadIdx.x;
-    Transition sliced_data[MAX_NUM_MODULE_ARGS][INITIAL_CAPACITY];
-    for (unsigned int k = 0; k < INITIAL_CAPACITY; ++k) {
-        const auto& delay_info = s_input_delay_infos[stimuli_idx][k];
-        const auto& timestamp = s_input_timestamps[stimuli_idx][k];
-        if (s_input_values[0][stimuli_idx][k] == 0) break;
-        for (unsigned int i = 0; i < module_spec->num_module_input; ++i) {
-            auto& entry = sliced_data[i][k];
-            entry.timestamp = timestamp; entry.delay_info = delay_info; entry.value = s_input_values[i][stimuli_idx][k];
-        }
-    }
-    Transition* data_ptrs_for_each_stimuli[MAX_NUM_MODULE_ARGS] = { nullptr };
-    for (unsigned int i = 0; i < module_spec->num_module_input; ++i) {
-        data_ptrs_for_each_stimuli[i] = sliced_data[i];
-    }
-    for (unsigned int i = module_spec->num_module_input; i < module_spec->num_module_args; ++i) {
-        data_ptrs_for_each_stimuli[i] = data[i] + stimuli_idx * INITIAL_CAPACITY;
+    for (unsigned int i = 0; i < module_spec->num_output; ++i) {
+        output_data_ptrs_for_stimuli[i] = data[module_spec->num_input + i] + stimuli_idx * INITIAL_CAPACITY;
     }
 
-    unsigned int offset = 0;
-    for (int i = 0; i < module_spec->schedule_size; i++) {
-        const unsigned int num_gate_args = module_spec->num_inputs[i] + module_spec->num_outputs[i];
-        assert(num_gate_args <= MAX_NUM_GATE_ARGS);
-        Transition* data_schedule_for_gate[MAX_NUM_GATE_ARGS] = { nullptr };
-        for (int j = 0; j < num_gate_args; ++j) {
-            const auto& arg = module_spec->gate_specs[offset + j];
-            data_schedule_for_gate[j] = data_ptrs_for_each_stimuli[arg];
-        }
-        module_spec->gate_schedule[i](
-            data_schedule_for_gate,
-            module_spec->tables[i], module_spec->table_row_num[i],
-            module_spec->num_inputs[i], module_spec->num_outputs[i]
-        );
-        offset += num_gate_args;
-    }
-    assert(module_spec->num_module_output <= MAX_NUM_MODULE_OUTPUT);
+    stepping_algorithm(
+        s_input_timestamps[stimuli_idx],
+        s_input_values[stimuli_idx],
+        output_data_ptrs_for_stimuli,
+        module_spec
+    );
+
+    assert(module_spec->num_output <= MAX_NUM_MODULE_OUTPUT);
     __shared__ unsigned int lengths[N_STIMULI_PARALLEL * MAX_NUM_MODULE_OUTPUT];
+    DelayInfo* delay_info_for_stimuli = s_input_delay_infos[stimuli_idx];
     compute_delay(
-        data_ptrs_for_each_stimuli,
-        module_spec->num_module_output, module_spec->num_module_input,
-        sdf_spec, lengths + stimuli_idx * module_spec->num_module_output
+        output_data_ptrs_for_stimuli, delay_info_for_stimuli,
+        module_spec->num_output, module_spec->num_input,
+        sdf_spec, lengths + stimuli_idx * module_spec->num_output
     );
 
     __syncthreads();
     if (threadIdx.x == 0) {
         resolve_collisions_for_batch_stimuli(
             data, lengths,
-            module_spec->num_module_input, module_spec->num_module_output
+            module_spec->num_input, module_spec->num_output
         );
     }
 }

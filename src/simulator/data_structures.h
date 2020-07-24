@@ -50,10 +50,8 @@ struct DelayInfo {
 struct Transition {
     Timestamp timestamp = 0;
     char value = 0;
-    DelayInfo delay_info{};
     Transition() = default;
     Transition(Timestamp t, char v): timestamp(t), value(v) {};
-    Transition(Timestamp t, char v, DelayInfo d): timestamp(t), value(v), delay_info(d) {};
 
     bool operator== (const Transition& other) const {
         return timestamp == other.timestamp and value == other.value;
@@ -65,23 +63,10 @@ struct Transition {
 
 std::ostream& operator<< (std::ostream& os, const Transition& transition);
 
-typedef void (*GateFnPtr)(
-    Transition** data,  // (n_stimuli_parallel * capacity, num_inputs + num_outputs)
-    const char* table,
-    const unsigned int table_row_num,
-    const unsigned int num_inputs, const unsigned int num_outputs
-);
-
-typedef char (*LogicFn)(Transition**, unsigned int, unsigned int, const char* table, const unsigned int table_row_num);
 struct ModuleSpec{
-    GateFnPtr* gate_schedule;
-    unsigned int schedule_size; // number of gates
-    unsigned int num_module_input, num_module_output, num_module_args;
-    char** tables;
-    unsigned int* table_row_num;
-    unsigned int* gate_specs;
-    unsigned int* num_inputs;  // how many inputs for every gate
-    unsigned int* num_outputs;  // how many outputs for every gate, currently assume its always 1
+    unsigned int num_input, num_output;
+    unsigned int table_row_num;
+    char* table;
 };
 
 struct ResourceBuffer {

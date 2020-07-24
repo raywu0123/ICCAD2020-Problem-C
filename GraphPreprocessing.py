@@ -23,19 +23,8 @@ if __name__ == '__main__':
         print('Reading standard cell library... ', end='', flush=True)
         std_cell_info = VlibReader.read_file(std_cells_file)
         print('Finished.')
-        standard_cell_organizer = StandardCellOrganizer(std_cell_info)
-        standard_cell_organizer.organize_modules()
-        standard_cell_organizer.organize_primitives()
     else:
         std_cell_info = None
-
-    if netlist_sdf_file != '-':
-        print('Reading SDF file... ')
-        sdf_parser = SDFParser()
-        sdf_header, sdf_cells = sdf_parser.read_file(netlist_sdf_file)
-        print('Finished.')
-    else:
-        sdf_header, sdf_cells = None, None
 
     if netlist_gv_file != '-':
         print('Reading GV file... ', end='', flush=True)
@@ -47,9 +36,22 @@ if __name__ == '__main__':
         gv_info = None
         circuit = None
 
+    if std_cell_info is not None:
+        used_cell_types = {cell['type'] for cell in circuit.cells.values()} if circuit is not None else None
+        organizer = StandardCellOrganizer(std_cell_info.primitives, std_cell_info.modules, used_cell_types)
+        standard_cell_library = organizer.organize()
+
+    if netlist_sdf_file != '-':
+        print('Reading SDF file... ')
+        sdf_parser = SDFParser()
+        sdf_header, sdf_cells = sdf_parser.read_file(netlist_sdf_file)
+        print('Finished.')
+    else:
+        sdf_header, sdf_cells = None, None
+
     with IntermediateFileWriter(output_file) as writer:
         if std_cell_info is not None:
-            writer.write_vlib(std_cell_info)
+            writer.write_vlib(standard_cell_library)
 
         if gv_info is not None:
             writer.write_circuit(circuit, gv_info.id)

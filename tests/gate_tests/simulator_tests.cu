@@ -23,7 +23,7 @@ TEST_P(SliceWaveformTestFixture, SimpleCases) {
     const auto& num_wires = test_data.inputs.size();
     Timestamp s_timestamps[N_STIMULI_PARALLEL][INITIAL_CAPACITY];
     DelayInfo s_delay_infos[N_STIMULI_PARALLEL][INITIAL_CAPACITY];
-    char s_values[MAX_NUM_MODULE_ARGS][N_STIMULI_PARALLEL][INITIAL_CAPACITY];
+    char s_values[N_STIMULI_PARALLEL][INITIAL_CAPACITY][MAX_NUM_MODULE_ARGS];
 
     auto inputs = test_data.inputs;
     Transition* data[MAX_NUM_MODULE_ARGS];
@@ -41,7 +41,6 @@ TEST_P(SliceWaveformTestFixture, SimpleCases) {
     int timestamp_err_num = 0;
     auto expected_s_timestamps = test_data.expected_s_timestamps; expected_s_timestamps.resize(N_STIMULI_PARALLEL * INITIAL_CAPACITY);
     for (int i = 0; i < N_STIMULI_PARALLEL * INITIAL_CAPACITY; ++i) {
-        printf("i=%d t1=%lld t2=%lld\n", i, s_timestamps[i / INITIAL_CAPACITY][i % INITIAL_CAPACITY], expected_s_timestamps[i]);
         if (s_timestamps[i / INITIAL_CAPACITY][i % INITIAL_CAPACITY] == expected_s_timestamps[i]) continue;
         timestamp_err_num++;
     }
@@ -60,7 +59,7 @@ TEST_P(SliceWaveformTestFixture, SimpleCases) {
     auto expected_s_values = test_data.expected_s_values; for(auto& vs : expected_s_values) vs.resize(N_STIMULI_PARALLEL * INITIAL_CAPACITY);
     for (int i = 0; i < num_wires; ++i) {
         for(int j = 0; j < N_STIMULI_PARALLEL * INITIAL_CAPACITY; ++j) {
-            if (s_values[i][j / INITIAL_CAPACITY][j % INITIAL_CAPACITY] == expected_s_values[i][j]) continue;
+            if (s_values[j / INITIAL_CAPACITY][j % INITIAL_CAPACITY][i] == expected_s_values[i][j]) continue;
             value_err_num++;
         }
     }

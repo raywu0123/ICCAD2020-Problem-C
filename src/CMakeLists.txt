@@ -4,7 +4,6 @@ set(HEADER_FILES
         simulator/data_structures.h
         simulator/module_registry.h
         simulator/memory_manager.h
-        simulator/builtin_gates.h
         simulator/collision_utils.h
         simulation_result.h
         circuit_model/circuit.h
@@ -19,7 +18,6 @@ set(SOURCE_FILES
         simulator/data_structures.cu
         simulator/module_registry.cu
         simulator/memory_manager.cu
-        simulator/builtin_gates.cu
         simulator/delay_utils.cu
         simulator/collision_utils.cu
         simulation_result.cu
