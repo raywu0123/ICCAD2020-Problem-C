@@ -12,17 +12,15 @@ __host__ __device__ int lookup_delay(
 );
 
 __host__ __device__ void compute_delay(
-    Transition**, DelayInfo*,
+    Transition**, unsigned int capacity, DelayInfo*,
     unsigned int, unsigned int,
     const SDFSpec* sdf_spec, unsigned int* lengths, bool verbose = false
 );
 
 __device__ __host__ void slice_waveforms(
-    Timestamp s_timestamps[N_STIMULI_PARALLEL][INITIAL_CAPACITY],
-    DelayInfo s_delay_infos[N_STIMULI_PARALLEL][INITIAL_CAPACITY],
-    char s_values[N_STIMULI_PARALLEL][INITIAL_CAPACITY][MAX_NUM_MODULE_ARGS],
-    Transition** data,
-    unsigned int num_wires, unsigned int** progress_updates
+    Timestamp* s_timestamps, DelayInfo* s_delay_infos, char* s_values,
+    Transition** data, unsigned int capacity,
+    unsigned int num_wires, bool* overflow_ptr
 );
 
 

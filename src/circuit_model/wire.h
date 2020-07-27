@@ -50,6 +50,8 @@ struct Bucket {
         if (status != cudaSuccess) throw std::runtime_error(cudaGetErrorName(status));
 
         if (verbose) {
+            std::cout << "first transition = " << first_transition << std::endl;
+            std::cout << "v-back = " << transitions[write_index - 1].value << std::endl;
             for (int i = 0; i < valid_data_size; i++) std::cout << transitions[write_index + i];
             std::cout << "valid data size = " << valid_data_size << std::endl;
             std::cout << std::endl;
@@ -75,18 +77,20 @@ struct Bucket {
 
 class Wire {
 public:
-    Wire() = default;
+    Wire();
+    ~Wire();
     explicit Wire(const WireInfo&);
 
     void assign(const Wire&);
 
-    static void load_from_bucket(
-        Transition* ptr, const TransitionContainer&, unsigned int, unsigned int
+    void load_from_bucket(
+        Transition* ptr, unsigned int, unsigned int
     );
     void store_to_bucket(const std::vector<Transition*>& data_ptrs, unsigned int num_ptrs, unsigned int capacity);
 
     std::vector<WireInfo> wire_infos;
     Bucket bucket;
+    cudaStream_t stream;
 };
 
 

@@ -222,11 +222,10 @@ Cell* Circuit::create_cell(
 ) {
     const ModuleSpec* module_spec = module_registry.get_module_spec(cell_type);
     const StdCellDeclare* declare = module_registry.get_module_declare(cell_type);
-    Wire *supply1_wire = get_wire(SUPPLY1_WIREKEY), *supply0_wire = get_wire(SUPPLY0_WIREKEY);
     return new Cell(
         module_spec,
         declare,
-        pin_specs, supply1_wire, supply0_wire,
+        pin_specs,
         cell_name
     );
 }

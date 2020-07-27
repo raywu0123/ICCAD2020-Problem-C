@@ -70,14 +70,16 @@ struct ModuleSpec{
 };
 
 struct ResourceBuffer {
+
+    std::vector<bool*> overflows;
+    std::vector<unsigned int> capacities;
     std::vector<const ModuleSpec*> module_specs;
     std::vector<const SDFSpec*> sdf_specs;
     std::vector<Transition*> data_schedule;
-    std::vector<unsigned int> data_schedule_offsets;
-    std::vector<unsigned int*> progress_updates;
 
     ResourceBuffer ();
-    int size() const;
+    void finish_module();
+    unsigned int size = 0;
 };
 
 
@@ -85,11 +87,11 @@ struct BatchResource {
     void init(const ResourceBuffer&);
     void free() const;
 
+    bool** overflows;
+    unsigned int* capacities;
     const ModuleSpec** module_specs;
     const SDFSpec** sdf_specs;
-    unsigned int** progress_updates;
     Transition** data_schedule;
-    unsigned int* data_schedule_offsets; // offsets to each module
     unsigned int num_modules;
 };
 

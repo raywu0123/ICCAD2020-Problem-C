@@ -11,7 +11,7 @@ struct TestData {
     vector<vector<char>> expected_s_values;
     vector<Timestamp> expected_s_timestamps;
     vector<DelayInfo> expected_s_delay_infos;
-    vector<unsigned int> expected_progress_updates;
+    unsigned int capacity = 16;
 };
 
 class SliceWaveformTestFixture: public ::testing::TestWithParam<TestData>{
@@ -21,56 +21,52 @@ protected:
 TEST_P(SliceWaveformTestFixture, SimpleCases) {
     const auto test_data = GetParam();
     const auto& num_wires = test_data.inputs.size();
-    Timestamp s_timestamps[N_STIMULI_PARALLEL][INITIAL_CAPACITY];
-    DelayInfo s_delay_infos[N_STIMULI_PARALLEL][INITIAL_CAPACITY];
-    char s_values[N_STIMULI_PARALLEL][INITIAL_CAPACITY][MAX_NUM_MODULE_ARGS];
+    const auto& capacity = test_data.capacity;
+    auto* s_timestamps = new Timestamp[N_STIMULI_PARALLEL * capacity];
+    auto* s_delay_infos = new DelayInfo[N_STIMULI_PARALLEL * capacity];
+    char* s_values = new char[N_STIMULI_PARALLEL * capacity * MAX_NUM_MODULE_ARGS];
 
     auto inputs = test_data.inputs;
     Transition* data[MAX_NUM_MODULE_ARGS];
     for (int i = 0; i < num_wires; ++i) {
-        inputs[i].resize(INITIAL_CAPACITY * N_STIMULI_PARALLEL);
+        inputs[i].resize(capacity * N_STIMULI_PARALLEL);
         data[i] = inputs[i].data();
     }
 
-    unsigned int update_progress[MAX_NUM_MODULE_ARGS];
-    unsigned int* update_progress_ptrs[MAX_NUM_MODULE_ARGS];
-    for (int i = 0; i < num_wires; ++i) update_progress_ptrs[i] = update_progress + i;
-
-    slice_waveforms(s_timestamps, s_delay_infos, s_values, data, num_wires, update_progress_ptrs);
+    bool overflow = false;
+    slice_waveforms(s_timestamps, s_delay_infos, s_values, data, 16, num_wires, &overflow);
 
     int timestamp_err_num = 0;
-    auto expected_s_timestamps = test_data.expected_s_timestamps; expected_s_timestamps.resize(N_STIMULI_PARALLEL * INITIAL_CAPACITY);
-    for (int i = 0; i < N_STIMULI_PARALLEL * INITIAL_CAPACITY; ++i) {
-        if (s_timestamps[i / INITIAL_CAPACITY][i % INITIAL_CAPACITY] == expected_s_timestamps[i]) continue;
+    auto expected_s_timestamps = test_data.expected_s_timestamps;
+    expected_s_timestamps.resize(N_STIMULI_PARALLEL * capacity);
+    for (int i = 0; i < N_STIMULI_PARALLEL * capacity; ++i) {
+        if (s_timestamps[i] == expected_s_timestamps[i]) continue;
         timestamp_err_num++;
     }
     printf("\n");
     ASSERT_EQ(timestamp_err_num, 0);
 
     int delay_info_err_num = 0;
-    auto expected_s_delay_infos = test_data.expected_s_delay_infos; expected_s_delay_infos.resize(N_STIMULI_PARALLEL * INITIAL_CAPACITY);
-    for (int i = 0; i < N_STIMULI_PARALLEL * INITIAL_CAPACITY; ++i) {
-        if (s_delay_infos[i / INITIAL_CAPACITY][i % INITIAL_CAPACITY] == expected_s_delay_infos[i]) continue;
+    auto expected_s_delay_infos = test_data.expected_s_delay_infos;
+    expected_s_delay_infos.resize(N_STIMULI_PARALLEL * capacity);
+    for (int i = 0; i < N_STIMULI_PARALLEL * capacity; ++i) {
+        if (s_delay_infos[i] == expected_s_delay_infos[i]) continue;
         delay_info_err_num++;
     }
     ASSERT_EQ(delay_info_err_num, 0);
 
     int value_err_num = 0;
-    auto expected_s_values = test_data.expected_s_values; for(auto& vs : expected_s_values) vs.resize(N_STIMULI_PARALLEL * INITIAL_CAPACITY);
+    auto expected_s_values = test_data.expected_s_values;
+    for(auto& vs : expected_s_values) vs.resize(N_STIMULI_PARALLEL * capacity);
     for (int i = 0; i < num_wires; ++i) {
-        for(int j = 0; j < N_STIMULI_PARALLEL * INITIAL_CAPACITY; ++j) {
-            if (s_values[j / INITIAL_CAPACITY][j % INITIAL_CAPACITY][i] == expected_s_values[i][j]) continue;
+        for(int j = 0; j < N_STIMULI_PARALLEL * capacity; ++j) {
+            if (s_values[j * MAX_NUM_MODULE_ARGS + i] == expected_s_values[i][j]) continue;
             value_err_num++;
         }
     }
     ASSERT_EQ(value_err_num, 0);
 
-    int update_progress_err_num = 0;
-    auto expected_update_progress = test_data.expected_progress_updates;
-    for (int i = 0; i < num_wires; ++i) {
-        if (update_progress[i] != expected_update_progress[i]) update_progress_err_num++;
-    }
-    ASSERT_EQ(update_progress_err_num, 0);
+    delete[] s_values, delete[] s_delay_infos, delete[] s_timestamps;
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -88,7 +84,6 @@ INSTANTIATE_TEST_CASE_P(
             },
             vector<Timestamp> {0, 10, 10, 20, 30, 50, 55},
             vector<DelayInfo> { DelayInfo{}, DelayInfo{0, '-'}, DelayInfo{1, '+'}, DelayInfo{0, '+'}, DelayInfo{0, '+'}, DelayInfo{1, '+'}, DelayInfo{1, '-'} },
-            vector<unsigned int> {3, 3},
         },
         TestData{
             vector<vector<Transition>> {
@@ -113,8 +108,7 @@ INSTANTIATE_TEST_CASE_P(
                 DelayInfo{1, '-'}, DelayInfo{0, '-'}, DelayInfo{1, '+'}, DelayInfo{0, '+'},
                 DelayInfo{1, '-'}, DelayInfo{0, '-'}, DelayInfo{1, '+'}, DelayInfo{0, '+'},
                 DelayInfo{}, DelayInfo{1, '-'}, DelayInfo{1, '+'}, DelayInfo{1, '-'}
-                },
-            vector<unsigned int> {9, 9},
+            },
         }
     )
 );

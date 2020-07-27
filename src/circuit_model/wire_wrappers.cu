@@ -38,21 +38,21 @@ void IndexedWire::store_to_bucket() const {
     wire->store_to_bucket(data_ptrs, num_ptrs, capacity);
 }
 
-ScheduledWire::ScheduledWire(Wire *wire): IndexedWire(wire) {
-    cudaErrorCheck(cudaMalloc((void**) &progress_update_ptr, sizeof(unsigned int)));
+void IndexedWire::handle_overflow() {
+    free();
+    first_free_data_ptr_index = 0;
 }
 
 Transition* ScheduledWire::load(int session_index) {
-    auto* ptr = IndexedWire::load(session_index);
-    unsigned int end_index = min(wire->bucket.size(), bucket_idx - 1 + capacity * N_STIMULI_PARALLEL);
-    Wire::load_from_bucket(ptr, wire->bucket.transitions, bucket_idx - 1, end_index);
-    return ptr;
-}
+    auto* ptr = IndexedWire::alloc(session_index);
+    if (session_index > checkpoint.first) checkpoint = make_pair(session_index, bucket_idx);
 
-void ScheduledWire::update_progress() {
-    unsigned int host_update_progress = 0;
-    cudaMemcpy(&host_update_progress, progress_update_ptr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-    bucket_idx += host_update_progress;
+    auto start_index = bucket_index_schedule[bucket_idx];
+    const auto& end_index = bucket_index_schedule[bucket_idx + 1];
+    if (start_index != 0) start_index--;
+    wire->load_from_bucket(ptr, start_index, end_index);
+    bucket_idx++;
+    return ptr;
 }
 
 void ScheduledWire::free() { IndexedWire::free(); }
@@ -60,6 +60,19 @@ void ScheduledWire::free() { IndexedWire::free(); }
 unsigned int ScheduledWire::size() const { return wire->bucket.size(); }
 
 bool ScheduledWire::finished() const {
-    return bucket_idx >= wire->bucket.size();
+    return bucket_idx + 1 >= bucket_index_schedule.size();
+}
+
+void ScheduledWire::push_back_schedule_index(unsigned int i) {
+    if (i > wire->bucket.size())
+        throw std::runtime_error("Schedule index out of range.");
+    if (not bucket_index_schedule.empty() and i < bucket_index_schedule.back())
+        throw std::runtime_error("Schedule index in incorrect order.");
+    bucket_index_schedule.push_back(i);
+}
+
+void ScheduledWire::handle_overflow() {
+    first_free_data_ptr_index = 0;
+    bucket_idx = checkpoint.second;
 }
 
