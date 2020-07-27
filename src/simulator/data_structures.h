@@ -61,6 +61,11 @@ struct Transition {
     }
 };
 
+struct Data {
+    Transition* transitions;
+    unsigned int* size = nullptr;
+};
+
 std::ostream& operator<< (std::ostream& os, const Transition& transition);
 
 struct ModuleSpec{
@@ -75,7 +80,7 @@ struct ResourceBuffer {
     std::vector<unsigned int> capacities;
     std::vector<const ModuleSpec*> module_specs;
     std::vector<const SDFSpec*> sdf_specs;
-    std::vector<Transition*> data_schedule;
+    std::vector<Data> data_schedule;
 
     ResourceBuffer ();
     void finish_module();
@@ -91,7 +96,7 @@ struct BatchResource {
     unsigned int* capacities;
     const ModuleSpec** module_specs;
     const SDFSpec** sdf_specs;
-    Transition** data_schedule;
+    Data* data_schedule;
     unsigned int num_modules;
 };
 

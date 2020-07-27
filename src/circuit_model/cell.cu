@@ -86,10 +86,10 @@ void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer) {
     for (unsigned int arg = 0; arg < num_args; ++arg) {
         const auto* indexed_wire = wire_map.get(arg);
         assert(indexed_wire != nullptr);
-        if (indexed_wire->first_free_data_ptr_index - 1 >= indexed_wire->data_ptrs.size())
+        if (indexed_wire->first_free_data_ptr_index - 1 >= indexed_wire->data_list.size())
             throw runtime_error("Invalid access to indexed_wire's data_ptrs");
         resource_buffer.data_schedule.push_back(
-            indexed_wire->data_ptrs[indexed_wire->first_free_data_ptr_index - 1]
+            indexed_wire->data_list[indexed_wire->first_free_data_ptr_index - 1]
         );
     }
     resource_buffer.finish_module();
@@ -195,4 +195,7 @@ void Cell::init() {
         input_wires,
         (INITIAL_CAPACITY * N_STIMULI_PARALLEL) / input_wires.size() - 1
     );
+    unsigned int sum_size = 0;
+    for (const auto& indexed_wire : input_wires) sum_size += indexed_wire->wire->bucket.size();
+    for (auto& indexed_wire : output_wires) indexed_wire->wire->bucket.reserve(sum_size * 2);
 }

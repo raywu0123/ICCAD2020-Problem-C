@@ -19,7 +19,7 @@ __host__ __device__ void compute_delay(
 
 __device__ __host__ void slice_waveforms(
     Timestamp* s_timestamps, DelayInfo* s_delay_infos, char* s_values,
-    Transition** data, unsigned int capacity,
+    Data* data, unsigned int capacity,
     unsigned int num_wires, bool* overflow_ptr
 );
 

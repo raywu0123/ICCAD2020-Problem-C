@@ -20,7 +20,7 @@ __host__ __device__ unsigned int binary_search(const Transition* const waveform,
 
 extern __host__ __device__ void resolve_collisions_for_batch_waveform(
     Transition* waveform,
-    const unsigned int* stimuli_lengths, unsigned int capacity,
+    const unsigned int* stimuli_lengths, unsigned int capacity, unsigned int* output_length,
     unsigned int num_stimuli
 ) {
     unsigned int write_index = 0;
@@ -41,6 +41,5 @@ extern __host__ __device__ void resolve_collisions_for_batch_waveform(
             write_index++;
         }
     }
-    // add EOS token
-    if (write_index < capacity * num_stimuli) waveform[write_index].timestamp = 0; waveform[write_index].value = 0;
+    *output_length = write_index;
 }

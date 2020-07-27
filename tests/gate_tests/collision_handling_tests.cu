@@ -29,8 +29,10 @@ TEST_P(BatchWaveformCollisionTestFixture, SimpleCases) {
             w[capacity * i_stimuli + idx] = batch_waveform[i_stimuli][idx];
         }
     }
-    resolve_collisions_for_batch_waveform(w, stimuli_lengths, capacity, num_stimuli);
+    unsigned int output_length = 0;
+    resolve_collisions_for_batch_waveform(w, stimuli_lengths, capacity, &output_length, num_stimuli);
 
+    EXPECT_EQ(output_length, test_pair.expected.size());
     unsigned int err_num = 0;
     for (int i = 0; i < test_pair.expected.size() - 1; i++) {
         if (w[i] != test_pair.expected[i]) err_num++;
@@ -49,14 +51,14 @@ INSTANTIATE_TEST_CASE_P(
                 vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{10, '0'} },
                 vector<Transition>{ Transition{3, '0'}, Transition{5, '1'} }
             },
-            vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{3, '0'}, Transition{5, '1'}, Transition{0, 0} }
+            vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{3, '0'}, Transition{5, '1'} }
         },
         BatchWaveformTestPair{
             vector<vector<Transition>>{
                 vector<Transition>{ Transition{5, '0'}, Transition{7, '1'}, Transition{10, '0'} },
                 vector<Transition>{ Transition{3, '0'}, Transition{20, '1'} }
             },
-            vector<Transition>{ Transition{3, '0'}, Transition{20, '1'}, Transition{0, 0} }
+            vector<Transition>{ Transition{3, '0'}, Transition{20, '1'} }
         },
         BatchWaveformTestPair{
             vector<vector<Transition>>{
@@ -64,7 +66,7 @@ INSTANTIATE_TEST_CASE_P(
                 vector<Transition>{ Transition{3, '0'}, Transition{5, '1'} },
                 vector<Transition>{ Transition{4, '0'}, Transition{20, '1'} }
             },
-            vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{3, '0'}, Transition{20, '1'}, Transition{0, 0} }
+            vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{3, '0'}, Transition{20, '1'} }
         },
         BatchWaveformTestPair{
             vector<vector<Transition>>{
@@ -72,7 +74,7 @@ INSTANTIATE_TEST_CASE_P(
                 vector<Transition>{ Transition{3, '1'}, Transition{5, '0'} },
                 vector<Transition>{ }
             },
-            vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{5, '0'}, Transition{0, 0} }
+            vector<Transition>{ Transition{0, '0'}, Transition{1, '1'}, Transition{5, '0'} }
         }
     )
 );

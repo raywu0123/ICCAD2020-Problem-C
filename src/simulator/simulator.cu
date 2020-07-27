@@ -9,7 +9,7 @@ using namespace std;
 
 
 __device__ __host__ void resolve_collisions_for_batch_stimuli(
-    Transition** data,
+    Data* data,
     const unsigned int* lengths, unsigned int capacity,
     const unsigned int num_inputs, const unsigned int num_outputs
 ) {
@@ -21,32 +21,32 @@ __device__ __host__ void resolve_collisions_for_batch_stimuli(
             assert(stimuli_lengths[i_stimuli] <= capacity);
         }
         resolve_collisions_for_batch_waveform(
-            data[num_inputs + i_output],
-            stimuli_lengths, capacity,
+            data[num_inputs + i_output].transitions,
+            stimuli_lengths, capacity, data[num_inputs + i_output].size,
             N_STIMULI_PARALLEL
         );
     }
 }
 
 
-__device__ __host__ bool OOB(unsigned int index, Transition** const data, unsigned int i) {
-    return index >= N_STIMULI_PARALLEL * INITIAL_CAPACITY or data[i][index].value == 0;
+__device__ __host__ bool OOB(unsigned int index, Data* const data, unsigned int i) {
+    return index >= N_STIMULI_PARALLEL * INITIAL_CAPACITY or data[i].transitions[index].value == 0;
 }
 
 __device__ __host__ void prepare_stimuli_head(
     Timestamp* s_timestamps, char* s_values,
-    Transition** data,
+    Data* data,
     const unsigned int num_wires, const unsigned int* progress_updates
 ) {
-    s_timestamps[0] = data[0][progress_updates[0]].timestamp;
+    s_timestamps[0] = data[0].transitions[progress_updates[0]].timestamp;
     for (int i = 0; i < num_wires; ++i) {
-        s_values[i] = data[i][progress_updates[i]].value;
+        s_values[i] = data[i].transitions[progress_updates[i]].value;
     }
 }
 
 __device__ __host__ void slice_waveforms(
     Timestamp* s_timestamps, DelayInfo* s_delay_infos, char* s_values,
-    Transition** data, unsigned int capacity,
+    Data* data, unsigned int capacity,
     const unsigned int num_wires,
     bool* overflow_ptr
 ) {
@@ -63,7 +63,7 @@ __device__ __host__ void slice_waveforms(
         s_values + write_stimuli_index * capacity * MAX_NUM_MODULE_ARGS,
         data, num_wires, progress
     );
-    for (int i = 0; i < num_wires; ++i) if (data[i][1].value == 0) num_finished++;
+    for (int i = 0; i < num_wires; ++i) if (data[i].transitions[1].value == 0) num_finished++;
 
     while (num_finished < num_wires) {
         // find min timestamp
@@ -71,7 +71,7 @@ __device__ __host__ void slice_waveforms(
         for (int i = 0; i < num_wires; ++i) {
             const auto& index = progress[i];
             if (OOB(index + 1, data, i)) continue;
-            const auto& t = data[i][index + 1].timestamp;
+            const auto& t = data[i].transitions[index + 1].timestamp;
             if (t < min_t) min_t = t;
         }
         assert(min_t != LONG_LONG_MAX);
@@ -81,7 +81,7 @@ __device__ __host__ void slice_waveforms(
         for(int i = 0; i < num_wires; ++i) {
             auto& index = progress[i];
             if (OOB(index + 1, data, i)) continue;
-            if (data[i][index + 1].timestamp != min_t) continue;
+            if (data[i].transitions[index + 1].timestamp != min_t) continue;
             advancing[num_advancing] = i; num_advancing++;
         }
 
@@ -107,11 +107,11 @@ __device__ __host__ void slice_waveforms(
             const auto& advancing_arg = advancing[i];
             s_delay_infos[write_stimuli_index * capacity + write_transition_index + i].arg = advancing_arg;
             s_delay_infos[write_stimuli_index * capacity + write_transition_index + i].edge_type = get_edge_type(
-                data[advancing_arg][progress[advancing_arg] - 1].value,
-                data[advancing_arg][progress[advancing_arg]].value
+                data[advancing_arg].transitions[progress[advancing_arg] - 1].value,
+                data[advancing_arg].transitions[progress[advancing_arg]].value
             );
             for (int j = 0; j < num_wires; ++j) {
-                const auto& transition = data[j][progress[j]];
+                const auto& transition = data[j].transitions[progress[j]];
                 s_values[
                     write_stimuli_index * capacity * MAX_NUM_MODULE_ARGS
                     + (write_transition_index + i) * MAX_NUM_MODULE_ARGS
@@ -170,7 +170,7 @@ __device__ char* s_input_value_ptrs[N_CELL_PARALLEL];
 __device__ void simulate_module(
     const ModuleSpec* const module_spec,
     const SDFSpec* const sdf_spec,
-    Transition** const data, unsigned int capacity,
+    Data* const data, unsigned int capacity,
     bool* overflow_ptr
 ) {
     const auto& module_idx = blockIdx.x;
@@ -193,7 +193,7 @@ __device__ void simulate_module(
     Transition* output_data_ptrs_for_stimuli[MAX_NUM_MODULE_OUTPUT] = { nullptr };
     unsigned stimuli_idx = threadIdx.x;
     for (unsigned int i = 0; i < module_spec->num_output; ++i) {
-        output_data_ptrs_for_stimuli[i] = data[module_spec->num_input + i] + stimuli_idx * capacity;
+        output_data_ptrs_for_stimuli[i] = data[module_spec->num_input + i].transitions + stimuli_idx * capacity;
     }
 
     stepping_algorithm(

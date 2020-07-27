@@ -16,8 +16,8 @@ struct SDFPath {
 struct IndexedWire {
     explicit IndexedWire(Wire* w, const unsigned int& capacity = INITIAL_CAPACITY) : wire(w), capacity(capacity) {};
 
-    Transition* alloc(int session_index);
-    virtual Transition* load(int session_index);
+    Data alloc(int session_index);
+    virtual Data load(int session_index);
     virtual void free();
     void store_to_bucket() const;
 
@@ -26,7 +26,7 @@ struct IndexedWire {
     // records capacity
     Wire* wire;
     const unsigned int& capacity;
-    std::vector<Transition*> data_ptrs;
+    std::vector<Data> data_list;
 
     unsigned int first_free_data_ptr_index = 0;
     int previous_session_index = -1;
@@ -36,7 +36,7 @@ struct IndexedWire {
 struct ScheduledWire : public IndexedWire {
     explicit ScheduledWire(Wire* wire, const unsigned int& capacity = INITIAL_CAPACITY): IndexedWire(wire, capacity) {};
 
-    Transition* load(int session_index) override;
+    Data load(int session_index) override;
     void free() override;
     unsigned int size() const;
     void handle_overflow() override;

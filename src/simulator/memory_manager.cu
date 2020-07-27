@@ -1,17 +1,18 @@
-#include <iostream>
-
 #include "memory_manager.h"
 #include "utils.h"
 
 using namespace std;
 
-Transition* MemoryManager::alloc(size_t size) {
+Data MemoryManager::alloc(size_t size) {
 //    TODO buddy tree
-    Transition* p;
-    cudaErrorCheck(cudaMalloc((void**) &p, sizeof(Transition) * size));
-    return p;
+    Transition* t;
+    cudaErrorCheck(cudaMalloc((void**) &t, sizeof(Transition) * size));
+    unsigned int* i;
+    cudaErrorCheck(cudaMalloc((void**) &i, sizeof(unsigned int)));
+    return {t, i};
 }
 
-void MemoryManager::free(Transition* p) {
-    cudaErrorCheck(cudaFree(p));
+void MemoryManager::free(Data d) {
+    cudaErrorCheck(cudaFree(d.transitions));
+    cudaErrorCheck(cudaFree(d.size));
 }

@@ -5,37 +5,37 @@
 
 using namespace std;
 
-Transition* IndexedWire::alloc(int session_index) {
+Data IndexedWire::alloc(int session_index) {
     if (session_index != previous_session_index) {
         first_free_data_ptr_index = 0;
         previous_session_index = session_index;
     }
     unsigned int size = capacity * N_STIMULI_PARALLEL;
 
-    if (first_free_data_ptr_index >= data_ptrs.size())
-        data_ptrs.push_back(MemoryManager::alloc(size));
+    if (first_free_data_ptr_index >= data_list.size())
+        data_list.push_back(MemoryManager::alloc(size));
 
-    if (first_free_data_ptr_index >= data_ptrs.size())
+    if (first_free_data_ptr_index >= data_list.size())
         throw std::runtime_error("Invalid access to data_ptrs");
 
-    Transition* data_ptr = data_ptrs[first_free_data_ptr_index];
-    cudaMemset(data_ptr, 0, sizeof(Transition) * size);
-
+    Data data = data_list[first_free_data_ptr_index];
+    cudaMemset(data.transitions, 0, sizeof(Transition) * size);
+    cudaMemset(data.size, 0, sizeof(unsigned int));
     first_free_data_ptr_index++;
-    return data_ptr;
+    return data;
 }
 
-Transition* IndexedWire::load(int session_index) { return alloc(session_index); }
+Data IndexedWire::load(int session_index) { return alloc(session_index); }
 
 void IndexedWire::free() {
-    for (auto* data_ptr : data_ptrs) MemoryManager::free(data_ptr);
-    data_ptrs.clear();
+    for (const auto& data : data_list) MemoryManager::free(data);
+    data_list.clear();
     first_free_data_ptr_index = 0;
 }
 
 void IndexedWire::store_to_bucket() const {
-    auto num_ptrs = first_free_data_ptr_index;
-    wire->store_to_bucket(data_ptrs, num_ptrs, capacity);
+    auto num_data = first_free_data_ptr_index;
+    wire->store_to_bucket(data_list, num_data);
 }
 
 void IndexedWire::handle_overflow() {
@@ -43,16 +43,16 @@ void IndexedWire::handle_overflow() {
     first_free_data_ptr_index = 0;
 }
 
-Transition* ScheduledWire::load(int session_index) {
-    auto* ptr = IndexedWire::alloc(session_index);
+Data ScheduledWire::load(int session_index) {
+    const auto& data = IndexedWire::alloc(session_index);
     if (session_index > checkpoint.first) checkpoint = make_pair(session_index, bucket_idx);
 
     auto start_index = bucket_index_schedule[bucket_idx];
     const auto& end_index = bucket_index_schedule[bucket_idx + 1];
     if (start_index != 0) start_index--;
-    wire->load_from_bucket(ptr, start_index, end_index);
+    wire->load_from_bucket(data.transitions, start_index, end_index);
     bucket_idx++;
-    return ptr;
+    return data;
 }
 
 void ScheduledWire::free() { IndexedWire::free(); }

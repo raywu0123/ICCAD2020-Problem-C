@@ -48,8 +48,8 @@ template<typename T> using PinnedMemoryVector = std::vector<T, PinnedMemoryAlloc
 
 class MemoryManager {
 public:
-    static Transition* alloc(size_t size);
-    static void free(Transition*);
+    static Data alloc(size_t size);
+    static void free(Data);
 
 private:
     static Transition* memory;

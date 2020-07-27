@@ -2,6 +2,7 @@
 #define ICCAD2020_WIRE_H
 
 #include <iostream>
+#include <cassert>
 #include <map>
 #include "simulator/data_structures.h"
 #include "simulator/memory_manager.h"
@@ -15,7 +16,7 @@ struct WireInfo {
 using TransitionContainer = PinnedMemoryVector<Transition>;
 
 struct Bucket {
-    TransitionContainer transitions{Transition{0, 'x'} };
+    TransitionContainer transitions{ Transition{0, 'x'} };
 
     void emplace_transition(Timestamp t, char v) {
         // for storing input
@@ -24,10 +25,16 @@ struct Bucket {
         else if (t > back.timestamp and v != back.value) transitions.emplace_back(t, v); // check validity of incoming transition
     }
 
-    void push_back(const Transition* ptr, const unsigned int capacity, bool verbose=false) {
+    void reserve(unsigned int i) { transitions.reserve(i); }
+
+    void push_back(const Data& data, bool verbose=false) {
         // for storing output
+        unsigned int output_size;
+        cudaMemcpy(&output_size, data.size, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+        if (output_size == 0) return;
+
         Transition first_transition;
-        cudaMemcpy(&first_transition, ptr, sizeof(Transition), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&first_transition, data.transitions, sizeof(Transition), cudaMemcpyDeviceToHost);
         const auto& t = first_transition.timestamp;
         const auto& v = first_transition.value;
 
@@ -39,11 +46,13 @@ struct Bucket {
         if (t <= prev_t) write_index = binary_search(transitions.data(), write_index - 1, t);
         auto offset = (write_index > 0 and v == transitions[write_index - 1].value) ? 1: 0;
 
-        auto valid_data_size = capacity * N_STIMULI_PARALLEL - offset;
+
+        auto valid_data_size = output_size - offset;
+        assert(valid_data_size <= INITIAL_CAPACITY * N_STIMULI_PARALLEL * 8);
         transitions.resize(write_index + valid_data_size);
         auto status =  cudaMemcpy(
             transitions.data() + write_index,
-            ptr + offset,
+            data.transitions + offset,
             sizeof(Transition) * valid_data_size,
             cudaMemcpyDeviceToHost
         );
@@ -55,14 +64,6 @@ struct Bucket {
             for (int i = 0; i < valid_data_size; i++) std::cout << transitions[write_index + i];
             std::cout << "valid data size = " << valid_data_size << std::endl;
             std::cout << std::endl;
-        }
-
-        // strip excess transitions
-        for (unsigned int idx = write_index; idx < write_index + valid_data_size; idx++) {
-            if (transitions[idx].value == 0) {
-                transitions.resize(idx);
-                break;
-            }
         }
     }
 
@@ -86,7 +87,7 @@ public:
     void load_from_bucket(
         Transition* ptr, unsigned int, unsigned int
     );
-    void store_to_bucket(const std::vector<Transition*>& data_ptrs, unsigned int num_ptrs, unsigned int capacity);
+    void store_to_bucket(const std::vector<Data>& data_ptrs, unsigned int num_ptrs);
 
     std::vector<WireInfo> wire_infos;
     Bucket bucket;

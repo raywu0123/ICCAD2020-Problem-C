@@ -27,10 +27,10 @@ TEST_P(SliceWaveformTestFixture, SimpleCases) {
     char* s_values = new char[N_STIMULI_PARALLEL * capacity * MAX_NUM_MODULE_ARGS];
 
     auto inputs = test_data.inputs;
-    Transition* data[MAX_NUM_MODULE_ARGS];
+    Data data[MAX_NUM_MODULE_ARGS];
     for (int i = 0; i < num_wires; ++i) {
         inputs[i].resize(capacity * N_STIMULI_PARALLEL);
-        data[i] = inputs[i].data();
+        data[i].transitions = inputs[i].data();
     }
 
     bool overflow = false;
