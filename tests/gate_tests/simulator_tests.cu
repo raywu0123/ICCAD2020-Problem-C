@@ -24,7 +24,7 @@ TEST_P(SliceWaveformTestFixture, SimpleCases) {
     const auto& capacity = test_data.capacity;
     auto* s_timestamps = new Timestamp[N_STIMULI_PARALLEL * capacity];
     auto* s_delay_infos = new DelayInfo[N_STIMULI_PARALLEL * capacity];
-    char* s_values = new char[N_STIMULI_PARALLEL * capacity * MAX_NUM_MODULE_ARGS];
+    auto* s_values = new Values[N_STIMULI_PARALLEL * capacity * num_wires];
 
     auto inputs = test_data.inputs;
     Data data[MAX_NUM_MODULE_ARGS];
@@ -60,7 +60,7 @@ TEST_P(SliceWaveformTestFixture, SimpleCases) {
     for(auto& vs : expected_s_values) vs.resize(N_STIMULI_PARALLEL * capacity);
     for (int i = 0; i < num_wires; ++i) {
         for(int j = 0; j < N_STIMULI_PARALLEL * capacity; ++j) {
-            if (s_values[j * MAX_NUM_MODULE_ARGS + i] == expected_s_values[i][j]) continue;
+            if (s_values[j * num_wires + i] == raw_to_enum(expected_s_values[i][j])) continue;
             value_err_num++;
         }
     }

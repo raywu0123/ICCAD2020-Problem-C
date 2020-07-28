@@ -16,10 +16,10 @@ public:
     typedef ptrdiff_t           difference_type;
 
     PinnedMemoryAllocator() = default;
-    PinnedMemoryAllocator(const PinnedMemoryAllocator&) {}
-    ~PinnedMemoryAllocator() {};
+    PinnedMemoryAllocator(const PinnedMemoryAllocator&) = default;
+    ~PinnedMemoryAllocator() = default;;
     template<class U>
-    PinnedMemoryAllocator(const PinnedMemoryAllocator<U>& other) {}
+    explicit PinnedMemoryAllocator(const PinnedMemoryAllocator<U>& other) {}
 
     template<class U>
     struct rebind { using other = PinnedMemoryAllocator<U>; };

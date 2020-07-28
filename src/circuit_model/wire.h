@@ -16,11 +16,12 @@ struct WireInfo {
 using TransitionContainer = PinnedMemoryVector<Transition>;
 
 struct Bucket {
-    TransitionContainer transitions{ Transition{0, 'x'} };
+    TransitionContainer transitions{ Transition{0, Values::X} };
 
-    void emplace_transition(Timestamp t, char v) {
+    void emplace_transition(Timestamp t, char r) {
         // for storing input
         auto& back = transitions.back();
+        const auto& v = raw_to_enum(r);
         if (back.timestamp == 0 and t == 0 and v != back.value) back.value = v;
         else if (t > back.timestamp and v != back.value) transitions.emplace_back(t, v); // check validity of incoming transition
     }
@@ -38,7 +39,7 @@ struct Bucket {
         const auto& t = first_transition.timestamp;
         const auto& v = first_transition.value;
 
-        if (v == 0) return;  // batch contains no new transitions
+        if (v == Values::PAD) return;  // batch contains no new transitions
         if (transitions.empty()) throw std::runtime_error("transitions is empty");
 
         Timestamp prev_t = transitions.back().timestamp;
@@ -60,7 +61,6 @@ struct Bucket {
 
         if (verbose) {
             std::cout << "first transition = " << first_transition << std::endl;
-            std::cout << "v-back = " << transitions[write_index - 1].value << std::endl;
             for (int i = 0; i < valid_data_size; i++) std::cout << transitions[write_index + i];
             std::cout << "valid data size = " << valid_data_size << std::endl;
             std::cout << std::endl;
@@ -97,8 +97,8 @@ public:
 
 class ConstantWire : public Wire {
 public:
-    explicit ConstantWire(char value);
-    char value;
+    explicit ConstantWire(Values value);
+    Values value;
 };
 
 #endif

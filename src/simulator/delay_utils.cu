@@ -29,15 +29,15 @@ extern __host__ __device__ void compute_delay(
         auto* output_data = data[i];
         unsigned int write_idx = 0;
         unsigned int timeblock_start = 1;
-        char prev_v = output_data[0].value;
-        while (timeblock_start < capacity and output_data[timeblock_start].value != 0) {
+        Values prev_v = output_data[0].value;
+        while (timeblock_start < capacity and output_data[timeblock_start].value != Values::PAD) {
             const auto& t = output_data[timeblock_start].timestamp;
             const auto& v = output_data[timeblock_start].value;
             // find edges of timeblock
             unsigned int num = 0;
             while ( timeblock_start < capacity
                 and output_data[timeblock_start].timestamp == t
-                and output_data[timeblock_start].value != 0
+                and output_data[timeblock_start].value != Values::PAD
             ) {
                 timeblock_start++; num++;
             }

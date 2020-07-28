@@ -47,11 +47,21 @@ struct DelayInfo {
     }
 };
 
+enum class Values : char {
+    PAD, ZERO, ONE, X, Z
+};
+
+inline std::ostream& operator<< (std::ostream& os, Values& v);
+
+Values raw_to_enum(char r);
+char enum_to_raw(Values v);
+
 struct Transition {
     Timestamp timestamp = 0;
-    char value = 0;
+    Values value = Values::PAD;
     Transition() = default;
-    Transition(Timestamp t, char v): timestamp(t), value(v) {};
+    Transition(Timestamp t, Values v): timestamp(t), value(v) {};
+    Transition(Timestamp t, char r): timestamp(t), value(raw_to_enum(r)) {};
 
     bool operator== (const Transition& other) const {
         return timestamp == other.timestamp and value == other.value;
@@ -62,7 +72,7 @@ struct Transition {
 };
 
 struct Data {
-    Transition* transitions;
+    Transition* transitions = nullptr;
     unsigned int* size = nullptr;
 };
 
@@ -71,7 +81,7 @@ std::ostream& operator<< (std::ostream& os, const Transition& transition);
 struct ModuleSpec{
     unsigned int num_input, num_output;
     unsigned int table_row_num;
-    char* table;
+    Values* table;
 };
 
 struct ResourceBuffer {

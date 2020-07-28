@@ -74,7 +74,7 @@ void Cell::build_wire_map(
 }
 
 void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer) {
-    cudaMemset(overflow_ptr, 0, sizeof(bool));
+    cudaMemsetAsync(overflow_ptr, 0, sizeof(bool));
     resource_buffer.overflows.push_back(overflow_ptr);
     resource_buffer.capacities.push_back(output_capacity);
     resource_buffer.module_specs.push_back(module_spec);

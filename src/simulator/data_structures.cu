@@ -5,6 +5,43 @@
 
 using namespace std;
 
+Values raw_to_enum(char v) {
+    switch (v) {
+        case '0':
+            return Values::ZERO;
+        case '1':
+            return Values::ONE;
+        case 'x':
+        case 'X':
+            return Values::X;
+        case 'z':
+        case 'Z':
+            return Values::Z;
+        default:
+            return Values::PAD;
+    }
+}
+
+char enum_to_raw(Values v) {
+    switch (v) {
+        case Values::ZERO:
+            return '0';
+        case Values::ONE:
+            return '1';
+        case Values::X:
+            return 'x';
+        case Values::Z:
+            return 'z';
+        default:
+            return '_';
+    }
+}
+
+inline std::ostream& operator<< (std::ostream& os, const Values& v) {
+    os << enum_to_raw(v);
+    return os;
+}
+
 std::ostream& operator<< (std::ostream& os, const Transition& transition) {
     os << "(" << transition.timestamp << ", " << transition.value << ")";
     return os;

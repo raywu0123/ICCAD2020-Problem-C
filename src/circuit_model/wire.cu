@@ -49,7 +49,7 @@ void Wire::store_to_bucket(const vector<Data>& data_list, unsigned int num_ptrs)
     for (unsigned int i = 0; i < num_ptrs; i++) bucket.push_back(data_list[i]);
 }
 
-ConstantWire::ConstantWire(char value): value(value) {
+ConstantWire::ConstantWire(Values value): value(value) {
     bucket.transitions.clear();
     bucket.transitions.emplace_back(0, value);
 }
