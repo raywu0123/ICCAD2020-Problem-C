@@ -1,4 +1,5 @@
 from typing import Tuple, Dict
+import warnings
 from itertools import product
 
 from graph_preprocessing.graph import Graph
@@ -71,13 +72,16 @@ class Circuit:
 
     def register_wire(self, wire_key: Tuple[str, BIT_INDEX_TYPE]):
         if wire_key in self.wire_inputs or wire_key in self.wire_outputs:
-            raise ValueError(f"Wire {wire_key} already exist.")
+            warnings.warn(f"Wire {wire_key} duplicates in input/output/wire.")
+            return
         self.wire_inputs[wire_key] = []
         self.wire_outputs[wire_key] = []
 
     def register_assigns(self, gv_info):
         assigns = []
         for assign in gv_info.assign:
+            if assign[0] == "1'b0" or assign[0] == "1'b1":
+                assign = (assign[1], assign[0])
             lhs_name, lhs_bitwidth = extract_bitwidth(assign[0])
             rhs_name, rhs_bitwidth = extract_bitwidth(assign[1])
             if lhs_name in self.buses:

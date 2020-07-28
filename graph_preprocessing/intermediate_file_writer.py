@@ -35,7 +35,7 @@ class IntermediateFileWriter:
         for identifier, bitwidth in circuit.identifiers.items():
             self.print(f'{identifier_to_index[identifier]} {identifier} {bitwidth[0]} {bitwidth[1]}')
 
-        all_wirekeys = list(chain(*circuit.io_buckets.values()))  # not including constant wires
+        all_wirekeys = list(set(chain(*circuit.io_buckets.values())))  # not including constant wires
         wirekey_to_index = {
             ("1'b0", SINGLE_BIT_INDEX): 0,
             ("1'b1", SINGLE_BIT_INDEX): 1,

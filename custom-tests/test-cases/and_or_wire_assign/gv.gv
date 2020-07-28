@@ -1,0 +1,11 @@
+module NV_NVDLA_partition_m ( a1, a2, b2, o1, o2, b1 );
+  input  a1, a2, b2;
+  output b1, o1, o2;
+  wire b1;
+
+  assign a1 = b1;
+
+  GEN_AND2_D1 AND_GATE (.a1(a1), .a2(a2), .z(o1));
+  GEN_OR2_D1 OR_GATE( .a1(b1), .a2(b2), .z(o2));
+
+endmodule
