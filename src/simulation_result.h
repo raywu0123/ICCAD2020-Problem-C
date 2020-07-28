@@ -61,11 +61,11 @@ private:
 struct WireStat {
     Timestamp T0 = 0, T1 = 0, TX = 0, TZ = 0;
 
-    void update(const char& v, const Timestamp& d) {
-        if (v == '0') T0 += d;
-        else if (v == '1') T1 += d;
-        else if (v == 'x') TX += d;
-        else if (v == 'z') TZ += d;
+    void update(const Values& v, const Timestamp& d) {
+        if (v == Values::ZERO) T0 += d;
+        else if (v == Values::ONE) T1 += d;
+        else if (v == Values::X) TX += d;
+        else if (v == Values::Z) TZ += d;
     }
 };
 

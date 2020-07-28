@@ -13,6 +13,7 @@ struct TestPair{
     vector<char> edge_types;
     vector<unsigned> input_indices, output_indices;
     vector<int> rising_delays, falling_delays;
+    unsigned int capacity = 16;
 };
 
 class DelayTestFixture: public ::testing::TestWithParam<TestPair>{
@@ -22,12 +23,13 @@ protected:
 
 TEST_P(DelayTestFixture, SimpleCases) {
     const auto params = GetParam();
-    auto waveform = params.waveform; waveform.resize(INITIAL_CAPACITY);
-    auto delay_infos = params.delay_infos; delay_infos.resize(INITIAL_CAPACITY);
+    const auto& capacity = params.capacity;
+    auto waveform = params.waveform; waveform.resize(capacity);
+    auto delay_infos = params.delay_infos; delay_infos.resize(capacity);
 
     auto** transitions = new Transition*;
     transitions[0] = new Transition[waveform.size()];
-    for (int i = 0; i < INITIAL_CAPACITY; i++) transitions[0][i] = waveform[i];
+    for (int i = 0; i < capacity; i++) transitions[0][i] = waveform[i];
 
     unsigned int lengths = 0;
 
@@ -51,7 +53,7 @@ TEST_P(DelayTestFixture, SimpleCases) {
         .falling_delay = falling_delays
     };
 
-    compute_delay(transitions, delay_infos.data(), 1, 0, &sdf_spec, &lengths);
+    compute_delay(transitions, capacity, delay_infos.data(), 1, 0, &sdf_spec, &lengths);
 
     int err_num = 0;
     const auto& expected = params.expected;

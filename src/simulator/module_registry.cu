@@ -53,18 +53,18 @@ void ModuleRegistry::register_module(
 
     // prepare table
     auto table_total_size = table.size() * declares.num_output;
-    auto* char_table = new char[table_total_size];
+    auto* char_table = new Values[table_total_size];
     const auto& table_row_num = table.size();
     for (int r = 0; r < table_row_num; ++r) {
         for (int o = 0; o < declares.num_output; ++o) {
-            char_table[r * declares.num_output + o] = table[r][o];
+            char_table[r * declares.num_output + o] = raw_to_enum(table[r][o]);
         }
     }
 
     // memcpy table to device
-    char* device_char_table;
-    cudaMalloc((void**) &device_char_table, sizeof(char) * table_total_size);
-    cudaMemcpy(device_char_table, char_table, sizeof(char) * table_total_size, cudaMemcpyHostToDevice);
+    Values* device_char_table;
+    cudaMalloc((void**) &device_char_table, sizeof(Values) * table_total_size);
+    cudaMemcpy(device_char_table, char_table, sizeof(Values) * table_total_size, cudaMemcpyHostToDevice);
 
     ModuleSpec device_module_spec_{};
     device_module_spec_.num_input = declares.num_input;

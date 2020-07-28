@@ -2,6 +2,7 @@
 #define ICCAD2020_WIRE_H
 
 #include <iostream>
+#include <cassert>
 #include <map>
 #include "simulator/data_structures.h"
 #include "simulator/memory_manager.h"
@@ -15,23 +16,30 @@ struct WireInfo {
 using TransitionContainer = PinnedMemoryVector<Transition>;
 
 struct Bucket {
-    TransitionContainer transitions{Transition{0, 'x'} };
+    TransitionContainer transitions{ Transition{0, Values::X} };
 
-    void emplace_transition(Timestamp t, char v) {
+    void emplace_transition(Timestamp t, char r) {
         // for storing input
         auto& back = transitions.back();
+        const auto& v = raw_to_enum(r);
         if (back.timestamp == 0 and t == 0 and v != back.value) back.value = v;
         else if (t > back.timestamp and v != back.value) transitions.emplace_back(t, v); // check validity of incoming transition
     }
 
-    void push_back(const Transition* ptr, const unsigned int capacity, bool verbose=false) {
+    void reserve(unsigned int i) { transitions.reserve(i); }
+
+    void push_back(const Data& data, bool verbose=false) {
         // for storing output
+        unsigned int output_size;
+        cudaMemcpy(&output_size, data.size, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+        if (output_size == 0) return;
+
         Transition first_transition;
-        cudaMemcpy(&first_transition, ptr, sizeof(Transition), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&first_transition, data.transitions, sizeof(Transition), cudaMemcpyDeviceToHost);
         const auto& t = first_transition.timestamp;
         const auto& v = first_transition.value;
 
-        if (v == 0) return;  // batch contains no new transitions
+        if (v == Values::PAD) return;  // batch contains no new transitions
         if (transitions.empty()) throw std::runtime_error("transitions is empty");
 
         Timestamp prev_t = transitions.back().timestamp;
@@ -39,28 +47,23 @@ struct Bucket {
         if (t <= prev_t) write_index = binary_search(transitions.data(), write_index - 1, t);
         auto offset = (write_index > 0 and v == transitions[write_index - 1].value) ? 1: 0;
 
-        auto valid_data_size = capacity * N_STIMULI_PARALLEL - offset;
+
+        auto valid_data_size = output_size - offset;
+        assert(valid_data_size <= INITIAL_CAPACITY * N_STIMULI_PARALLEL * 8);
         transitions.resize(write_index + valid_data_size);
         auto status =  cudaMemcpy(
             transitions.data() + write_index,
-            ptr + offset,
+            data.transitions + offset,
             sizeof(Transition) * valid_data_size,
             cudaMemcpyDeviceToHost
         );
         if (status != cudaSuccess) throw std::runtime_error(cudaGetErrorName(status));
 
         if (verbose) {
+            std::cout << "first transition = " << first_transition << std::endl;
             for (int i = 0; i < valid_data_size; i++) std::cout << transitions[write_index + i];
             std::cout << "valid data size = " << valid_data_size << std::endl;
             std::cout << std::endl;
-        }
-
-        // strip excess transitions
-        for (unsigned int idx = write_index; idx < write_index + valid_data_size; idx++) {
-            if (transitions[idx].value == 0) {
-                transitions.resize(idx);
-                break;
-            }
         }
     }
 
@@ -75,25 +78,27 @@ struct Bucket {
 
 class Wire {
 public:
-    Wire() = default;
+    Wire();
+    ~Wire();
     explicit Wire(const WireInfo&);
 
     void assign(const Wire&);
 
-    static void load_from_bucket(
-        Transition* ptr, const TransitionContainer&, unsigned int, unsigned int
+    void load_from_bucket(
+        Transition* ptr, unsigned int, unsigned int
     );
-    void store_to_bucket(const std::vector<Transition*>& data_ptrs, unsigned int num_ptrs, unsigned int capacity);
+    void store_to_bucket(const std::vector<Data>& data_ptrs, unsigned int num_ptrs);
 
     std::vector<WireInfo> wire_infos;
     Bucket bucket;
+    cudaStream_t stream;
 };
 
 
 class ConstantWire : public Wire {
 public:
-    explicit ConstantWire(char value);
-    char value;
+    explicit ConstantWire(Values value);
+    Values value;
 };
 
 #endif

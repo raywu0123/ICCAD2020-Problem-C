@@ -1,10 +1,19 @@
 #include <cassert>
 
 #include "wire.h"
+#include "utils.h"
 
 using namespace std;
 
-Wire::Wire(const WireInfo& wire_info) {
+Wire::Wire() {
+    cudaErrorCheck(cudaStreamCreate(&stream));
+}
+
+Wire::~Wire() {
+    cudaStreamDestroy(stream);
+}
+
+Wire::Wire(const WireInfo& wire_info) : Wire() {
     wire_infos.push_back(wire_info);
 }
 
@@ -23,23 +32,24 @@ void Wire::assign(const Wire& other_wire) {
 }
 
 void Wire::load_from_bucket(
-    Transition* ptr, const TransitionContainer& bucket, unsigned int start_bucket_index, unsigned int end_bucket_index
+    Transition* ptr, unsigned int start_bucket_index, unsigned int end_bucket_index
 ) {
     auto status = cudaMemcpyAsync(
         ptr,
-        bucket.data() + start_bucket_index,
+        bucket.transitions.data() + start_bucket_index,
         sizeof(Transition) * (end_bucket_index - start_bucket_index),
-        cudaMemcpyHostToDevice
+        cudaMemcpyHostToDevice,
+        stream
     );
     if (status != cudaSuccess) throw runtime_error(cudaGetErrorString(status));
 }
 
-void Wire::store_to_bucket(const vector<Transition*>& data_ptrs, unsigned int num_ptrs, unsigned int capacity) {
-    assert(num_ptrs <= data_ptrs.size());
-    for (unsigned int i = 0; i < num_ptrs; i++) bucket.push_back(data_ptrs[i], capacity);
+void Wire::store_to_bucket(const vector<Data>& data_list, unsigned int num_ptrs) {
+    assert(num_ptrs <= data_list.size());
+    for (unsigned int i = 0; i < num_ptrs; i++) bucket.push_back(data_list[i]);
 }
 
-ConstantWire::ConstantWire(char value): value(value) {
+ConstantWire::ConstantWire(Values value): value(value) {
     bucket.transitions.clear();
     bucket.transitions.emplace_back(0, value);
 }

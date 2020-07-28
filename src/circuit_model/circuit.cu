@@ -32,7 +32,7 @@ std::string BusManager::dumps_token_to_bus_map() const {
 
 void BusManager::write_init(const std::vector<Wire*>& wires) {
     for (const auto* wire : wires) {
-        add_transition(wire->wire_infos, Transition{0, 'x'});
+        add_transition(wire->wire_infos, Transition{0, Values::X});
     }
 }
 
@@ -147,8 +147,8 @@ void Circuit::read_intermediate_file(ifstream &fin, double input_timescale, BusM
 void Circuit::register_01_wires() {
     wirekey_to_index.emplace(make_pair("1'b0", 0), 0);
     wirekey_to_index.emplace(make_pair("1'b1", 0), 1);
-    wires.push_back(new ConstantWire('0'));
-    wires.push_back(new ConstantWire('1'));
+    wires.push_back(new ConstantWire(Values::ZERO));
+    wires.push_back(new ConstantWire(Values::ONE));
 }
 
 void BusManager::read(ifstream& fin) {
@@ -222,11 +222,10 @@ Cell* Circuit::create_cell(
 ) {
     const ModuleSpec* module_spec = module_registry.get_module_spec(cell_type);
     const StdCellDeclare* declare = module_registry.get_module_declare(cell_type);
-    Wire *supply1_wire = get_wire(SUPPLY1_WIREKEY), *supply0_wire = get_wire(SUPPLY0_WIREKEY);
     return new Cell(
         module_spec,
         declare,
-        pin_specs, supply1_wire, supply0_wire,
+        pin_specs,
         cell_name
     );
 }
@@ -294,7 +293,7 @@ void Bus::update(const Transition &transition, int index) {
     unsigned int array_index = abs(index - bitwidth.first);
     if (array_index >= state.size())
         throw runtime_error("Array index " + to_string(array_index) + " out of bounds.");
-    state[array_index] = transition.value;
+    state[array_index] = enum_to_raw(transition.value);
 }
 
 bool Bus::is_not_initial_state() const {
