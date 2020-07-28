@@ -134,6 +134,7 @@ Cell* Circuit::get_cell(const string& name) const {
 }
 
 void Circuit::read_intermediate_file(ifstream &fin, double input_timescale, BusManager& bus_manager) {
+    cout << "| STATUS: Reading intermediate file..." << endl;
     fin >> design_name;
     bus_manager.read(fin);
     register_01_wires();
@@ -260,19 +261,18 @@ void Circuit::read_sdf(ifstream &fin, double input_timescale) const {
         string type, name;
         unsigned int num_paths;
         fin >> type >> name >> num_paths;
-        vector<SDFPath> paths;
-        paths.reserve(num_paths);
+
+        auto& paths = get_cell(name)->sdf_paths;
+        paths.resize(num_paths);
         for(int i_path = 0; i_path < num_paths; i_path++) {
-            SDFPath path{};
+            auto& path = paths[i_path];
             double sdf_rising_delay, sdf_falling_delay;
             fin >> path.edge_type >> path.in >> path.out >> sdf_rising_delay >> sdf_falling_delay;
 
             // convert to VCD specified time unit
             path.rising_delay = (int)(sdf_rising_delay * sdf_timescale / input_timescale);
             path.falling_delay = (int)(sdf_falling_delay * sdf_timescale / input_timescale);
-            paths.push_back(path);
         }
-        get_cell(name)->set_paths(paths);
     }
 }
 

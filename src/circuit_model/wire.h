@@ -78,8 +78,7 @@ struct Bucket {
 
 class Wire {
 public:
-    Wire();
-    ~Wire();
+    Wire() = default;
     explicit Wire(const WireInfo&);
 
     void assign(const Wire&);
@@ -91,7 +90,6 @@ public:
 
     std::vector<WireInfo> wire_infos;
     Bucket bucket;
-    cudaStream_t stream;
 };
 
 

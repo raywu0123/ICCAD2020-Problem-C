@@ -5,15 +5,7 @@
 
 using namespace std;
 
-Wire::Wire() {
-    cudaErrorCheck(cudaStreamCreate(&stream));
-}
-
-Wire::~Wire() {
-    cudaStreamDestroy(stream);
-}
-
-Wire::Wire(const WireInfo& wire_info) : Wire() {
+Wire::Wire(const WireInfo& wire_info) {
     wire_infos.push_back(wire_info);
 }
 
@@ -38,8 +30,7 @@ void Wire::load_from_bucket(
         ptr,
         bucket.transitions.data() + start_bucket_index,
         sizeof(Transition) * (end_bucket_index - start_bucket_index),
-        cudaMemcpyHostToDevice,
-        stream
+        cudaMemcpyHostToDevice
     );
     if (status != cudaSuccess) throw runtime_error(cudaGetErrorString(status));
 }

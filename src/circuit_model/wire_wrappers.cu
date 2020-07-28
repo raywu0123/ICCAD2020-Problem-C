@@ -19,8 +19,8 @@ Data IndexedWire::alloc(int session_index) {
         throw std::runtime_error("Invalid access to data_ptrs");
 
     Data data = data_list[first_free_data_ptr_index];
-    cudaMemsetAsync(data.transitions, 0, sizeof(Transition) * size, wire->stream);
-    cudaMemsetAsync(data.size, 0, sizeof(unsigned int), wire->stream);
+    cudaMemsetAsync(data.transitions, 0, sizeof(Transition) * size);
+    cudaMemsetAsync(data.size, 0, sizeof(unsigned int));
     first_free_data_ptr_index++;
     return data;
 }

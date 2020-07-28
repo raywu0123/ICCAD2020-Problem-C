@@ -92,12 +92,14 @@ class StandardCellModule:
             return '1'
         elif args[0] == '1':
             return '0'
-        return args[0]
+        return 'x'
 
     @staticmethod
     def buf_logic(*args) -> str:
         assert len(args) == 1
-        return args[0]
+        if args[0] == '0' or args[0] == '1':
+            return args[0]
+        return 'x'
 
     @staticmethod
     def primitive_logic(table, *args) -> str:
