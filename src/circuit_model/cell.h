@@ -80,8 +80,6 @@ public:
     );
     void init();
 
-    void set_paths(const std::vector<SDFPath>& ps);
-
     static void build_bucket_index_schedule(std::vector<ScheduledWire*>& wires, unsigned int size);
     bool finished() const;
     void prepare_resource(int, ResourceBuffer&);
@@ -90,16 +88,20 @@ public:
     std::vector<ScheduledWire*> input_wires;
     std::vector<IndexedWire*> output_wires;
     std::string name;
+    std::vector<SDFPath> sdf_paths;
 
 private:
     void build_wire_map(
         const StdCellDeclare* declare, const WireMap<Wire>& pin_specs
     );
+    void set_paths();
     bool handle_overflow();
+    void free();
     static unsigned int find_end_index(const Bucket&, unsigned int, const Timestamp&, unsigned int);
 
     const ModuleSpec* module_spec;
     SDFSpec* sdf_spec = nullptr;
+    SDFSpec host_sdf_spec{};
     unsigned int num_args = 0;
     unsigned int output_capacity = INITIAL_CAPACITY;
     bool* overflow_ptr = nullptr;

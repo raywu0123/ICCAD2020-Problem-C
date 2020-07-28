@@ -143,7 +143,7 @@ void VCDResult::filter_wires(const vector<Wire*>& ws, vector<Wire*>& f_ws) {
     for (auto* w : ws) {
         if (w->wire_infos.empty()) continue;
         const auto& name = w->wire_infos[0].wirekey.first;
-        if (name == "n14625" or name == "n14624" or name == "n14623" or name == "n14628"
+        if (name == "mcif2noc_axi_aw_awvalid" or name == "n60869" or name == "n78479"
         ) f_ws.push_back(w);
     }
 }

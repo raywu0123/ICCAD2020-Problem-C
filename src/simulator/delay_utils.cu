@@ -27,6 +27,8 @@ extern __host__ __device__ void compute_delay(
 ) {
     for (int i = 0; i < num_output; i++) {
         auto* output_data = data[i];
+        if (output_data == nullptr) continue;
+
         unsigned int write_idx = 0;
         unsigned int timeblock_start = 1;
         Values prev_v = output_data[0].value;

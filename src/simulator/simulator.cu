@@ -16,6 +16,8 @@ __device__ __host__ void resolve_collisions_for_batch_stimuli(
 //    TODO parallelize
     unsigned int stimuli_lengths[N_STIMULI_PARALLEL];
     for (int i_output = 0; i_output < num_outputs; i_output++) {
+        if (data[num_inputs + i_output].transitions == nullptr) continue;
+
         for(int i_stimuli = 0; i_stimuli < N_STIMULI_PARALLEL; i_stimuli++) {
             stimuli_lengths[i_stimuli] = lengths[num_outputs * i_stimuli + i_output];
             assert(stimuli_lengths[i_stimuli] <= capacity);
@@ -142,6 +144,7 @@ __host__ __device__ void stepping_algorithm(
         if (s_input_values[i * module_spec->num_input] == Values::PAD) break;
         auto row_index = get_table_row_index(s_input_values + i * module_spec->num_input, module_spec->num_input);
         for (unsigned int j = 0; j < module_spec->num_output; ++j) {
+            if (output_data[j] == nullptr) continue;
             output_data[j][i].value = module_spec->table[row_index * module_spec->num_output + j];
             output_data[j][i].timestamp = s_input_timestamps[i];
         }
@@ -170,6 +173,7 @@ __device__ void simulate_module(
     Transition* output_data_ptrs_for_stimuli[MAX_NUM_MODULE_OUTPUT] = { nullptr };
     unsigned stimuli_idx = threadIdx.x;
     for (unsigned int i = 0; i < module_spec->num_output; ++i) {
+        if (data[module_spec->num_input + i].transitions == nullptr) continue;
         output_data_ptrs_for_stimuli[i] = data[module_spec->num_input + i].transitions + stimuli_idx * capacity;
     }
 

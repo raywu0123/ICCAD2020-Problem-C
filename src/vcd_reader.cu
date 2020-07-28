@@ -38,7 +38,7 @@ void VCDReader::summary() const {
 }
 
 void VCDReader::read_input_waveforms(Circuit& circuit) {
-    cout << "Reading Input VCD file..." << endl;
+    cout << "| STATUS: Reading Input VCD file..." << endl;
     read_vars();
     get_buckets(circuit);
     read_dump();
@@ -106,7 +106,7 @@ void VCDReader::read_single_time_dump(const Timestamp& timestamp) {
 void VCDReader::emplace_transition(const string& token, const Timestamp& timestamp, const string& value) {
     const auto& it = token_to_wire.find(token);
     if (it == token_to_wire.end())
-        throw runtime_error("Token " + token + " not found\n");
+        throw runtime_error("Token " + token + " not found at t = " + to_string(timestamp) + "\n");
     const auto& token_info = it->second;
 
     const auto& bitwidth = token_info.bitwidth;
@@ -127,7 +127,7 @@ void VCDReader::emplace_transition(const string& token, const Timestamp& timesta
 void VCDReader::emplace_transition(const string& token, const Timestamp& timestamp, const char& value) {
     const auto& it = token_to_wire.find(token);
     if (it == token_to_wire.end())
-        throw runtime_error("Token " + token + " not found\n");
+        throw runtime_error("Token " + token + " not found at t = " + to_string(timestamp) + "\n");
     const auto& token_info = it->second;
     auto* bucket = buckets[token_info.bucket_index];
     bucket->emplace_transition(timestamp, value);
