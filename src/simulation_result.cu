@@ -139,15 +139,6 @@ void VCDResult::group_timestamps(const vector<Timestamp>& timestamps, vector<pai
     }
 }
 
-void VCDResult::filter_wires(const vector<Wire*>& ws, vector<Wire*>& f_ws) {
-    for (auto* w : ws) {
-        if (w->wire_infos.empty()) continue;
-        const auto& name = w->wire_infos[0].wirekey.first;
-        if (name == "mcif2noc_axi_aw_awvalid" or name == "n60869" or name == "n78479"
-        ) f_ws.push_back(w);
-    }
-}
-
 SAIFResult::SAIFResult(
     const std::vector<Wire*>& wires, vector<string>& scopes, pair<int, string>& timescale_pair,
     Timestamp dumpon_time, Timestamp dumpoff_time,

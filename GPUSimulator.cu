@@ -78,9 +78,11 @@ int main(int argc, char* argv[]) {
     simulator.run();
 
     SimulationResult* simulation_result;
+    const auto& referenced_wires = circuit.get_referenced_wires();
+
     if (output_flag == "SAIF") {
         simulation_result = new SAIFResult(
-            circuit.wires,
+            referenced_wires,
             input_info.scopes,
             input_info.timescale_pair,
             dumpon_time, dumpoff_time,
@@ -88,7 +90,7 @@ int main(int argc, char* argv[]) {
         );
     } else if (output_flag == "VCD") {
         simulation_result = new VCDResult(
-            circuit.wires,
+            referenced_wires,
             input_info.scopes,
             input_info.timescale_pair,
             dumpon_time, dumpoff_time,

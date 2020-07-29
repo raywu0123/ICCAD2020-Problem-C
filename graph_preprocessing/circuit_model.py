@@ -12,11 +12,7 @@ class Circuit:
     def __init__(self, gv_info, std_cell_info):
         self.std_cell_info = std_cell_info
 
-        self.io_buckets = {
-            'input': set(),
-            'output': set(),
-            'wire': set(),
-        }
+        self.wire_keys = set()
         self.wire_inputs = {
             ("1'b1", SINGLE_BIT_INDEX): [],
             ("1'b0", SINGLE_BIT_INDEX): [],
@@ -27,21 +23,17 @@ class Circuit:
         }
 
         self.buses, self.identifiers = self.register_wires(gv_info)
-        self.cells, self.cell_id_to_cell = self.register_cells(gv_info)
+        self.cells, self.cell_id_to_cell, self.used_identifiers = self.register_cells(gv_info)
         self.assigns = self.register_assigns(gv_info)
 
         self.graph = self.build_graph()
         self.schedule_layers = [list(layer) for layer in self.graph.get_schedule_layers()]
-        self.mem_schedule = self.get_mem_schedules()
 
     def summary(self):
         print('Circuit summary:')
         print(f"Num buses: {len(self.buses)}")
         print(f"Num wires: {len(self.wire_inputs)}")
         print(f"Num cells: {len(self.cells)}")
-
-        print(f"Num input keys: {len(self.io_buckets['input'])}")
-        print(f"Num output keys: {len(self.io_buckets['output'])}")
 
         print(f"Num schedule layer: {len(self.schedule_layers)}")
         all_cells_in_schedule_layers = {cell for layer in self.schedule_layers for cell in layer}
@@ -57,13 +49,11 @@ class Circuit:
                 for index in range(min(io.bitwidth), max(io.bitwidth) + 1):
                     wire_key = self.make_wire_key(io.id, index)
                     self.register_wire(wire_key)
-                    self.io_buckets[io.type].add(wire_key)
             else:
                 for idd in io.ids:
                     identifiers[idd] = (0, 0)
                     wire_key = self.make_wire_key(idd, SINGLE_BIT_INDEX)
                     self.register_wire(wire_key)
-                    self.io_buckets[io.type].add(wire_key)
         return buses, identifiers
 
     @staticmethod
@@ -74,6 +64,7 @@ class Circuit:
         if wire_key in self.wire_inputs or wire_key in self.wire_outputs:
             warnings.warn(f"Wire {wire_key} duplicates in input/output/wire.")
             return
+        self.wire_keys.add(wire_key)
         self.wire_inputs[wire_key] = []
         self.wire_outputs[wire_key] = []
 
@@ -102,8 +93,9 @@ class Circuit:
 
         return assigns
 
-    def register_cells(self, gv_info) -> Tuple[dict, dict]:
+    def register_cells(self, gv_info) -> Tuple[dict, dict, set]:
         cells = {}
+        used_identifiers = set()
         for cell in gv_info.cells:
             cell_spec = self.get_cell_spec(cell.cell_type)
             if cell_spec is None:
@@ -112,6 +104,7 @@ class Circuit:
             params = []
             for p in cell.parameters:
                 pin_name, wire_key = self.from_parameter_string(p)
+                used_identifiers.add(wire_key[0])
                 pin_type = self.get_pin_type(cell_spec, pin_name)
                 params.append((pin_name, pin_type, wire_key))
                 if pin_type == "input":
@@ -119,7 +112,7 @@ class Circuit:
                 else:
                     self.wire_inputs[wire_key].append(cell.id)
             cells[cell.id] = {'parameters': params, 'type': cell.cell_type}
-        return cells, {cell.id: cell for cell in gv_info.cells}
+        return cells, {cell.id: cell for cell in gv_info.cells}, used_identifiers
 
     def from_parameter_string(self, p: str):
         try:
@@ -164,23 +157,3 @@ class Circuit:
                 graph.add_edge(in_cell, out_cell)
         return graph
 
-    def get_mem_schedules(self) -> Dict[str, Dict[str, list]]:
-        schedule = {cell_id: {"alloc": set(), "free": set()} for cell_id in self.cells}
-
-        alloc_discovered_wirekeys = set()
-        for layer in self.schedule_layers:
-            for cell_id in layer:
-                using_wirekeys = {self.from_parameter_string(p)[1] for p in self.cell_id_to_cell[cell_id].parameters}
-                using_wirekeys.difference_update(alloc_discovered_wirekeys)  # unallocated wirekeys
-                schedule[cell_id]["alloc"] = using_wirekeys
-                alloc_discovered_wirekeys.update(using_wirekeys)
-
-        free_discovered_wirekeys = set()
-        for layer in reversed(self.schedule_layers):
-            for cell_id in reversed(layer):
-                using_wirekeys = {self.from_parameter_string(p)[1] for p in self.cell_id_to_cell[cell_id].parameters}
-                using_wirekeys.difference_update(free_discovered_wirekeys)  # unfreed wirekeys
-                schedule[cell_id]['free'] = using_wirekeys
-                free_discovered_wirekeys.update(using_wirekeys)
-
-        return schedule

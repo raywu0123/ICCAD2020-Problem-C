@@ -55,7 +55,6 @@ private:
         std::vector<Timestamp>&,
         Timestamp dumpon_time, Timestamp dumpoff_time
     );
-    static void filter_wires(const std::vector<Wire*>&, std::vector<Wire*>&);
 };
 
 struct WireStat {
