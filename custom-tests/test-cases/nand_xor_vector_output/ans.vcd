@@ -10,7 +10,7 @@ $scope module u_partition_ma $end
 $var wire 1 A i0 $end
 $var wire 1 B i1 $end
 $var wire 1 C i2 $end
-$var wire 2 D z [1:0] $end
+$var wire 3 D z [2:0] $end
 $upscope $end
 $upscope $end
 $enddefinitions $end
@@ -19,48 +19,48 @@ $dumpvars
 xA
 xB
 xC
-bx D
+bzxx D
 #100
 0A
 0B
 0C
 #111
-bx1 D
+bzx1 D
 #115
-b1 D
+bz01 D
 #200
 1A
 #217
-b11 D
+bz11 D
 #300
 0A
 1B
 #317
-b1 D
+bz01 D
 #400
 1A
 #411
-b0 D
+bz00 D
 #417
-b10 D
+bz10 D
 #500
 0A
 0B
 1C
 #511
-b11 D
+bz11 D
 #600
 1A
 #617
-b1 D
+bz01 D
 #700
 0A
 1B
 #717
-b11 D
+bz11 D
 #800
 1A
 #811
-b10 D
+bz10 D
 #817
-b0 D
+bz00 D

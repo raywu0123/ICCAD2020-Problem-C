@@ -55,6 +55,7 @@ private:
         std::vector<Timestamp>&,
         Timestamp dumpon_time, Timestamp dumpoff_time
     );
+    std::unordered_set<std::string> referenced_wire_ids;
 };
 
 struct WireStat {

@@ -16,7 +16,7 @@ struct WireInfo {
 using TransitionContainer = PinnedMemoryVector<Transition>;
 
 struct Bucket {
-    TransitionContainer transitions{ Transition{0, Values::X} };
+    TransitionContainer transitions{ Transition{0, Values::Z} };
 
     void emplace_transition(Timestamp t, char r) {
         // for storing input
@@ -82,6 +82,7 @@ public:
     explicit Wire(const WireInfo&);
 
     void assign(const Wire&);
+    void set_drived();
 
     void load_from_bucket(
         Transition* ptr, unsigned int, unsigned int

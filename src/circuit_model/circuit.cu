@@ -15,12 +15,11 @@ string BusManager::index_to_identifier(unsigned int index) {
     return ss.str();
 }
 
-std::string BusManager::dumps_token_to_bus_map() const {
+string BusManager::dumps_token_to_bus_map(const unordered_set<string>& referenced_wire_ids) const {
     stringstream ss;
     for (unsigned int bus_index = 0; bus_index < buses.size(); bus_index++) {
         const auto& bus = buses[bus_index];
-        if (not bus.is_referenced()) continue;
-
+        if (referenced_wire_ids.find(bus.name) == referenced_wire_ids.end()) continue;
         const auto& identifier = index_to_identifier_map[bus_index];
         unsigned int bits = abs(bus.bitwidth.first - bus.bitwidth.second) + 1;
         ss << "$var wire " << bits << " " << identifier << " " << bus.name;
@@ -110,6 +109,7 @@ void Circuit::summary() const {
 }
 
 Wire* Circuit::get_wire(const Wirekey& wirekey) {
+    // used by vcd reader
     const auto& it = wirekey_to_index.find(wirekey);
     if (it == wirekey_to_index.end())
         throw runtime_error("Wire " + wirekey.first + " index " + to_string(wirekey.second) + " not found.");
@@ -151,7 +151,6 @@ void Circuit::read_intermediate_file(ifstream &fin, double input_timescale, BusM
     read_cells(fin);
     read_schedules(fin);
     read_sdf(fin, input_timescale);
-    bus_manager.flag_referenced(referenced_wire_ids);
 }
 
 void Circuit::register_01_wires() {
@@ -175,11 +174,6 @@ void BusManager::read(ifstream& fin) {
         buses[bus_index].init(name, bitwidth);
         index_to_identifier_map[bus_index] = index_to_identifier(bus_index);
     }
-}
-
-void BusManager::flag_referenced(const unordered_set<string>& referenced_ids) {
-    for (auto& bus : buses)
-        if (referenced_ids.find(bus.name) != referenced_ids.end()) bus.flag_referenced();
 }
 
 void Circuit::read_wires(ifstream& fin) {
@@ -329,12 +323,4 @@ bool Bus::is_not_initial_state() const {
         if (s != 'x') return true;
     }
     return false;
-}
-
-void Bus::flag_referenced() {
-    referenced = true;
-}
-
-bool Bus::is_referenced() const {
-    return referenced;
 }

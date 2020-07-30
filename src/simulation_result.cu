@@ -20,15 +20,23 @@ VCDResult::VCDResult(
     pair<int, string>& timescale_pair,
     Timestamp dumpon_time, Timestamp dumpoff_time,
     BusManager& bus_manager
-): SimulationResult(wires, scopes, timescale_pair, dumpon_time, dumpoff_time, bus_manager) {}
+): SimulationResult(wires, scopes, timescale_pair, dumpon_time, dumpoff_time, bus_manager) {
+    referenced_wire_ids.reserve(wires.size());
+    for (const auto* w : wires) {
+        for (const auto& info : w->wire_infos) {
+            referenced_wire_ids.insert(info.wirekey.first);
+        }
+    }
+}
 
 void VCDResult::write(char *path) {
+
     SimulationResult::write(path);
     f_out << "$timescale " << timescale_pair.first << timescale_pair.second << " $end" << endl;
     for (const auto& scope : scopes) {
         f_out << "$scope module " << scope << " $end" << endl;
     }
-    f_out << bus_manager.dumps_token_to_bus_map();
+    f_out << bus_manager.dumps_token_to_bus_map(referenced_wire_ids);
     for (const auto& scope: scopes) {
         f_out << "$upscope" << endl;
     }
@@ -37,15 +45,16 @@ void VCDResult::write(char *path) {
 
     vector<pair<unsigned int, unsigned int>> buffer;
     vector<Timestamp> timestamps;
-
     auto& f_wires = wires;
     merge_sort(f_wires, buffer, timestamps, dumpon_time, dumpoff_time);
 
     vector<pair<Timestamp, int>> timestamp_groups;
     group_timestamps(timestamps, timestamp_groups);
 
-    bus_manager.write_init(f_wires);
-    f_out << bus_manager.dumps_result(0);
+    if (dumpon_time > 0) {
+        bus_manager.write_init(f_wires);
+        f_out << bus_manager.dumps_result(0);
+    }
 
     int buffer_index = 0;
     Timestamp prev_timestamp = LONG_LONG_MIN;
@@ -68,17 +77,17 @@ void VCDResult::write(char *path) {
             bus_manager.add_transition(wire_infos, transition);
             buffer_index++;
         }
-        if (timestamp < dumpon_time or timestamp == 0) {
-            // problem when constant wire with dumpon_time == 0
+        if (timestamp < dumpon_time or (dumpon_time > 0 and timestamp == 0)) {
             bus_manager.dumps_result(timestamp);
         } else {
+            // dump when dumpon_time == 0 and timestamp == 0
             f_out << bus_manager.dumps_result(timestamp);
         }
     }
 
     if (not timestamp_groups.empty() and timestamp_groups.back().first < dumpon_time) {
         bus_manager.dumpon_init(f_wires);
-        bus_manager.dumps_result(dumpon_time);
+        f_out << bus_manager.dumps_result(dumpon_time);
     }
     f_out.close();
 }

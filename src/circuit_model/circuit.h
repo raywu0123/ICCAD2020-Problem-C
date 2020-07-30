@@ -17,17 +17,11 @@
 class Bus {
 public:
     void init(const std::string&, const BitWidth&);
-
-    void flag_referenced();
-    bool is_referenced() const;
     void update(const Transition& transition, int index);
     bool is_not_initial_state() const;
     BitWidth bitwidth;
     std::string name;
     std::string state;
-
-private:
-    bool referenced = false;
 };
 
 struct InputInfo {
@@ -52,9 +46,8 @@ struct InputInfo {
 class BusManager {
 public:
     void read(std::ifstream&);
-    void flag_referenced(const std::unordered_set<std::string>&);
 
-    std::string dumps_token_to_bus_map() const;
+    std::string dumps_token_to_bus_map(const std::unordered_set<std::string>&) const;
     void write_init(const std::vector<Wire*>&);
     void dumpon_init(const std::vector<Wire*>&);
     void add_transition(const std::vector<WireInfo>&, const Transition&);
