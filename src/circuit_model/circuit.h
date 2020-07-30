@@ -46,7 +46,8 @@ struct InputInfo {
 class BusManager {
 public:
     void read(std::ifstream&);
-    std::string dumps_token_to_bus_map() const;
+
+    std::string dumps_token_to_bus_map(const std::unordered_set<std::string>&) const;
     void write_init(const std::vector<Wire*>&);
     void dumpon_init(const std::vector<Wire*>&);
     void add_transition(const std::vector<WireInfo>&, const Transition&);
@@ -64,11 +65,12 @@ class Circuit {
 public:
     explicit Circuit(const ModuleRegistry& module_registry);
     ~Circuit();
-    void summary() const;
 
     void read_intermediate_file(std::ifstream& fin, double input_timescale, BusManager&);
+    void summary() const;
+    std::vector<Wire*> get_referenced_wires() const;
 
-    Wire* get_wire(const Wirekey&) const;
+    Wire* get_wire(const Wirekey&);
 
     std::string design_name;
     std::vector<std::vector<Cell*>> cell_schedule;
@@ -76,7 +78,7 @@ public:
     const ModuleRegistry& module_registry;
 
 private:
-    Wire* get_wire(unsigned int) const;
+    Wire* get_wire(unsigned int);
     void set_wire(unsigned int, Wire*);
     Cell* get_cell(const std::string& cell_id) const;
 
@@ -91,6 +93,7 @@ private:
 
     std::unordered_map<Wirekey, unsigned int, pair_hash> wirekey_to_index;
     std::unordered_map<std::string, Cell*> cells;
+    std::unordered_set<std::string> referenced_wire_ids;
 };
 
 #endif

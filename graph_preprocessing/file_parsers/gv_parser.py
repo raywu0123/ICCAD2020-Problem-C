@@ -48,8 +48,8 @@ class GVParser:
     @classmethod
     def get_assign(cls):
         custom_bitwidth = '[' + pyparsing_common.integer + Optional(':' + pyparsing_common.integer) + ']'
-        return Suppress(make_keyword('assign')) + Combine(variable + Optional(custom_bitwidth))('lhs') + Suppress("=") \
-               + Combine(bits) + Suppress(';')
+        term = Combine(variable + Optional(custom_bitwidth)) | Combine(bits)
+        return Suppress(make_keyword('assign')) + term('lhs') + Suppress("=") + term('rhs') + Suppress(';')
 
     @classmethod
     def get_module(cls) -> ParserElement:
@@ -77,7 +77,7 @@ class GVParser:
         for line in results.body:
             if 'type' in line:
                 bucket_key = 'io'
-            elif 'value' in line:
+            elif 'lhs' in line:
                 bucket_key = 'assign'
             elif 'cell_type' in line:
                 bucket_key = 'cells'

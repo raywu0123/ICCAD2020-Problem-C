@@ -1,6 +1,6 @@
 module NV_NVDLA_partition_m ( i0, i1, i2, z );
   input  i0, i1, i2;
-  output [1:0] z;
+  output [2:0] z;
 
   GEN_NAND2_D1 NAND (.zn(z[0]), .a1(i0), .a2(i1));
   GEN_XOR2_D1 XOR (.z(z[1]), .a1(i0), .a2(i2));

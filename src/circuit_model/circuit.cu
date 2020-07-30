@@ -15,10 +15,11 @@ string BusManager::index_to_identifier(unsigned int index) {
     return ss.str();
 }
 
-std::string BusManager::dumps_token_to_bus_map() const {
+string BusManager::dumps_token_to_bus_map(const unordered_set<string>& referenced_wire_ids) const {
     stringstream ss;
     for (unsigned int bus_index = 0; bus_index < buses.size(); bus_index++) {
         const auto& bus = buses[bus_index];
+        if (referenced_wire_ids.find(bus.name) == referenced_wire_ids.end()) continue;
         const auto& identifier = index_to_identifier_map[bus_index];
         unsigned int bits = abs(bus.bitwidth.first - bus.bitwidth.second) + 1;
         ss << "$var wire " << bits << " " << identifier << " " << bus.name;
@@ -107,17 +108,24 @@ void Circuit::summary() const {
     cout << endl;
 }
 
-Wire* Circuit::get_wire(const Wirekey& wirekey) const {
+Wire* Circuit::get_wire(const Wirekey& wirekey) {
+    // used by vcd reader
     const auto& it = wirekey_to_index.find(wirekey);
     if (it == wirekey_to_index.end())
         throw runtime_error("Wire " + wirekey.first + " index " + to_string(wirekey.second) + " not found.");
+
     return get_wire(it->second);
 }
 
-Wire* Circuit::get_wire(const unsigned int idx) const {
+Wire* Circuit::get_wire(const unsigned int idx) {
     if (idx >= wires.size())
         throw runtime_error("Wire index " + to_string(idx) + " out of range");
-    return wires[idx];
+
+    auto* wire = wires[idx];
+    for (const auto& info : wire->wire_infos) {
+        referenced_wire_ids.insert(info.wirekey.first);
+    }
+    return wire;
 }
 
 void Circuit::set_wire(unsigned int idx, Wire* wire) {
@@ -210,7 +218,8 @@ void Circuit::read_cells(ifstream& fin) {
         for (int j = 0; j < num_args; j++) {
             unsigned int arg, wire_index;
             fin >> arg >> wire_index;
-            args.set(arg, get_wire(wire_index));
+            auto* wire = get_wire(wire_index);
+            args.set(arg, wire);
         }
         cells.emplace(cell_name, create_cell(cell_type, args, cell_name));
     }
@@ -274,6 +283,19 @@ void Circuit::read_sdf(ifstream &fin, double input_timescale) const {
             path.falling_delay = (int)(sdf_falling_delay * sdf_timescale / input_timescale);
         }
     }
+}
+
+vector<Wire*> Circuit::get_referenced_wires() const {
+    vector<Wire*> ret;
+    for (auto* w : wires) {
+        for (const auto& wire_info : w->wire_infos) {
+            if (referenced_wire_ids.find(wire_info.wirekey.first) != referenced_wire_ids.end()) {
+                ret.push_back(w);
+                break;
+            }
+        }
+    }
+    return ret;
 }
 
 void Bus::init(const string& name_param, const BitWidth& bitwidth_param) {

@@ -64,6 +64,7 @@ void Cell::build_wire_map(
     for (unsigned int arg = declare->num_input; arg < num_args; ++arg) {
         auto* wire_ptr = pin_specs.get(arg);
         if (wire_ptr == nullptr) continue;
+        wire_ptr->set_drived();
         auto* indexed_wire = new IndexedWire(wire_ptr, output_capacity);
         wire_map.set(arg, indexed_wire); output_wires.push_back(indexed_wire);
     }
