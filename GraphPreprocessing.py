@@ -22,13 +22,15 @@ if __name__ == '__main__':
     if std_cells_file != '-':
         print('Reading standard cell library... ', end='', flush=True)
         std_cell_info = VlibReader.read_file(std_cells_file)
+        valid_cell_types = set(std_cell_info.modules)
         print('Finished.')
     else:
         std_cell_info = None
+        valid_cell_types = None
 
     if netlist_gv_file != '-':
         print('Reading GV file... ', end='', flush=True)
-        gv_info = GVParser.read_file(netlist_gv_file)
+        gv_info = GVParser.read_file(netlist_gv_file, valid_cell_types)
         print('Finished.')
         circuit = Circuit(gv_info, std_cell_info)
         circuit.summary()
@@ -54,7 +56,7 @@ if __name__ == '__main__':
             writer.write_vlib(standard_cell_library)
 
         if gv_info is not None:
-            writer.write_circuit(circuit, gv_info.id)
+            writer.write_circuit(circuit, gv_info.design_name)
 
         if sdf_header is not None and sdf_cells is not None:
             writer.write_sdf(sdf_header, sdf_cells)
