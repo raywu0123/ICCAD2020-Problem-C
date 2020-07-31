@@ -2,53 +2,17 @@
 #define ICCAD2020_CELL_H
 
 #include <iostream>
+#include <queue>
+
 #include "constants.h"
 #include "wire.h"
 #include "simulator/module_registry.h"
+#include "simulator/job.h"
 
 struct SDFPath {
     unsigned int in, out;
     char edge_type;
     int rising_delay, falling_delay;
-};
-
-
-struct IndexedWire {
-    explicit IndexedWire(Wire* w, const unsigned int& capacity = INITIAL_CAPACITY) : wire(w), capacity(capacity) {};
-
-    Data alloc(int session_index);
-    virtual Data load(int session_index);
-    virtual void free();
-    virtual void finish();
-    void store_to_bucket() const;
-
-    virtual void handle_overflow();
-
-    // records capacity
-    Wire* wire;
-    const unsigned int& capacity;
-    std::vector<Data> data_list;
-
-    unsigned int first_free_data_ptr_index = 0;
-    int previous_session_index = -1;
-};
-
-
-struct ScheduledWire : public IndexedWire {
-    explicit ScheduledWire(Wire* wire, const unsigned int& capacity = INITIAL_CAPACITY): IndexedWire(wire, capacity) {};
-
-    Data load(int session_index) override;
-    void free() override;
-    unsigned int size() const;
-    void handle_overflow() override;
-    bool finished() const;
-    void finish() override;
-
-    void push_back_schedule_index(unsigned int i);
-
-    std::vector<unsigned int> bucket_index_schedule{ 0 };
-    unsigned int bucket_idx = 0;
-    std::pair<int, unsigned int> checkpoint = {0, 0};
 };
 
 template<class T>
@@ -80,35 +44,31 @@ public:
         const WireMap<Wire>&  pin_specs,
         std::string  name
     );
-    void init();
+    static unsigned int build_bucket_index_schedule(std::vector<InputWire*>& wires, unsigned int size);
 
-    static void build_bucket_index_schedule(std::vector<ScheduledWire*>& wires, unsigned int size);
-    bool finished() const;
-    void prepare_resource(int, ResourceBuffer&);
-    bool gather_results();
+    void push_jobs(std::queue<Job*>&);
+    void finish();
 
-    std::vector<ScheduledWire*> input_wires;
-    std::vector<IndexedWire*> output_wires;
+    std::vector<InputWire*> input_wires;
+    std::vector<OutputWire*> output_wires;
     std::string name;
     std::vector<SDFPath> sdf_paths;
 
 private:
+    void init();
     void build_wire_map(
         const StdCellDeclare* declare, const WireMap<Wire>& pin_specs
     );
     void set_paths();
-    bool handle_overflow();
-    void free();
-    static unsigned int find_end_index(const Bucket&, unsigned int, const Timestamp&, unsigned int);
+    static unsigned int find_end_index(const PinnedMemoryVector<Transition>&, unsigned int, const Timestamp&, unsigned int);
 
     const ModuleSpec* module_spec;
     SDFSpec* sdf_spec = nullptr;
     SDFSpec host_sdf_spec{};
     unsigned int num_args = 0;
-    unsigned int output_capacity = INITIAL_CAPACITY;
-    bool* overflow_ptr = nullptr;
 
-    WireMap<IndexedWire> wire_map;
+    unsigned int schedule_size = 0;
+    WireMap<WrappedWire> wire_map;
 };
 
 #endif

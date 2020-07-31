@@ -58,95 +58,57 @@ void Cell::build_wire_map(
     for (unsigned int arg = 0; arg < declare->num_input; ++arg) {
         auto* wire_ptr = pin_specs.get(arg);
         if (wire_ptr == nullptr) continue;
-        auto* scheduled_wire = new ScheduledWire(wire_ptr);
-        wire_map.set(arg, scheduled_wire); input_wires.push_back(scheduled_wire);
+        auto* wrapped_wire = new InputWire(wire_ptr);
+        wire_map.set(arg, wrapped_wire); input_wires.push_back(wrapped_wire);
     }
     for (unsigned int arg = declare->num_input; arg < num_args; ++arg) {
         auto* wire_ptr = pin_specs.get(arg);
         if (wire_ptr == nullptr) continue;
         wire_ptr->set_drived();
-        auto* indexed_wire = new IndexedWire(wire_ptr, output_capacity);
-        wire_map.set(arg, indexed_wire); output_wires.push_back(indexed_wire);
+        auto* wrapped_wire = new OutputWire(wire_ptr);
+        wire_map.set(arg, wrapped_wire); output_wires.push_back(wrapped_wire);
     }
     for (unsigned int arg = 0; arg < num_args; arg++) {
         if (wire_map.get(arg) == nullptr) cerr << "| WARNING: Arg (" + to_string(arg) + ") not found in wiremap of cell " << name  << endl;
     }
 }
 
-void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer) {
-    cudaMemsetAsync(overflow_ptr, 0, sizeof(bool));
-    resource_buffer.overflows.push_back(overflow_ptr);
-    resource_buffer.capacities.push_back(output_capacity);
-    resource_buffer.module_specs.push_back(module_spec);
-    resource_buffer.sdf_specs.push_back(sdf_spec);
-
-    for (auto& indexed_wire : input_wires) indexed_wire->load(session_id);
-    for (auto& indexed_wire : output_wires) indexed_wire->load(session_id);
-
-    for (unsigned int arg = 0; arg < num_args; ++arg) {
-        const auto* indexed_wire = wire_map.get(arg);
-        if (indexed_wire == nullptr) {
-            resource_buffer.data_schedule.push_back(Data{});
-        } else {
-            if (indexed_wire->first_free_data_ptr_index - 1 >= indexed_wire->data_list.size())
-                throw runtime_error("Invalid access to indexed_wire's data_ptrs");
-            resource_buffer.data_schedule.push_back(
-                    indexed_wire->data_list[indexed_wire->first_free_data_ptr_index - 1]
-            );
+void Cell::push_jobs(queue<Job*>& job_queue) {
+    init();
+    for (int i = 0; i < schedule_size; ++i) {
+        vector<JobHandle*> job_handles; job_handles.reserve(num_args);
+        for (int arg = 0; arg < num_args; ++arg) {
+            auto* wrapped_wire = wire_map.get(arg);
+            if (wrapped_wire == nullptr) job_handles.push_back(new JobHandle());
+            else job_handles.push_back(wrapped_wire->get_job_handle(i));
         }
+        auto* job = new Job(module_spec, sdf_spec, num_args, job_handles);
+        job_queue.emplace(job);
     }
-    resource_buffer.finish_module();
 }
 
-bool Cell::gather_results() {
-    if (handle_overflow()) return true;
 
-    for (const auto& indexed_wire : output_wires) indexed_wire->store_to_bucket();
-    if (finished()) free();
-    return false;
-}
+void Cell::finish() {
+    for (auto& wrapped_wire : output_wires) wrapped_wire->finish();
 
-void Cell::free() {
-    cudaFree(overflow_ptr);
     cudaFree(sdf_spec);
     cudaFree(host_sdf_spec.edge_type);
     cudaFree(host_sdf_spec.input_index); cudaFree(host_sdf_spec.output_index);
     cudaFree(host_sdf_spec.rising_delay); cudaFree(host_sdf_spec.falling_delay);
-    for (auto& indexed_wire : input_wires) indexed_wire->finish();
-    for (auto& indexed_wire : output_wires) indexed_wire->finish();
+    for (auto& wrapped_wire : input_wires) wrapped_wire->free();
+    for (auto& wrapped_wire : output_wires) wrapped_wire->free();
 }
 
 void Cell::init() {
-    cudaMalloc((void**) &overflow_ptr, sizeof(bool));
     set_paths();
-    Cell::build_bucket_index_schedule(
+    schedule_size = Cell::build_bucket_index_schedule(
         input_wires,
         (INITIAL_CAPACITY * N_STIMULI_PARALLEL) / input_wires.size() - 1
     );
-    unsigned int sum_size = 0;
-    for (const auto& indexed_wire : input_wires) sum_size += indexed_wire->wire->bucket.size();
-    for (auto& indexed_wire : output_wires) indexed_wire->wire->bucket.reserve(sum_size * 2);
+    for (auto& wrapped_wire : output_wires) wrapped_wire->set_schedule_size(schedule_size);
 }
 
-bool Cell::handle_overflow() {
-    bool host_overflow_value;
-    cudaMemcpy(&host_overflow_value, overflow_ptr, sizeof(bool), cudaMemcpyDeviceToHost);
-    if(not host_overflow_value) return false;
-
-    output_capacity *= 2;
-    for (auto& indexed_wire : input_wires) indexed_wire->handle_overflow();
-    for (auto& indexed_wire : output_wires) indexed_wire->handle_overflow();
-    return true;
-}
-
-bool Cell::finished() const {
-    for (const auto& indexed_wire : input_wires) {
-        if (not indexed_wire->finished()) return false;
-    }
-    return true;
-}
-
-void Cell::build_bucket_index_schedule(vector<ScheduledWire*>& wires, unsigned int size) {
+unsigned int Cell::build_bucket_index_schedule(vector<InputWire*>& wires, unsigned int size) {
     unsigned int num_finished = 0, num_inputs = wires.size();
 
     vector<unsigned int> starting_indices; starting_indices.resize(num_inputs);
@@ -167,7 +129,7 @@ void Cell::build_bucket_index_schedule(vector<ScheduledWire*>& wires, unsigned i
             const auto& bucket = wire->wire->bucket;
             unsigned int end_index = starting_indices[i_wire] + size - 1;
             if (end_index >= bucket.size()) continue;
-            const auto& end_timestamp = bucket.transitions[end_index].timestamp;
+            const auto& end_timestamp = bucket[end_index].timestamp;
             if (end_timestamp < min_end_timestamp) min_end_timestamp = end_timestamp;
         }
 
@@ -180,7 +142,7 @@ void Cell::build_bucket_index_schedule(vector<ScheduledWire*>& wires, unsigned i
                 wire->push_back_schedule_index(bucket_size);
             else {
 //                FIXME will fail if start_index = 0 and timestamp[0] > min_end_timestamp
-                auto start_index = bucket.transitions[starting_indices[i_wire]].timestamp > min_end_timestamp ? starting_indices[i_wire] - 1 : starting_indices[i_wire];
+                auto start_index = bucket[starting_indices[i_wire]].timestamp > min_end_timestamp ? starting_indices[i_wire] - 1 : starting_indices[i_wire];
                 auto end_index = find_end_index(bucket, start_index, min_end_timestamp, size);
                 auto next_start_index = end_index + 1;
                 wire->push_back_schedule_index(next_start_index);
@@ -195,17 +157,18 @@ void Cell::build_bucket_index_schedule(vector<ScheduledWire*>& wires, unsigned i
     for (auto& wire : wires) {
         wire->push_back_schedule_index(wire->wire->bucket.size());
     }
+    return wires.front()->bucket_index_schedule.size() - 1;
 }
 
-unsigned int Cell::find_end_index(const Bucket& bucket, unsigned int start_index, const Timestamp& t, unsigned int capacity) {
+unsigned int Cell::find_end_index(const PinnedMemoryVector<Transition>& bucket, unsigned int start_index, const Timestamp& t, unsigned int capacity) {
 //    Binary Search for end_index <= t
-    unsigned int low = start_index, high = min(start_index + capacity, bucket.size()) - 1;
-    if (bucket.transitions[high].timestamp <= t) return high;
+    unsigned int low = start_index, high = min(start_index + capacity, (unsigned int) bucket.size()) - 1;
+    if (bucket[high].timestamp <= t) return high;
     while (low < high) {
         unsigned mid = (low + high) / 2;
         if (mid == low) break;
-        if (bucket.transitions[mid].timestamp < t) low = mid;
-        else if (bucket.transitions[mid].timestamp > t) high = mid;
+        if (bucket[mid].timestamp < t) low = mid;
+        else if (bucket[mid].timestamp > t) high = mid;
         else return mid;
     }
     return low;

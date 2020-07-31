@@ -5,6 +5,7 @@
 #include <string>
 #include <ostream>
 
+#include "utils.h"
 
 typedef std::pair<int, int> BitWidth;
 typedef std::pair<std::string, int> Wirekey;
@@ -88,36 +89,76 @@ struct Data {
 
 std::ostream& operator<< (std::ostream& os, const Transition& transition);
 
-struct ModuleSpec{
+struct ModuleSpec {
     unsigned int num_input, num_output;
     unsigned int table_row_num;
     Values* table;
 };
 
-struct ResourceBuffer {
 
-    std::vector<bool*> overflows;
-    std::vector<unsigned int> capacities;
-    std::vector<const ModuleSpec*> module_specs;
-    std::vector<const SDFSpec*> sdf_specs;
-    std::vector<Data> data_schedule;
+template <typename T>
+class PinnedMemoryAllocator {
+public:
+    typedef T                   value_type;
+    typedef value_type*         pointer;
+    typedef value_type&         reference;
+    typedef value_type const*   const_pointer;
+    typedef value_type const&   const_reference;
+    typedef size_t              size_type;
+    typedef ptrdiff_t           difference_type;
 
-    ResourceBuffer ();
-    void finish_module();
-    unsigned int size = 0;
+    PinnedMemoryAllocator() = default;
+    PinnedMemoryAllocator(const PinnedMemoryAllocator&) = default;
+    ~PinnedMemoryAllocator() = default;
+    template<class U>
+    explicit PinnedMemoryAllocator(const PinnedMemoryAllocator<U>& other) {}
+
+    template<class U>
+    struct rebind { using other = PinnedMemoryAllocator<U>; };
+
+    template<class U>
+    bool operator== (PinnedMemoryAllocator<U> const&) const { return true; }
+
+    template<class U>
+    bool operator!= (PinnedMemoryAllocator<U> const&) const { return false; }
+
+    pointer allocate(size_type n) {
+        T* t;
+        cudaMallocHost((void**) &t, sizeof(T) * n);
+        return t;
+    }
+    void deallocate(void* p, size_type) {
+        if (p) cudaFreeHost(p);
+    }
+
+    pointer address(reference x) { return &x; }
+    const_pointer address(const_reference x) { return &x; }
+    size_type max_size() const { return size_t(-1); }
 };
 
+template<typename T> using PinnedMemoryVector = std::vector<T, PinnedMemoryAllocator<T>>;
+
+struct ResourceBuffer {
+    explicit ResourceBuffer(unsigned int);
+    void get_overflows(bool* host_overflows, const cudaStream_t& stream) const;
+
+    PinnedMemoryVector<const ModuleSpec*> module_specs;
+    PinnedMemoryVector<const SDFSpec*>sdf_specs;
+    PinnedMemoryVector<bool*> overflow_ptrs;
+    PinnedMemoryVector<unsigned int> capacities;
+    PinnedMemoryVector<Data> data_list;
+};
 
 struct BatchResource {
-    void init(const ResourceBuffer&);
-    void free() const;
+    void init(const ResourceBuffer&, const cudaStream_t& stream);
+    void finish() const;
 
+    unsigned int num_modules;
+    ModuleSpec** module_specs;
+    SDFSpec** sdf_specs;
     bool** overflows;
     unsigned int* capacities;
-    const ModuleSpec** module_specs;
-    const SDFSpec** sdf_specs;
-    Data* data_schedule;
-    unsigned int num_modules;
+    Data* data_list;
 };
 
 #endif

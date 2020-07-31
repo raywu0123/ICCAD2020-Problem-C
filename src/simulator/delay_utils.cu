@@ -1,7 +1,6 @@
 #include <cassert>
 
-#include "data_structures.h"
-#include "simulator.h"
+#include "device_functions.h"
 
 extern __host__ __device__ int lookup_delay(
     unsigned int input_index, unsigned int output_index, EdgeTypes input_edge_type, EdgeTypes output_edge_type,

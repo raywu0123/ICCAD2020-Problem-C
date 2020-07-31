@@ -3,8 +3,9 @@ set(HEADER_FILES
         simulator/simulator.h
         simulator/data_structures.h
         simulator/module_registry.h
-        simulator/memory_manager.h
         simulator/collision_utils.h
+        simulator/device_functions.h
+        simulator/job.h
         simulation_result.h
         circuit_model/circuit.h
         circuit_model/cell.h
@@ -17,14 +18,14 @@ set(SOURCE_FILES
         simulator/simulator.cu
         simulator/data_structures.cu
         simulator/module_registry.cu
-        simulator/memory_manager.cu
         simulator/delay_utils.cu
         simulator/collision_utils.cu
+        simulator/device_functions.cu
+        simulator/job.cu
         simulation_result.cu
         circuit_model/circuit.cu
         circuit_model/cell.cu
         circuit_model/wire.cu
-        circuit_model/wire_wrappers.cu
         include/progress_bar.cu
         utils.cu
         )

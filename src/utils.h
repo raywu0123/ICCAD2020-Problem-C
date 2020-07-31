@@ -2,10 +2,10 @@
 #define ICCAD2020_UTILS_H
 
 #include <string>
-#include <simulator/data_structures.h>
+#include <constants.h>
 
 double get_timescale(int num, const std::string& unit);
 
-
 void cudaErrorCheck(cudaError_t);
+
 #endif

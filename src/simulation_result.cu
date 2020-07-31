@@ -71,7 +71,7 @@ void VCDResult::write(char *path) {
             const auto& wire_index = buffer[buffer_index].first;
             const auto& transition_index = buffer[buffer_index].second;
             const auto& bucket = f_wires[wire_index]->bucket;
-            const auto& transition = bucket.transitions[transition_index];
+            const auto& transition = bucket[transition_index];
             const auto& wire_infos = f_wires[wire_index]->wire_infos;
 
             bus_manager.add_transition(wire_infos, transition);
@@ -107,7 +107,7 @@ void VCDResult::merge_sort(
         const auto& bucket = wire->bucket;
         const auto& bucket_size = bucket.size();
         sum_num_transitions += bucket_size;
-        indices[i] = binary_search(bucket.transitions.data(), bucket_size - 1, dumpon_time);
+        indices[i] = binary_search(bucket.data(), bucket_size - 1, dumpon_time);
         indices[i] = indices[i] > 0 and bucket[indices[i]].timestamp >= dumpon_time ? indices[i] - 1: indices[i];
     }
     buffer.reserve(sum_num_transitions); timestamps.reserve(sum_num_transitions);
@@ -202,12 +202,11 @@ void SAIFResult::write_wirekey_result(const BitWidth& bitwidth, const Wirekey &w
             << ")" << endl;
 }
 
-WireStat SAIFResult::calculate_wire_stats(const Bucket& bucket, Timestamp dumpon_time, Timestamp dumpoff_time) {
+WireStat SAIFResult::calculate_wire_stats(const PinnedMemoryVector<Transition>& bucket, Timestamp dumpon_time, Timestamp dumpoff_time) {
     WireStat wirestat{};
-    const auto& transitions = bucket.transitions;
-    const auto& size = transitions.size();
+    const auto& size = bucket.size();
     for (unsigned idx = 1; idx < size; idx++) {
-        const auto &t_curr = transitions[idx], &t_prev = transitions[idx - 1];
+        const auto &t_curr = bucket[idx], &t_prev = bucket[idx - 1];
         if (t_curr.timestamp <= dumpon_time) continue;
         if (t_prev.timestamp >= dumpoff_time) break;
 
@@ -216,7 +215,7 @@ WireStat SAIFResult::calculate_wire_stats(const Bucket& bucket, Timestamp dumpon
         wirestat.update(prev_v, d);
     }
 
-    const auto last_transition = transitions.back();
+    const auto last_transition = bucket.back();
     if (last_transition.timestamp < dumpoff_time) {
         wirestat.update(last_transition.value, dumpoff_time - max(last_transition.timestamp, dumpon_time));
     }

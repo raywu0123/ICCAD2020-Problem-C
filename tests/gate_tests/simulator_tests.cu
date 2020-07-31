@@ -2,7 +2,7 @@
 #include <vector>
 
 #include "simulator/data_structures.h"
-#include "simulator/simulator.h"
+#include "simulator/device_functions.h"
 
 using namespace std;
 

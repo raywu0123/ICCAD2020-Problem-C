@@ -4,7 +4,6 @@
 #include "src/utils.h"
 #include "src/simulation_result.h"
 #include "simulator/simulator.h"
-#include "simulator/memory_manager.h"
 #include "simulator/module_registry.h"
 
 

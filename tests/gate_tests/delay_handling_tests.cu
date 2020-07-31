@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include <vector>
 
-#include "simulator/simulator.h"
+#include "simulator/device_functions.h"
 #include "simulator/data_structures.h"
 
 using namespace std;
