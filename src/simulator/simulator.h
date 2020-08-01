@@ -7,7 +7,7 @@
 #include "simulation_result.h"
 
 __host__ __device__ int lookup_delay(
-    unsigned int, unsigned int, char, char,
+    unsigned int, unsigned int, EdgeTypes, EdgeTypes,
     const SDFSpec*
 );
 

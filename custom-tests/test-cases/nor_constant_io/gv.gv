@@ -1,0 +1,6 @@
+module NV_NVDLA_partition_m ( i1, o1 );
+  input  i1;
+  output o1;
+
+  GEN_NOR2_D1 NOR_GATE (.a1(i1), .a2(1'b1), .zn(o1));
+endmodule

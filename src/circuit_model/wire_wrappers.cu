@@ -43,6 +43,11 @@ void IndexedWire::handle_overflow() {
     first_free_data_ptr_index = 0;
 }
 
+void IndexedWire::finish() {
+    free();
+    wire->bucket.transitions.shrink_to_fit();
+}
+
 Data ScheduledWire::load(int session_index) {
     const auto& data = IndexedWire::alloc(session_index);
     if (session_index > checkpoint.first) checkpoint = make_pair(session_index, bucket_idx);
@@ -74,5 +79,11 @@ void ScheduledWire::push_back_schedule_index(unsigned int i) {
 void ScheduledWire::handle_overflow() {
     first_free_data_ptr_index = 0;
     bucket_idx = checkpoint.second;
+}
+
+void ScheduledWire::finish() {
+    free();
+    wire->bucket.transitions.shrink_to_fit();
+    vector<unsigned int>().swap(bucket_index_schedule);
 }
 

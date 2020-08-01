@@ -2,6 +2,7 @@
 
 import sys
 import re
+from pprint import pprint
 
 
 def read_saif(file_path):
@@ -59,26 +60,30 @@ if golden['DURATION'] != compare['DURATION']:
     print('SAIF durations don\'t match!!! Error! Exiting...')
     sys.exit(1)
 
-if golden['signals'] == compare['signals']:
+extra_1 = set(golden['signals'].keys()).difference(compare['signals'].keys())
+extra_2 = set(compare['signals'].keys()).difference(golden['signals'].keys())
+
+if len(extra_1):
+    print('In file1 but not in file2:')
+    pprint(extra_1, )
+
+if len(extra_2):
+    print('In file2 but not in file1:')
+    pprint(extra_2)
+
+common_keys = set(golden['signals'].keys()).intersection(set(compare['signals'].keys()))
+golden_common_signals = {k: v for k, v in golden['signals'].items() if k in common_keys}
+compare_common_signals = {k: v for k, v in compare['signals'].items() if k in common_keys}
+
+if golden_common_signals == compare_common_signals:
     print("SAIFs match! No Errors! Congratulations!")
     sys.exit(0)
 
-extra_1 = (list(set(golden['signals'].keys()).difference(compare['signals'].keys())))
-extra_2 = (list(set(compare['signals'].keys()).difference(golden['signals'].keys())))
-
-if len(extra_1):
-    print(str(extra_1) + ' not in both SAIF files! Error! Exiting...')
-    sys.exit(1)
-
-if len(extra_2):
-    print(str(extra_2) + ' not in both SAIF files! Error! Exiting...')
-    sys.exit(1)
-
 cnt = 0
-for key in golden['signals'].keys():
+for key in common_keys:
     if golden['signals'][key] != compare['signals'][key]:
         print('signal values for ' + str(key) + ' is not the same!')
     else:
         cnt += 1
 
-print(f'Passed {cnt / len(golden["signals"]):.0%} ({cnt}/{len(golden["signals"])})')
+print(f'Passed {cnt / len(common_keys):.0%} ({cnt}/{len(common_keys)})')

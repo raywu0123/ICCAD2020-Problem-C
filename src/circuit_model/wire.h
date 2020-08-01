@@ -49,7 +49,6 @@ struct Bucket {
 
 
         auto valid_data_size = output_size - offset;
-        assert(valid_data_size <= INITIAL_CAPACITY * N_STIMULI_PARALLEL * 8);
         transitions.resize(write_index + valid_data_size);
         auto status =  cudaMemcpy(
             transitions.data() + write_index,

@@ -112,8 +112,8 @@ void Cell::free() {
     cudaFree(host_sdf_spec.edge_type);
     cudaFree(host_sdf_spec.input_index); cudaFree(host_sdf_spec.output_index);
     cudaFree(host_sdf_spec.rising_delay); cudaFree(host_sdf_spec.falling_delay);
-    for (auto& indexed_wire : input_wires) indexed_wire->free();
-    for (auto& indexed_wire : output_wires) indexed_wire->free();
+    for (auto& indexed_wire : input_wires) indexed_wire->finish();
+    for (auto& indexed_wire : output_wires) indexed_wire->finish();
 }
 
 void Cell::init() {
