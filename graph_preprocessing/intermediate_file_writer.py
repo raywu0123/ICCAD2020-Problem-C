@@ -1,9 +1,9 @@
-from itertools import chain
 from typing import Dict
 
 from graph_preprocessing.circuit_model import Circuit
 from graph_preprocessing.constants import SINGLE_BIT_INDEX
 from .organize_standard_cells import StandardCellModule
+from .file_parsers.gv_parser import GVInfo
 
 
 class IntermediateFileWriter:

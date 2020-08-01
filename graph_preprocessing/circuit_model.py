@@ -1,4 +1,4 @@
-from typing import Tuple, Dict
+from typing import Tuple
 import warnings
 from itertools import product
 
@@ -6,10 +6,12 @@ from graph_preprocessing.graph import Graph
 from graph_preprocessing.constants import SINGLE_BIT_INDEX, BIT_INDEX_TYPE
 from graph_preprocessing.utils import extract_bitwidth, is_single_bit
 
+from .file_parsers.gv_parser import GVInfo
+
 
 class Circuit:
 
-    def __init__(self, gv_info, std_cell_info):
+    def __init__(self, gv_info: GVInfo, std_cell_info):
         self.std_cell_info = std_cell_info
 
         self.wire_keys = set()
@@ -23,7 +25,7 @@ class Circuit:
         }
 
         self.buses, self.identifiers = self.register_wires(gv_info)
-        self.cells, self.cell_id_to_cell, self.used_identifiers = self.register_cells(gv_info)
+        self.cells, self.cell_id_to_cell = self.register_cells(gv_info)
         self.assigns = self.register_assigns(gv_info)
 
         self.graph = self.build_graph()
@@ -39,21 +41,20 @@ class Circuit:
         all_cells_in_schedule_layers = {cell for layer in self.schedule_layers for cell in layer}
         print(f"Num cells in schedule layers: {len(all_cells_in_schedule_layers)}")
 
-    def register_wires(self, gv_info):
+    def register_wires(self, gv_info: GVInfo):
         buses = {}
         identifiers = {}
-        for io in gv_info.io:
-            if 'bitwidth' in io:
-                buses[io.id] = io.bitwidth
-                identifiers[io.id] = io.bitwidth
-                for index in range(min(io.bitwidth), max(io.bitwidth) + 1):
-                    wire_key = self.make_wire_key(io.id, index)
+        for wire_type, wire_info in gv_info.wire:
+            if wire_info.bitwidth is not None:
+                buses[wire_info.id] = wire_info.bitwidth
+                identifiers[wire_info.id] = wire_info.bitwidth
+                for index in range(min(wire_info.bitwidth), max(wire_info.bitwidth) + 1):
+                    wire_key = self.make_wire_key(wire_info.id, index)
                     self.register_wire(wire_key)
             else:
-                for idd in io.ids:
-                    identifiers[idd] = (0, 0)
-                    wire_key = self.make_wire_key(idd, SINGLE_BIT_INDEX)
-                    self.register_wire(wire_key)
+                identifiers[wire_info.id] = (0, 0)
+                wire_key = self.make_wire_key(wire_info.id, SINGLE_BIT_INDEX)
+                self.register_wire(wire_key)
         return buses, identifiers
 
     @staticmethod
@@ -68,65 +69,34 @@ class Circuit:
         self.wire_inputs[wire_key] = []
         self.wire_outputs[wire_key] = []
 
-    def register_assigns(self, gv_info):
+    def register_assigns(self, gv_info: GVInfo):
         assigns = []
         for assign in gv_info.assign:
             if assign[0] == "1'b0" or assign[0] == "1'b1":
                 assign = (assign[1], assign[0])
-            lhs_name, lhs_bitwidth = extract_bitwidth(assign[0])
-            rhs_name, rhs_bitwidth = extract_bitwidth(assign[1])
-            if lhs_name in self.buses:
-                assert is_single_bit(lhs_bitwidth)
-                lhs_key = self.make_wire_key(lhs_name, lhs_bitwidth[0])
-            else:
-                lhs_key = self.make_wire_key(lhs_name, SINGLE_BIT_INDEX)
-            if rhs_name in self.buses:
-                assert is_single_bit(rhs_bitwidth)
-                rhs_key = self.make_wire_key(rhs_name, rhs_bitwidth[0])
-            else:
-                rhs_key = self.make_wire_key(rhs_name, SINGLE_BIT_INDEX)
 
-            assigns.append((lhs_key, rhs_key))
+            assigns.append(assign)
             for bucket in [self.wire_inputs, self.wire_outputs]:
-                bucket[rhs_key].extend(bucket[lhs_key])
-                del bucket[lhs_key]
+                bucket[assign[1]].extend(bucket[assign[0]])
+                del bucket[assign[0]]
 
         return assigns
 
-    def register_cells(self, gv_info) -> Tuple[dict, dict, set]:
+    def register_cells(self, gv_info: GVInfo) -> Tuple[dict, dict]:
         cells = {}
-        used_identifiers = set()
-        for cell in gv_info.cells:
-            cell_spec = self.get_cell_spec(cell.cell_type)
-            if cell_spec is None:
-                continue
+        for cell_info in gv_info.cell:
+            cell_spec = self.get_cell_spec(cell_info.type)
 
             params = []
-            for p in cell.parameters:
-                pin_name, wire_key = self.from_parameter_string(p)
-                used_identifiers.add(wire_key[0])
-                pin_type = self.get_pin_type(cell_spec, pin_name)
-                params.append((pin_name, pin_type, wire_key))
+            for arg in cell_info.args:
+                pin_type = self.get_pin_type(cell_spec, arg.pin_name)
+                params.append((arg.pin_name, pin_type, arg.wire_info))
                 if pin_type == "input":
-                    self.wire_outputs[wire_key].append(cell.id)
+                    self.wire_outputs[arg.wire_info].append(cell_info.name)
                 else:
-                    self.wire_inputs[wire_key].append(cell.id)
-            cells[cell.id] = {'parameters': params, 'type': cell.cell_type}
-        return cells, {cell.id: cell for cell in gv_info.cells}, used_identifiers
-
-    def from_parameter_string(self, p: str):
-        try:
-            pin_name, wire = p.split(' ')
-        except ValueError as e:
-            print(p)
-            raise e
-        wire_name, bitwidth = extract_bitwidth(wire)
-        if wire_name in self.buses:
-            assert is_single_bit(bitwidth)
-            wire_key = self.make_wire_key(wire_name, bitwidth[0])
-        else:
-            wire_key = self.make_wire_key(wire_name, SINGLE_BIT_INDEX)
-        return pin_name, wire_key
+                    self.wire_inputs[arg.wire_info].append(cell_info.name)
+            cells[cell_info.name] = {'parameters': params, 'type': cell_info.type}
+        return cells, {cell_info.name: cell_info for cell_info in gv_info.cell}
 
     def get_cell_spec(self, cell_type: str):
         if cell_type in self.std_cell_info.primitives:
