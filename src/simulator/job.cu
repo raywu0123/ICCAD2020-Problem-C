@@ -151,11 +151,21 @@ void OutputWire::finish() {
     bucket.reserve(sum_length);
 
     for (const auto& buffer : buffers) {
-        unsigned int offset = 0;
-        if (not bucket.empty() and not buffer.empty() and bucket.back().value == buffer.front().value) offset = 1;
-        const auto& buffer_size = buffer.size();
-        for (unsigned int i = offset; i < buffer_size; ++i) bucket.push_back(buffer[i]);
+        if (buffer.empty()) continue;
+        if (bucket.empty()) throw std::runtime_error("transitions is empty");
+
+        const auto& prev_t = bucket.back().timestamp;
+        const auto& t = buffer.front().timestamp; const auto& v = buffer.front().value;
+        auto write_index = bucket.size();
+        if (t <= prev_t) {
+            write_index = binary_search(bucket.data(), write_index - 1, t);
+            bucket.resize(write_index);
+        }
+
+        auto offset = (write_index > 0 and v == bucket.back().value) ? 1 : 0;
+        for (unsigned int i = offset; i < buffer.size(); ++i) bucket.push_back(buffer[i]);
     }
+    bucket.shrink_to_fit();
 }
 
 void OutputWire::set_schedule_size(unsigned int size) {

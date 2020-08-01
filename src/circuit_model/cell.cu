@@ -138,9 +138,9 @@ unsigned int Cell::build_bucket_index_schedule(vector<InputWire*>& wires, unsign
             const auto& bucket = wire->wire->bucket;
             const auto& bucket_size = bucket.size();
 //            If already finished, push_back the last index of bucket
-            if (not wire->bucket_index_schedule.empty() and wire->bucket_index_schedule.back() == bucket_size)
+            if (not wire->bucket_index_schedule.empty() and wire->bucket_index_schedule.back() == bucket_size) {
                 wire->push_back_schedule_index(bucket_size);
-            else {
+            } else {
 //                FIXME will fail if start_index = 0 and timestamp[0] > min_end_timestamp
                 auto start_index = bucket[starting_indices[i_wire]].timestamp > min_end_timestamp ? starting_indices[i_wire] - 1 : starting_indices[i_wire];
                 auto end_index = find_end_index(bucket, start_index, min_end_timestamp, size);
