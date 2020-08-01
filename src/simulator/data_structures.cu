@@ -5,6 +5,36 @@
 
 using namespace std;
 
+__host__ __device__ EdgeTypes get_edge_type(const Values& v1, const Values& v2) {
+    if (v2 == Values::ONE or v1 == Values::ZERO) return EdgeTypes::RISING;
+    if (v2 == Values::ZERO or v1 == Values::ONE) return EdgeTypes::FALLING;
+
+    if (v1 == Values::X and v2 == Values::Z) return EdgeTypes::XZ;
+    if (v1 == Values::Z and v2 == Values::X) return EdgeTypes::ZX;
+    return EdgeTypes::UNDEF;
+}
+
+__host__ __device__ char edge_type_to_raw(EdgeTypes e) {
+    switch (e) {
+        case EdgeTypes::RISING:
+            return '+';
+        case EdgeTypes::FALLING:
+            return '-';
+        default:
+            return 'x';
+    }
+}
+__host__ __device__ EdgeTypes raw_to_edge_type(char r) {
+    switch (r) {
+        case '+':
+            return EdgeTypes::RISING;
+        case '-':
+            return EdgeTypes::FALLING;
+        default:
+            return EdgeTypes::UNDEF;
+    }
+}
+
 Values raw_to_enum(char v) {
     switch (v) {
         case '0':

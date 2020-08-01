@@ -19,12 +19,6 @@ double get_timescale(int num, const string& unit) {
     return num * unit_num;
 }
 
-__host__ __device__ char get_edge_type(const Values& v1, const Values& v2) {
-    if (v2 == Values::ONE or v1 == Values::ZERO) return '+';
-    if (v2 == Values::ZERO or v1 == Values::ONE) return '-';
-    return 'x';
-}
-
 void cudaErrorCheck(cudaError_t status) {
     if (status != cudaSuccess) throw runtime_error(cudaGetErrorString(status));
 }

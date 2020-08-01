@@ -78,11 +78,17 @@ void VCDReader::get_buckets(Circuit& circuit) {
 void VCDReader::read_dump() {
     char c;
     fin >> c;
+
+    bool is_dumpvars_section = (c != '#');
+    if (is_dumpvars_section) fin.putback(c);
+
     while (not fin.eof()) {
-        Timestamp t;
-        fin >> t;
+        Timestamp t = 0;
+        if (not is_dumpvars_section) fin >> t;
         read_single_time_dump(t);
+
         n_dump++;
+        is_dumpvars_section = false;
     }
 }
 
@@ -95,6 +101,9 @@ void VCDReader::read_single_time_dump(const Timestamp& timestamp) {
             string value;
             fin >> value >> token;
             emplace_transition(token, timestamp, value);
+        } else if (c == '$') {
+          // ignore $end of $dumpvars
+          fin >> token;
         } else {
             fin >> token;
             emplace_transition(token, timestamp, c);

@@ -45,6 +45,7 @@ void IndexedWire::handle_overflow() {
 
 void IndexedWire::finish() {
     free();
+    wire->bucket.transitions.shrink_to_fit();
 }
 
 Data ScheduledWire::load(int session_index) {

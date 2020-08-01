@@ -37,16 +37,6 @@ struct TokenInfo {
 };
 
 
-struct DelayInfo {
-    DelayInfo() = default;
-    DelayInfo(unsigned int arg, char edge_type) : arg(arg), edge_type(edge_type) {};
-    unsigned int arg = 0;
-    char edge_type = 0;
-    bool operator== (const DelayInfo& other) const {
-        return arg == other.arg and edge_type == other.edge_type;
-    }
-};
-
 enum class Values : char {
     PAD, ZERO, ONE, X, Z
 };
@@ -55,6 +45,26 @@ inline std::ostream& operator<< (std::ostream& os, Values& v);
 
 Values raw_to_enum(char r);
 char enum_to_raw(Values v);
+
+
+enum class EdgeTypes : char {
+    UNDEF, RISING, FALLING, XZ, ZX, NODELAY
+};
+__host__ __device__ char edge_type_to_raw(EdgeTypes);
+__host__ __device__ EdgeTypes raw_to_edge_type(char);
+__host__ __device__ EdgeTypes get_edge_type(const Values& v1, const Values& v2);
+
+
+struct DelayInfo {
+    DelayInfo() = default;
+    DelayInfo(unsigned int arg, char edge_type) : arg(arg), edge_type(raw_to_edge_type(edge_type)) {};
+    unsigned int arg = 0;
+    EdgeTypes edge_type = EdgeTypes::UNDEF;
+    bool operator== (const DelayInfo& other) const {
+        return arg == other.arg and edge_type == other.edge_type;
+    }
+};
+
 
 struct Transition {
     Timestamp timestamp = 0;

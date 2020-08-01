@@ -86,8 +86,9 @@ class GVParser:
         if valid_cell_types is not None and cell_type not in valid_cell_types:
             return None
 
-        arg_list = line[left_bracket_index + 1:-1].split(',')
-        arg_list = [term.lstrip(' .').rstrip(')').split('(') for term in arg_list]
+        arg_list = line[left_bracket_index + 1:-1].replace('\n', '').strip().split(',')
+        arg_list = [term.lstrip('\n .').rstrip('\n) ').split('(') for term in arg_list]
+        arg_list = [(term[0].strip(), term[1].strip()) for term in arg_list]
         arg_list = [
             ArgInfo(pin_name=term[0], wire_info=cls.convert_wire_term(term[1]))
             for term in arg_list

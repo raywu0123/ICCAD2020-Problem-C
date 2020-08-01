@@ -1,19 +1,22 @@
 #include <cassert>
 
+#include "data_structures.h"
 #include "simulator.h"
 
 extern __host__ __device__ int lookup_delay(
-    unsigned int input_index, unsigned int output_index, char input_edge_type, char output_edge_type,
+    unsigned int input_index, unsigned int output_index, EdgeTypes input_edge_type, EdgeTypes output_edge_type,
     const SDFSpec* sdf_spec
 ) {
+    if (input_edge_type == EdgeTypes::NODELAY) return 0;
+
     int delay = 0;
     for (int i_row = 0; i_row < sdf_spec->num_rows; i_row++) {
         if (sdf_spec->input_index[i_row] == input_index
         and sdf_spec->output_index[i_row] == output_index
-        and (sdf_spec->edge_type[i_row] == 'x' or sdf_spec->edge_type[i_row] == input_edge_type)
+        and (sdf_spec->edge_type[i_row] == 'x' or sdf_spec->edge_type[i_row] == edge_type_to_raw(input_edge_type))
         ) {
-            if (output_edge_type == '+') delay += sdf_spec->rising_delay[i_row];
-            else if (output_edge_type == '-') delay += sdf_spec->falling_delay[i_row];
+            if (output_edge_type == EdgeTypes::RISING) delay += sdf_spec->rising_delay[i_row];
+            else if (output_edge_type == EdgeTypes::FALLING) delay += sdf_spec->falling_delay[i_row];
         }
     }
     assert(delay < 1000 and delay >= 0);
@@ -30,6 +33,11 @@ extern __host__ __device__ void compute_delay(
         if (output_data == nullptr) continue;
 
         unsigned int write_idx = 0;
+        if (output_data[0].timestamp == -1) {
+            output_data[0].timestamp = 0;
+            write_idx = 1;
+        }
+
         unsigned int timeblock_start = 1;
         Values prev_v = output_data[0].value;
         while (timeblock_start < capacity and output_data[timeblock_start].value != Values::PAD) {
