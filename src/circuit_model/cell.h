@@ -19,6 +19,7 @@ struct IndexedWire {
     Data alloc(int session_index);
     virtual Data load(int session_index);
     virtual void free();
+    virtual void finish();
     void store_to_bucket() const;
 
     virtual void handle_overflow();
@@ -41,6 +42,7 @@ struct ScheduledWire : public IndexedWire {
     unsigned int size() const;
     void handle_overflow() override;
     bool finished() const;
+    void finish() override;
 
     void push_back_schedule_index(unsigned int i);
 
