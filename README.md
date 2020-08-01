@@ -6,7 +6,7 @@
 ### Setup
 * Initialize Git Submodules:
 ```
-git submodule init && git submodule update --remote
+git submodule init && git submodule update
 ``` 
 * python interpreter version for pyenv is specified in `.python-version`.
 You may delete this file if you want to use your own interpreter version. 
