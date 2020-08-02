@@ -41,7 +41,7 @@ __device__ __host__ void prepare_stimuli_head(
     const unsigned int num_wires, const unsigned int* progress_updates
 ) {
     bool is_head = true;
-    for (int i = 0; i < num_wires; ++i) is_head &= (data[i].transitions[progress_updates[0]].timestamp == 0);
+    for (int i = 0; i < num_wires; ++i) is_head &= (data[i].transitions[progress_updates[i]].timestamp == 0);
 
     s_timestamps[0] = is_head ? -1 : data[0].transitions[progress_updates[0]].timestamp;
     for (int i = 0; i < num_wires; ++i) {

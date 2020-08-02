@@ -32,10 +32,13 @@ struct Bucket {
         // for storing output
         unsigned int output_size;
         cudaMemcpy(&output_size, data.size, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+        if (verbose) std::cout << "output_size = " << output_size << std::endl;
         if (output_size == 0) return;
 
         Transition first_transition;
         cudaMemcpy(&first_transition, data.transitions, sizeof(Transition), cudaMemcpyDeviceToHost);
+        if (verbose) std::cout << "first transition = " << first_transition << std::endl;
+
         const auto& t = first_transition.timestamp;
         const auto& v = first_transition.value;
 
@@ -47,7 +50,6 @@ struct Bucket {
         if (t <= prev_t) write_index = binary_search(transitions.data(), write_index - 1, t);
         auto offset = (write_index > 0 and v == transitions[write_index - 1].value) ? 1: 0;
 
-
         auto valid_data_size = output_size - offset;
         transitions.resize(write_index + valid_data_size);
         auto status =  cudaMemcpy(
@@ -57,13 +59,6 @@ struct Bucket {
             cudaMemcpyDeviceToHost
         );
         if (status != cudaSuccess) throw std::runtime_error(cudaGetErrorName(status));
-
-        if (verbose) {
-            std::cout << "first transition = " << first_transition << std::endl;
-            for (int i = 0; i < valid_data_size; i++) std::cout << transitions[write_index + i];
-            std::cout << "valid data size = " << valid_data_size << std::endl;
-            std::cout << std::endl;
-        }
     }
 
     unsigned int size() const {
