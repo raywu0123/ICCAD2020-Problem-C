@@ -214,6 +214,8 @@ void Circuit::read_cells(ifstream& fin) {
         unsigned int num_args;
         fin >> cell_type >> cell_name >> num_args;
 
+        const ModuleSpec* module_spec = module_registry.get_module_spec(cell_type);
+        const StdCellDeclare* declare = module_registry.get_module_declare(cell_type);
         WireMap<Wire> args{};
         for (int j = 0; j < num_args; j++) {
             unsigned int arg, wire_index;
@@ -221,23 +223,8 @@ void Circuit::read_cells(ifstream& fin) {
             auto* wire = get_wire(wire_index);
             args.set(arg, wire);
         }
-        cells.emplace(cell_name, create_cell(cell_type, args, cell_name));
+        cells.emplace(cell_name, new Cell(module_spec, declare, args, cell_name));
     }
-}
-
-Cell* Circuit::create_cell(
-    const string& cell_type,
-    const WireMap<Wire>& pin_specs,
-    const string& cell_name
-) {
-    const ModuleSpec* module_spec = module_registry.get_module_spec(cell_type);
-    const StdCellDeclare* declare = module_registry.get_module_declare(cell_type);
-    return new Cell(
-        module_spec,
-        declare,
-        pin_specs,
-        cell_name
-    );
 }
 
 void Circuit::read_schedules(ifstream& fin) {
