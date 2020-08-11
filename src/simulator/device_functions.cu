@@ -33,7 +33,10 @@ __device__ __host__ void prepare_stimuli_head(
         Data* data,
         const unsigned int num_wires, const unsigned int* progress_updates
 ) {
-    s_timestamps[0] = data[0].transitions[progress_updates[0]].timestamp;
+    bool is_head = true;
+    for (int i = 0; i < num_wires; ++i) is_head &= (data[i].transitions[progress_updates[i]].timestamp == 0);
+
+    s_timestamps[0] = is_head ? -1 : data[0].transitions[progress_updates[0]].timestamp;
     for (int i = 0; i < num_wires; ++i) {
         s_values[i] = data[i].transitions[progress_updates[i]].value;
     }
