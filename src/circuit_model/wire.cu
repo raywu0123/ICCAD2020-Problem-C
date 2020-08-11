@@ -43,7 +43,9 @@ void Wire::set_drived() {
     bucket.transitions[0].value = Values::X;
 }
 
-ConstantWire::ConstantWire(Values value): value(value) {
-    bucket.transitions.clear();
-    bucket.transitions.emplace_back(0, value);
+void Wire::emplace_transition(const Timestamp &t, char r) {
+    bucket.emplace_transition(t, r);
 }
+
+bool ConstantWire::store_to_bucket_warning_flag = false;
+bool ConstantWire::emplace_transition_warning_flag = false;

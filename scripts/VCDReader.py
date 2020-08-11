@@ -33,7 +33,10 @@ class VCDReader:
                 self.blocks.append((t, []))
                 continue
 
+            if len(self.blocks) == 0:
+                self.blocks.append((0, []))
             block = self.blocks[-1]
+
             if line.startswith('b'):
                 split = line.strip('\n').split()
                 id, value = split[1], split[0].strip('b')

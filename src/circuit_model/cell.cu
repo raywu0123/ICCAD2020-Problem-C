@@ -12,10 +12,10 @@ Cell::Cell(
     const StdCellDeclare* declare,
     const WireMap<Wire>& pin_specs,
     string name
-) : module_spec(module_spec), name(std::move(name))
+) : module_spec(module_spec), name(std::move(name)), declare(declare)
 {
     num_args = declare->num_input + declare->num_output;
-    build_wire_map(declare, pin_specs);
+    build_wire_map(pin_specs);
 }
 
 void Cell::set_paths() {
@@ -48,10 +48,7 @@ void Cell::set_paths() {
     cudaMemcpy(sdf_spec, &host_sdf_spec, sizeof(SDFSpec), cudaMemcpyHostToDevice);
 }
 
-void Cell::build_wire_map(
-    const StdCellDeclare* declare,
-    const WireMap<Wire>& pin_specs
-) {
+void Cell::build_wire_map(const WireMap<Wire>& pin_specs) {
     if (num_args > MAX_NUM_MODULE_ARGS) {
         throw runtime_error("Too many module args (" + to_string(num_args) + ")\n");
     }
@@ -112,6 +109,7 @@ void Cell::free() {
     cudaFree(host_sdf_spec.edge_type);
     cudaFree(host_sdf_spec.input_index); cudaFree(host_sdf_spec.output_index);
     cudaFree(host_sdf_spec.rising_delay); cudaFree(host_sdf_spec.falling_delay);
+    vector<SDFPath>().swap(sdf_paths);
     for (auto& indexed_wire : input_wires) indexed_wire->finish();
     for (auto& indexed_wire : output_wires) indexed_wire->finish();
 }

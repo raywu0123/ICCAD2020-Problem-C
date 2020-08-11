@@ -91,11 +91,10 @@ public:
     std::vector<IndexedWire*> output_wires;
     std::string name;
     std::vector<SDFPath> sdf_paths;
+    const StdCellDeclare* declare;
 
 private:
-    void build_wire_map(
-        const StdCellDeclare* declare, const WireMap<Wire>& pin_specs
-    );
+    void build_wire_map(const WireMap<Wire>& pin_specs);
     void set_paths();
     bool handle_overflow();
     void free();
