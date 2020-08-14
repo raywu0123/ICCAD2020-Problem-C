@@ -4,7 +4,6 @@
 #include "src/utils.h"
 #include "src/simulation_result.h"
 #include "simulator/simulator.h"
-#include "simulator/memory_manager.h"
 #include "simulator/module_registry.h"
 
 
@@ -15,29 +14,24 @@ void print_usage() {
     cout << "| Usage: GPUSimulator.cu.py "
             "<intermediate_representation.file> "
             "<input.vcd> "
-            "<SAIF_or_VCD_flag> "
             "<dumpon_time> "
             "<dumpoff_time> "
-            "[SAIF_or_output_VCD.saif.vcd]" << endl;
+            "[SAIF_or_output_VCD.saif.vcd]"
+            "[SAIF_or_VCD_flag]\n";
 }
 
 
 bool arguments_valid(int argc, char* argv[1]) {
-    if (argc != 7) {
+    if (argc < 5) {
         cerr << "| Error: Wrong number of arguments" << endl;
         print_usage();
         return false;
     }
-    string output_flag = string(argv[3]);
-    if (output_flag != "SAIF" and output_flag != "VCD") {
-        cerr << "| Error: The third argument should be either 'SAIF' or 'VCD'" << endl;
+    if (atoll(argv[3]) >= atoll(argv[4])) {
+        cerr << "| Error: dumpoff_time earlier than dumpon_time" << endl;
         return false;
     }
-    if (atoll(argv[4]) >= atoll(argv[5])) {
-        cerr << "| Error: dumpoff_time earlier than dumon_time" << endl;
-        return false;
-    }
-    if (atoll(argv[4]) < 0) {
+    if (atoll(argv[3]) < 0) {
         cerr << "| Error: negative dumpon_time" << endl;
         return false;
     }
@@ -58,10 +52,8 @@ int main(int argc, char* argv[]) {
 
     char* inter_repr_file = argv[1];
     char* input_vcd_file = argv[2];
-    string output_flag = string(argv[3]);
-    Timestamp dumpon_time = atoll(argv[4]);
-    Timestamp dumpoff_time = atoll(argv[5]);
-    char* output_file_name = argv[6];
+    Timestamp dumpon_time = atoll(argv[3]);
+    Timestamp dumpoff_time = atoll(argv[4]);
 
     ifstream fin_intermediate = ifstream(inter_repr_file);
     if (!fin_intermediate) throw runtime_error("Bad intermediate file.");
@@ -87,6 +79,10 @@ int main(int argc, char* argv[]) {
     SimulationResult* simulation_result;
     const auto& referenced_wires = circuit.get_referenced_wires();
 
+    if (argc == 5) return 0;
+
+    char* output_file_name = argv[5];
+    string output_flag = argc == 6 ? "SAIF" : string(argv[6]);
     if (output_flag == "SAIF") {
         simulation_result = new SAIFResult(
             referenced_wires,
@@ -103,7 +99,8 @@ int main(int argc, char* argv[]) {
             dumpon_time, dumpoff_time,
             bus_manager
         );
-    }
+    } else throw runtime_error("Invalid output flag\n");
 
     simulation_result->write(output_file_name);
+    delete simulation_result;
 }

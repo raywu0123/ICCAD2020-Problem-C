@@ -25,7 +25,7 @@ pipenv run python GraphPreprocessing.py <gv_file> <sdf_file> <std_lib> <intermed
 
 3. Run simulation:  
 ```
-./build/GPUSimulator <intermediate_file> <input_vcd> <SAIF or VCD Flag> <dumpon_time> <dumpoff_time> <output_file>
+./build/GPUSimulator <intermediate_file> <input_vcd> <dumpon_time> <dumpoff_time> [output_file] [SAIF or VCD Flag]
 ```
 
 ### Testing
