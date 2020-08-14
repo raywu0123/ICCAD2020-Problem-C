@@ -43,7 +43,7 @@ def run_simulation(test_dir: str, tmpdir: str, saving_directory: str):
     input_vcd_path = os.path.join(test_dir, "input.vcd")
     output_vcd_path = os.path.join(tmpdir, "out.vcd")
     subprocess.call(
-        [exec_path, intermediate_path, input_vcd_path, "VCD", "0", str(sys.maxsize), output_vcd_path],
+        [exec_path, intermediate_path, input_vcd_path, "0", str(sys.maxsize), output_vcd_path, "VCD"],
         stdout=open(os.devnull, "wb"),
         stderr=open(os.devnull, "wb"),
     )
