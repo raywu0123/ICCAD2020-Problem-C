@@ -18,7 +18,7 @@ using TransitionContainer = PinnedMemoryVector<Transition>;
 struct Bucket {
     TransitionContainer transitions{ Transition{0, Values::Z} };
 
-    void emplace_transition(Timestamp t, char r) {
+    void emplace_transition(const Timestamp& t, char r) {
         // for storing input
         auto& back = transitions.back();
         const auto& v = raw_to_enum(r);
@@ -59,6 +59,11 @@ struct Bucket {
             cudaMemcpyDeviceToHost
         );
         if (status != cudaSuccess) throw std::runtime_error(cudaGetErrorName(status));
+
+        if (verbose) {
+            for (int i = 0; i < min((int) valid_data_size, INITIAL_CAPACITY); ++i) std::cout << transitions[write_index + i] << " ";
+            std::cout << "\n";
+        }
     }
 
     unsigned int size() const {
@@ -81,16 +86,36 @@ public:
     void load_from_bucket(
         Transition* ptr, unsigned int, unsigned int
     );
-    void store_to_bucket(const std::vector<Data>& data_ptrs, unsigned int num_ptrs);
-
+    virtual void store_to_bucket(const std::vector<Data>& data_ptrs, unsigned int num_ptrs);
+    virtual void emplace_transition(const Timestamp& t, char r);
     std::vector<WireInfo> wire_infos;
     Bucket bucket;
+    bool is_constant = false;
 };
 
 
 class ConstantWire : public Wire {
+    static bool store_to_bucket_warning_flag;
+    static bool emplace_transition_warning_flag;
+
 public:
-    explicit ConstantWire(Values value);
+    explicit ConstantWire(Values value): value(value) {
+        is_constant = true;
+        bucket.transitions.clear();
+        bucket.transitions.emplace_back(0, value);
+    }
+    void store_to_bucket(const std::vector<Data>& data_ptrs, unsigned int num_ptrs) override {
+        if (not store_to_bucket_warning_flag) {
+            std::cerr << "| Warning: storing to constant wire\n";
+            store_to_bucket_warning_flag = true;
+        }
+    };
+    void emplace_transition(const Timestamp& t, char r) override {
+        if (not emplace_transition_warning_flag) {
+            std::cerr << "| Warning: emplacing transition to constant wire\n";
+            emplace_transition_warning_flag = true;
+        }
+    }
     Values value;
 };
 

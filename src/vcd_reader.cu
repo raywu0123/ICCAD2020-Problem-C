@@ -64,13 +64,16 @@ void VCDReader::read_vars() {
 void VCDReader::get_buckets(Circuit& circuit) {
     for (auto& it : token_to_wire) {
         auto& token_info = it.second;
-        token_info.bucket_index = buckets.size();
+        token_info.bucket_index = wires.size();
         const auto& bitwidth = token_info.bitwidth;
         int step = bitwidth.first > bitwidth.second ? -1 : 1;
         for (int bit_index = bitwidth.first; bit_index != bitwidth.second + step; bit_index += step) {
             // buckets in MSB -> LSB order
-            const auto& wire = circuit.get_wire(Wirekey{token_info.wire_name, bit_index});
-            buckets.push_back(&wire->bucket);
+            auto* wire = circuit.get_wire(Wirekey{token_info.wire_name, bit_index});
+            wires.push_back(wire);
+            if (wire->is_constant) {
+                cerr << "| WARNING: Input VCD specified for constant wire " << token_info.wire_name << endl;
+            }
         }
     }
 }
@@ -125,11 +128,11 @@ void VCDReader::emplace_transition(const string& token, const Timestamp& timesta
     unsigned pad_size = bit_range - value_size;
     for (unsigned int bit_index = 0; bit_index < pad_size; ++bit_index) {
         char bit_value = value[0] == '1' ? '0' : value[0];
-        buckets[token_info.bucket_index + bit_index]->emplace_transition(timestamp, bit_value);
+        wires[token_info.bucket_index + bit_index]->emplace_transition(timestamp, bit_value);
     }
     for (unsigned int bit_index = pad_size; bit_index < bit_range; ++bit_index) {
         const char& bit_value = value[bit_index - pad_size];
-        buckets[token_info.bucket_index + bit_index]->emplace_transition(timestamp, bit_value);
+        wires[token_info.bucket_index + bit_index]->emplace_transition(timestamp, bit_value);
     }
 }
 
@@ -138,6 +141,6 @@ void VCDReader::emplace_transition(const string& token, const Timestamp& timesta
     if (it == token_to_wire.end())
         throw runtime_error("Token " + token + " not found at t = " + to_string(timestamp) + "\n");
     const auto& token_info = it->second;
-    auto* bucket = buckets[token_info.bucket_index];
-    bucket->emplace_transition(timestamp, value);
+    auto* wire = wires[token_info.bucket_index];
+    wire->emplace_transition(timestamp, value);
 }
