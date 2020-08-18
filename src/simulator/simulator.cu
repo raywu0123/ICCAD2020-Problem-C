@@ -1,3 +1,4 @@
+#include <thread>
 #include <stack>
 #include <cassert>
 
@@ -233,34 +234,58 @@ void Simulator::run() {
 
     ProgressBar progress_bar(num_layers);
     for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
-        const auto& schedule_layer = circuit.cell_schedule[i_layer];
-        stack<Cell*, std::vector<Cell*>> job_queue(schedule_layer);
-        for (auto* cell : schedule_layer) cell->init();
-        int session_id = 0;
-
-        while (not job_queue.empty()) {
-            unordered_set<Cell*> processing_cells;
-            ResourceBuffer resource_buffer;
-            for (int i = 0; i < N_CELL_PARALLEL; i++) {
-                if (job_queue.empty()) break;
-                auto* cell = job_queue.top(); processing_cells.insert(cell);
-                cell->prepare_resource(session_id, resource_buffer);
-                if (cell->finished()) job_queue.pop();
-            }
-            BatchResource batch_data{}; batch_data.init(resource_buffer);
-            cudaDeviceSynchronize(); // since async memcpy
-            simulate_batch<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL>>>(batch_data);
-            cudaDeviceSynchronize();
-
-            for (auto* cell : processing_cells) {
-                bool finished = cell->finished();
-                bool overflow = cell->gather_results();
-                if (finished and overflow) job_queue.push(cell);
-            }
-            batch_data.free();
-            session_id++;
-        }
+        const auto& splits = split_schedule_layer(circuit.cell_schedule[i_layer]);
+        vector<thread> threads;
+        for (int i = 0; i < N_THREAD; ++i) threads.emplace_back(worker, std::ref(splits[i]));
+        for (auto& thread : threads) thread.join();
         progress_bar.Progressed(i_layer + 1);
     }
     cout << endl;
 }
+
+vector<vector<Cell*>> Simulator::split_schedule_layer(const vector<Cell*>& layer) {
+    vector<vector<Cell*>> splits; splits.resize(N_THREAD);
+    int split_size = ceil(double(layer.size()) / double(N_THREAD));
+    for (int i = 0; i < N_THREAD; ++i) {
+        splits[i].reserve(split_size);
+        for (int j = 0; j < split_size; ++j) {
+            if (i * split_size + j >= layer.size()) break;
+            splits[i].push_back(layer[i * split_size + j]);
+        }
+    }
+    return splits;
+}
+
+void Simulator::worker(const vector<Cell*>& cells) {
+    cudaStream_t stream;
+    cudaStreamCreate(&stream);
+
+    stack<Cell*, std::vector<Cell*>> job_queue(cells);
+    for (auto* cell : cells) cell->init(stream);
+
+    int session_id = 0;
+    while (not job_queue.empty()) {
+        unordered_set<Cell*> processing_cells;
+        ResourceBuffer resource_buffer;
+        for (int i = 0; i < N_CELL_PARALLEL; i++) {
+            if (job_queue.empty()) break;
+            auto* cell = job_queue.top(); processing_cells.insert(cell);
+            cell->prepare_resource(session_id, resource_buffer, stream);
+            if (cell->finished()) job_queue.pop();
+        }
+        BatchResource batch_data{}; batch_data.init(resource_buffer, stream);
+        simulate_batch<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL, 0, stream>>>(batch_data);
+        cudaStreamSynchronize(stream);
+
+        for (auto* cell : processing_cells) {
+            bool finished = cell->finished();
+            bool overflow = cell->gather_results(stream);
+            if (finished and overflow) job_queue.push(cell);
+        }
+        batch_data.free();
+        session_id++;
+    }
+
+    cudaStreamDestroy(stream);
+}
+

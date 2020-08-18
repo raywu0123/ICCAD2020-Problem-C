@@ -2,6 +2,7 @@ set(HEADER_FILES
         vcd_reader.h
         simulator/simulator.h
         simulator/data_structures.h
+        simulator/containers.h
         simulator/module_registry.h
         simulator/memory_manager.h
         simulator/collision_utils.h
@@ -16,6 +17,7 @@ set(SOURCE_FILES
         vcd_reader.cu
         simulator/simulator.cu
         simulator/data_structures.cu
+        simulator/containers.cu
         simulator/module_registry.cu
         simulator/memory_manager.cu
         simulator/delay_utils.cu

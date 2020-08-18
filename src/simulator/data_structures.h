@@ -94,30 +94,4 @@ struct ModuleSpec{
     Values* table;
 };
 
-struct ResourceBuffer {
-
-    std::vector<bool*> overflows;
-    std::vector<unsigned int> capacities;
-    std::vector<const ModuleSpec*> module_specs;
-    std::vector<const SDFSpec*> sdf_specs;
-    std::vector<Data> data_schedule;
-
-    ResourceBuffer ();
-    void finish_module();
-    unsigned int size = 0;
-};
-
-
-struct BatchResource {
-    void init(const ResourceBuffer&);
-    void free() const;
-
-    bool** overflows;
-    unsigned int* capacities;
-    const ModuleSpec** module_specs;
-    const SDFSpec** sdf_specs;
-    Data* data_schedule;
-    unsigned int num_modules;
-};
-
 #endif

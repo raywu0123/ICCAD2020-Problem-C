@@ -5,6 +5,7 @@
 #include "constants.h"
 #include "wire.h"
 #include "simulator/module_registry.h"
+#include "simulator/containers.h"
 
 struct SDFPath {
     unsigned int in, out;
@@ -16,11 +17,11 @@ struct SDFPath {
 struct IndexedWire {
     explicit IndexedWire(Wire* w, const unsigned int& capacity = INITIAL_CAPACITY) : wire(w), capacity(capacity) {};
 
-    Data alloc(int session_index);
-    virtual Data load(int session_index);
+    Data alloc(int session_index, const cudaStream_t&);
+    virtual Data load(int session_index, const cudaStream_t&);
     virtual void free();
     virtual void finish();
-    void store_to_bucket() const;
+    void store_to_bucket(const cudaStream_t& stream = nullptr) const;
 
     virtual void handle_overflow();
 
@@ -37,7 +38,7 @@ struct IndexedWire {
 struct ScheduledWire : public IndexedWire {
     explicit ScheduledWire(Wire* wire, const unsigned int& capacity = INITIAL_CAPACITY): IndexedWire(wire, capacity) {};
 
-    Data load(int session_index) override;
+    Data load(int session_index, const cudaStream_t&) override;
     void free() override;
     unsigned int size() const;
     void handle_overflow() override;
@@ -80,12 +81,12 @@ public:
         const WireMap<Wire>&  pin_specs,
         std::string  name
     );
-    void init();
+    void init(const cudaStream_t& stream);
 
     static void build_bucket_index_schedule(std::vector<ScheduledWire*>& wires, unsigned int size);
     bool finished() const;
-    void prepare_resource(int, ResourceBuffer&);
-    bool gather_results();
+    void prepare_resource(int, ResourceBuffer&, const cudaStream_t& stream);
+    bool gather_results(const cudaStream_t& stream = nullptr);
 
     std::vector<ScheduledWire*> input_wires;
     std::vector<IndexedWire*> output_wires;
@@ -95,14 +96,13 @@ public:
 
 private:
     void build_wire_map(const WireMap<Wire>& pin_specs);
-    void set_paths();
-    bool handle_overflow();
+    void set_paths(const cudaStream_t& stream = nullptr);
+    bool handle_overflow(const cudaStream_t& stream = nullptr);
     void free();
     static unsigned int find_end_index(const Bucket&, unsigned int, const Timestamp&, unsigned int);
 
     const ModuleSpec* module_spec;
-    SDFSpec* sdf_spec = nullptr;
-    SDFSpec host_sdf_spec{};
+    SDFSpec *sdf_spec = nullptr, *host_sdf_spec_;
     unsigned int num_args = 0;
     unsigned int output_capacity = INITIAL_CAPACITY;
     bool* overflow_ptr = nullptr;

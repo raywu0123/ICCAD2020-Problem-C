@@ -28,15 +28,22 @@ struct Bucket {
 
     void reserve(unsigned int i) { transitions.reserve(i); }
 
-    void push_back(const Data& data, bool verbose=false) {
+    void push_back(const Data& data, const cudaStream_t& stream = nullptr, bool verbose=false) {
         // for storing output
-        unsigned int output_size;
-        cudaMemcpy(&output_size, data.size, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+        const auto& direction = cudaMemcpyDeviceToHost;
+        unsigned int* output_size_;
+        cudaMallocHost((void**) &output_size_, sizeof(unsigned int));
+        cudaMemcpyAsync(output_size_, data.size, sizeof(unsigned int), direction, stream);
+        cudaStreamSynchronize(stream);
+        auto output_size = *output_size_; cudaFreeHost(output_size_);
         if (verbose) std::cout << "output_size = " << output_size << std::endl;
         if (output_size == 0) return;
 
-        Transition first_transition;
-        cudaMemcpy(&first_transition, data.transitions, sizeof(Transition), cudaMemcpyDeviceToHost);
+        Transition* first_transition_;
+        cudaMallocHost((void**) &first_transition_, sizeof(Transition));
+        cudaMemcpyAsync(first_transition_, data.transitions, sizeof(Transition), direction, stream);
+        cudaStreamSynchronize(stream);
+        auto first_transition = *first_transition_; cudaFreeHost(first_transition_);
         if (verbose) std::cout << "first transition = " << first_transition << std::endl;
 
         const auto& t = first_transition.timestamp;
@@ -52,12 +59,14 @@ struct Bucket {
 
         auto valid_data_size = output_size - offset;
         transitions.resize(write_index + valid_data_size);
-        auto status =  cudaMemcpy(
+        auto status =  cudaMemcpyAsync(
             transitions.data() + write_index,
             data.transitions + offset,
             sizeof(Transition) * valid_data_size,
-            cudaMemcpyDeviceToHost
+            direction,
+            stream
         );
+        cudaStreamSynchronize(stream);
         if (status != cudaSuccess) throw std::runtime_error(cudaGetErrorName(status));
 
         if (verbose) {
@@ -84,9 +93,9 @@ public:
     void set_drived();
 
     void load_from_bucket(
-        Transition* ptr, unsigned int, unsigned int
+        Transition* ptr, unsigned int, unsigned int, const cudaStream_t&
     );
-    virtual void store_to_bucket(const std::vector<Data>& data_ptrs, unsigned int num_ptrs);
+    virtual void store_to_bucket(const std::vector<Data>& data_ptrs, unsigned int num_ptrs, const cudaStream_t& stream);
     virtual void emplace_transition(const Timestamp& t, char r);
     std::vector<WireInfo> wire_infos;
     Bucket bucket;
@@ -104,15 +113,15 @@ public:
         bucket.transitions.clear();
         bucket.transitions.emplace_back(0, value);
     }
-    void store_to_bucket(const std::vector<Data>& data_ptrs, unsigned int num_ptrs) override {
+    void store_to_bucket(const std::vector<Data>& data_ptrs, unsigned int num_ptrs, const cudaStream_t& stream) override {
         if (not store_to_bucket_warning_flag) {
-            std::cerr << "| Warning: storing to constant wire\n";
+            std::cerr << "| WARNING: Storing to constant wire\n";
             store_to_bucket_warning_flag = true;
         }
     };
     void emplace_transition(const Timestamp& t, char r) override {
         if (not emplace_transition_warning_flag) {
-            std::cerr << "| Warning: emplacing transition to constant wire\n";
+            std::cerr << "| WARNING: Emplacing transition to constant wire\n";
             emplace_transition_warning_flag = true;
         }
     }

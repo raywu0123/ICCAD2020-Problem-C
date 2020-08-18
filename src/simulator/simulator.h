@@ -27,7 +27,10 @@ __device__ __host__ void slice_waveforms(
 class Simulator {
 public:
     explicit Simulator(Circuit& c): circuit(c) {};
+
     void run();
+    static std::vector<std::vector<Cell*>> split_schedule_layer(const std::vector<Cell*>&);
+    static void worker(const std::vector<Cell*>& cells);
 
     Circuit& circuit;
 };

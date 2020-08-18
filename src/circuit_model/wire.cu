@@ -24,19 +24,20 @@ void Wire::assign(const Wire& other_wire) {
 }
 
 void Wire::load_from_bucket(
-    Transition* ptr, unsigned int start_bucket_index, unsigned int end_bucket_index
+    Transition* ptr, unsigned int start_bucket_index, unsigned int end_bucket_index, const cudaStream_t& stream
 ) {
     auto status = cudaMemcpyAsync(
         ptr,
         bucket.transitions.data() + start_bucket_index,
         sizeof(Transition) * (end_bucket_index - start_bucket_index),
-        cudaMemcpyHostToDevice
+        cudaMemcpyHostToDevice,
+        stream
     );
     if (status != cudaSuccess) throw runtime_error(cudaGetErrorString(status));
 }
 
-void Wire::store_to_bucket(const vector<Data>& data_list, unsigned int num_ptrs) {
-    for (unsigned int i = 0; i < num_ptrs; i++) bucket.push_back(data_list[i]);
+void Wire::store_to_bucket(const vector<Data>& data_list, unsigned int num_ptrs, const cudaStream_t& stream) {
+    for (unsigned int i = 0; i < num_ptrs; i++) bucket.push_back(data_list[i], stream);
 }
 
 void Wire::set_drived() {
