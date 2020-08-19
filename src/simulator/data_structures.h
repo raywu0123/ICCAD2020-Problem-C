@@ -84,6 +84,9 @@ struct Transition {
 struct Data {
     Transition* transitions = nullptr;
     unsigned int* size = nullptr;
+
+    Data() = default;
+    Data(void* p1, void* p2) : transitions((Transition*) p1), size((unsigned int*) p2) {}
 };
 
 std::ostream& operator<< (std::ostream& os, const Transition& transition);

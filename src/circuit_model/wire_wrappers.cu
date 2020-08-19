@@ -10,16 +10,18 @@ Data IndexedWire::alloc(int session_index, const cudaStream_t& stream) {
         first_free_data_ptr_index = 0;
         previous_session_index = session_index;
     }
-    unsigned int size = capacity * N_STIMULI_PARALLEL;
-
+    unsigned int size = sizeof(Transition) * capacity * N_STIMULI_PARALLEL;
     if (first_free_data_ptr_index >= data_list.size())
-        data_list.push_back(MemoryManager::alloc(size));
+        data_list.emplace_back(
+            MemoryManager::alloc(size),
+            MemoryManager::alloc(sizeof(unsigned int))
+        );
 
     if (first_free_data_ptr_index >= data_list.size())
         throw std::runtime_error("Invalid access to data_ptrs");
 
-    Data data = data_list[first_free_data_ptr_index];
-    cudaMemsetAsync(data.transitions, 0, sizeof(Transition) * size, stream);
+    auto& data = data_list[first_free_data_ptr_index];
+    cudaMemsetAsync(data.transitions, 0, size, stream);
     cudaMemsetAsync(data.size, 0, sizeof(unsigned int), stream);
     first_free_data_ptr_index++;
     return data;
@@ -28,7 +30,10 @@ Data IndexedWire::alloc(int session_index, const cudaStream_t& stream) {
 Data IndexedWire::load(int session_index, const cudaStream_t& stream) { return alloc(session_index, stream); }
 
 void IndexedWire::free() {
-    for (const auto& data : data_list) MemoryManager::free(data);
+    for (const auto& data : data_list) {
+        MemoryManager::free(data.transitions, sizeof(Transition) * capacity * N_STIMULI_PARALLEL);
+        MemoryManager::free(data.size, sizeof(unsigned int));
+    }
     data_list.clear();
     first_free_data_ptr_index = 0;
 }

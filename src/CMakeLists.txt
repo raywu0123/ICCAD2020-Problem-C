@@ -31,6 +31,6 @@ set(SOURCE_FILES
         utils.cu
         )
 
-set(CMAKE_CUDA_FLAGS "-g -G")
+#set(CMAKE_CUDA_FLAGS "-g -G")
 add_library(mylib STATIC ${HEADER_FILES} ${SOURCE_FILES})
 set_target_properties(mylib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)

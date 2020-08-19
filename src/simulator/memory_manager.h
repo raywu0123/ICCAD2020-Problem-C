@@ -1,6 +1,10 @@
 #ifndef ICCAD2020_MEMORY_MANAGER_H
 #define ICCAD2020_MEMORY_MANAGER_H
 
+#include <unordered_set>
+#include <unordered_map>
+#include <mutex>
+
 #include <constants.h>
 #include <simulator/data_structures.h>
 
@@ -46,13 +50,26 @@ public:
 
 template<typename T> using PinnedMemoryVector = std::vector<T, PinnedMemoryAllocator<T>>;
 
+
+class PointerHub {
+public:
+    explicit PointerHub(unsigned int size);
+    std::unordered_set<void*> free_pointers, used_pointers;
+    unsigned int size = 0;
+
+    void* get();
+    void free(void*);
+    void finish();
+};
+
 class MemoryManager {
 public:
-    static Data alloc(size_t size);
-    static void free(Data);
+    static std::unordered_map<unsigned int, PointerHub*> pointer_hubs;
+    static std::mutex mut;
 
-private:
-    static Transition* memory;
+    static void* alloc(size_t size);
+    static void free(void*, size_t);
+    static void finish();
 };
 
 

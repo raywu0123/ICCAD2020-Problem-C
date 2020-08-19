@@ -224,7 +224,7 @@ __global__ void simulate_batch(BatchResource batch_resource) {
 void Simulator::run() {
     cout << "| Status: Running Simulation... " << endl;
 
-    size_t new_heap_size = N_CELL_PARALLEL * N_STIMULI_PARALLEL * INITIAL_CAPACITY * 8
+    size_t new_heap_size = N_THREAD * N_CELL_PARALLEL * N_STIMULI_PARALLEL * INITIAL_CAPACITY * 8
             * (sizeof(Timestamp) + sizeof(DelayInfo) + sizeof(Values) * MAX_NUM_MODULE_ARGS);
     cudaErrorCheck(cudaDeviceSetLimit(cudaLimitMallocHeapSize, new_heap_size));
     cout << "| Adjusted heap size to be " << new_heap_size  << " bytes" << endl;
