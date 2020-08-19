@@ -8,6 +8,43 @@
 #include <constants.h>
 #include <simulator/data_structures.h>
 
+class PointerHub {
+public:
+    explicit PointerHub(unsigned int size);
+    std::unordered_set<void*> free_pointers, used_pointers;
+    unsigned int size = 0;
+
+    void* get();
+    void free(void*);
+    void finish();
+};
+
+class PointerHubHost {
+public:
+    explicit PointerHubHost(unsigned int size);
+    std::unordered_set<void*> free_pointers, used_pointers;
+    unsigned int size = 0;
+
+    void* get();
+    void free(void*);
+    void finish();
+};
+
+class MemoryManager {
+public:
+    static std::unordered_map<unsigned int, PointerHub*> pointer_hubs;
+    static std::unordered_map<unsigned int, PointerHubHost*> pointer_hubs_host;
+    static std::mutex mut, mut_host;
+
+    static void* alloc(size_t size);
+    static void free(void*, size_t);
+    static void* alloc_host(size_t size);
+    static void free_host(void*, size_t);
+
+    static void finish();
+};
+
+
 template <typename T>
 class PinnedMemoryAllocator {
 public:
@@ -49,28 +86,5 @@ public:
 };
 
 template<typename T> using PinnedMemoryVector = std::vector<T, PinnedMemoryAllocator<T>>;
-
-
-class PointerHub {
-public:
-    explicit PointerHub(unsigned int size);
-    std::unordered_set<void*> free_pointers, used_pointers;
-    unsigned int size = 0;
-
-    void* get();
-    void free(void*);
-    void finish();
-};
-
-class MemoryManager {
-public:
-    static std::unordered_map<unsigned int, PointerHub*> pointer_hubs;
-    static std::mutex mut;
-
-    static void* alloc(size_t size);
-    static void free(void*, size_t);
-    static void finish();
-};
-
 
 #endif

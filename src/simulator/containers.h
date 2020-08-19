@@ -14,12 +14,14 @@ struct ResourceBuffer {
 
     ResourceBuffer ();
     void finish_module();
+    void clear();
     unsigned int size = 0;
 };
 
 
 struct BatchResource {
-    void init(const ResourceBuffer&, const cudaStream_t&);
+    void init(const cudaStream_t&);
+    void set(const ResourceBuffer&, const cudaStream_t&);
     void free() const;
 
     bool** overflows;

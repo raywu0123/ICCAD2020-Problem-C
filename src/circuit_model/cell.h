@@ -85,6 +85,7 @@ public:
 
     static void build_bucket_index_schedule(std::vector<ScheduledWire*>& wires, unsigned int size);
     bool finished() const;
+    void free();
     void prepare_resource(int, ResourceBuffer&, const cudaStream_t& stream);
     bool gather_results(const cudaStream_t& stream = nullptr);
 
@@ -98,7 +99,6 @@ private:
     void build_wire_map(const WireMap<Wire>& pin_specs);
     void set_paths(const cudaStream_t& stream = nullptr);
     bool handle_overflow(const cudaStream_t& stream = nullptr);
-    void free();
     static unsigned int find_end_index(const Bucket&, unsigned int, const Timestamp&, unsigned int);
 
     const ModuleSpec* module_spec;

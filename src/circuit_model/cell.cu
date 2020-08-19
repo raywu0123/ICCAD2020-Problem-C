@@ -103,7 +103,6 @@ bool Cell::gather_results(const cudaStream_t& stream) {
     if (handle_overflow(stream)) return true;
 
     for (const auto& indexed_wire : output_wires) indexed_wire->store_to_bucket(stream);
-    if (finished()) free();
     return false;
 }
 
@@ -131,22 +130,21 @@ void Cell::init(const cudaStream_t& stream) {
     );
     unsigned int sum_size = 0;
     for (const auto& indexed_wire : input_wires) sum_size += indexed_wire->wire->bucket.size();
-    for (auto& indexed_wire : output_wires) indexed_wire->wire->bucket.reserve(sum_size * 2);
+    for (auto& indexed_wire : output_wires) indexed_wire->wire->bucket.reserve(sum_size * input_wires.size());
 }
 
 bool Cell::handle_overflow(const cudaStream_t& stream) {
-    bool* host_overflow_value;
-    cudaMallocHost((void**) &host_overflow_value, sizeof(bool));
+    auto* host_overflow_value = static_cast<bool *>(MemoryManager::alloc_host(sizeof(bool)));
     cudaMemcpyAsync(host_overflow_value, overflow_ptr, sizeof(bool), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
 
     bool overflow = *host_overflow_value;
-    cudaFreeHost(host_overflow_value);
+    MemoryManager::free_host(host_overflow_value, sizeof(bool));
     if(not overflow) return false;
 
-    output_capacity *= 2;
     for (auto& indexed_wire : input_wires) indexed_wire->handle_overflow();
     for (auto& indexed_wire : output_wires) indexed_wire->handle_overflow();
+    output_capacity *= 2;
     return true;
 }
 

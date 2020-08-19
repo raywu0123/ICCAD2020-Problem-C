@@ -31,19 +31,17 @@ struct Bucket {
     void push_back(const Data& data, const cudaStream_t& stream = nullptr, bool verbose=false) {
         // for storing output
         const auto& direction = cudaMemcpyDeviceToHost;
-        unsigned int* output_size_;
-        cudaMallocHost((void**) &output_size_, sizeof(unsigned int));
+        auto* output_size_ = static_cast<unsigned int *>(MemoryManager::alloc_host(sizeof(unsigned int)));
         cudaMemcpyAsync(output_size_, data.size, sizeof(unsigned int), direction, stream);
         cudaStreamSynchronize(stream);
-        auto output_size = *output_size_; cudaFreeHost(output_size_);
+        auto output_size = *output_size_; MemoryManager::free_host(output_size_, sizeof(unsigned int));
         if (verbose) std::cout << "output_size = " << output_size << std::endl;
         if (output_size == 0) return;
 
-        Transition* first_transition_;
-        cudaMallocHost((void**) &first_transition_, sizeof(Transition));
+        auto* first_transition_ = static_cast<Transition *>(MemoryManager::alloc_host(sizeof(Transition)));
         cudaMemcpyAsync(first_transition_, data.transitions, sizeof(Transition), direction, stream);
         cudaStreamSynchronize(stream);
-        auto first_transition = *first_transition_; cudaFreeHost(first_transition_);
+        auto first_transition = *first_transition_; MemoryManager::free_host(first_transition_, sizeof(Transition));
         if (verbose) std::cout << "first transition = " << first_transition << std::endl;
 
         const auto& t = first_transition.timestamp;

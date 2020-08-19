@@ -262,18 +262,19 @@ void Simulator::worker(const vector<Cell*>& cells) {
 
     stack<Cell*, std::vector<Cell*>> job_queue(cells);
     for (auto* cell : cells) cell->init(stream);
-
+    ResourceBuffer resource_buffer;
+    BatchResource batch_data{}; batch_data.init(stream);
     int session_id = 0;
+
     while (not job_queue.empty()) {
         unordered_set<Cell*> processing_cells;
-        ResourceBuffer resource_buffer;
         for (int i = 0; i < N_CELL_PARALLEL; i++) {
             if (job_queue.empty()) break;
             auto* cell = job_queue.top(); processing_cells.insert(cell);
             cell->prepare_resource(session_id, resource_buffer, stream);
             if (cell->finished()) job_queue.pop();
         }
-        BatchResource batch_data{}; batch_data.init(resource_buffer, stream);
+        batch_data.set(resource_buffer, stream); resource_buffer.clear();
         simulate_batch<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL, 0, stream>>>(batch_data);
         cudaStreamSynchronize(stream);
 
@@ -282,10 +283,10 @@ void Simulator::worker(const vector<Cell*>& cells) {
             bool overflow = cell->gather_results(stream);
             if (finished and overflow) job_queue.push(cell);
         }
-        batch_data.free();
         session_id++;
     }
-
+    for (auto* cell : cells) cell->free();
+    batch_data.free();
     cudaStreamDestroy(stream);
 }
 

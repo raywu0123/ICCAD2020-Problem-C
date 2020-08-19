@@ -1,14 +1,19 @@
+#include <cassert>
+
 #include "containers.h"
 
 
-void BatchResource::init(const ResourceBuffer& resource_buffer, const cudaStream_t& stream) {
-    num_modules = resource_buffer.size;
+void BatchResource::init(cudaStream_t const &) {
+    cudaMalloc((void**) &overflows, sizeof(bool*) * N_CELL_PARALLEL);
+    cudaMalloc((void**) &capacities, sizeof(unsigned int) * N_CELL_PARALLEL);
+    cudaMalloc((void**) &module_specs, sizeof(ModuleSpec*) * N_CELL_PARALLEL);
+    cudaMalloc((void**) &sdf_specs, sizeof(SDFSpec*) * N_CELL_PARALLEL);
+    cudaMalloc((void**) &data_schedule, sizeof(Data) * N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
+}
 
-    cudaMalloc((void**) &overflows, sizeof(bool*) * num_modules);
-    cudaMalloc((void**) &capacities, sizeof(unsigned int) * num_modules);
-    cudaMalloc((void**) &module_specs, sizeof(ModuleSpec*) * num_modules);
-    cudaMalloc((void**) &sdf_specs, sizeof(SDFSpec*) * num_modules);
-    cudaMalloc((void**) &data_schedule, sizeof(Data) * resource_buffer.data_schedule.size());
+void BatchResource::set(const ResourceBuffer& resource_buffer, const cudaStream_t& stream) {
+    assert(resource_buffer.data_schedule.size() <= N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
+    num_modules = resource_buffer.size;
 
     auto direction = cudaMemcpyHostToDevice;
     cudaMemcpyAsync(overflows, resource_buffer.overflows.data(), sizeof(bool*) * num_modules, direction, stream);
@@ -37,4 +42,13 @@ ResourceBuffer::ResourceBuffer() {
 void ResourceBuffer::finish_module() {
     size++;
     data_schedule.resize(size * MAX_NUM_MODULE_ARGS);
+}
+
+void ResourceBuffer::clear() {
+    overflows.clear();
+    capacities.clear();
+    module_specs.clear();
+    sdf_specs.clear();
+    data_schedule.clear();
+    size = 0;
 }
