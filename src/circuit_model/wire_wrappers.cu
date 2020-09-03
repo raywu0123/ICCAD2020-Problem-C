@@ -10,7 +10,7 @@ Data IndexedWire::alloc(int session_index) {
         first_free_data_ptr_index = 0;
         previous_session_index = session_index;
     }
-    unsigned int size = capacity * N_STIMULI_PARALLEL;
+    unsigned int size = static_cast<unsigned int>(capacity) * N_STIMULI_PARALLEL;
 
     if (first_free_data_ptr_index >= data_list.size())
         data_list.push_back(MemoryManager::alloc(size));

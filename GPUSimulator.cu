@@ -16,7 +16,7 @@ void print_usage() {
             "<input.vcd> "
             "<dumpon_time> "
             "<dumpoff_time> "
-            "[SAIF_or_output_VCD.saif.vcd]"
+            "[SAIF_or_output_VCD.saif.vcd] "
             "[SAIF_or_VCD_flag]\n";
 }
 
@@ -99,7 +99,7 @@ int main(int argc, char* argv[]) {
             dumpon_time, dumpoff_time,
             bus_manager
         );
-    } else throw runtime_error("Invalid output flag\n");
+    } else throw runtime_error("Invalid output flag " + output_flag + "\n");
 
     simulation_result->write(output_file_name);
     delete simulation_result;

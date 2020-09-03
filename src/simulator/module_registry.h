@@ -9,7 +9,7 @@
 #include "data_structures.h"
 
 struct StdCellDeclare {
-    unsigned int num_input, num_output;
+    NUM_ARG_TYPE num_input, num_output;
 };
 
 class ModuleRegistry {

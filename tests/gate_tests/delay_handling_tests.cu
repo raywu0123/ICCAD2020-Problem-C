@@ -13,7 +13,7 @@ struct TestPair{
     vector<char> edge_types;
     vector<unsigned> input_indices, output_indices;
     vector<int> rising_delays, falling_delays;
-    unsigned int capacity = 16;
+    CAPACITY_TYPE capacity = 16;
 };
 
 class DelayTestFixture: public ::testing::TestWithParam<TestPair>{
@@ -31,12 +31,12 @@ TEST_P(DelayTestFixture, SimpleCases) {
     transitions[0] = new Transition[waveform.size()];
     for (int i = 0; i < capacity; i++) transitions[0][i] = waveform[i];
 
-    unsigned int lengths = 0;
+    CAPACITY_TYPE lengths = 0;
 
     unsigned int num_rows = params.edge_types.size();
     auto* edge_types = new char[num_rows];
-    auto* input_indices = new unsigned int[num_rows];
-    auto* output_indices = new unsigned int[num_rows];
+    auto* input_indices = new NUM_ARG_TYPE[num_rows];
+    auto* output_indices = new NUM_ARG_TYPE[num_rows];
     auto* rising_delays = new int[num_rows];
     auto* falling_delays = new int[num_rows];
     for (int i = 0; i < num_rows; i++) {

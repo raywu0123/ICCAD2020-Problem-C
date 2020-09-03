@@ -22,9 +22,12 @@ void ModuleRegistry::read_file(ifstream& fin) {
 void ModuleRegistry::read_vlib_module(ifstream& fin) {
     string name;
     StdCellDeclare declare{};
-    fin >> name >> declare.num_input >> declare.num_output;
 
-    unsigned int num_table_rows = pow(4, declare.num_input);
+    unsigned int num_input, num_output;
+    fin >> name >> num_input >> num_output;
+    declare.num_input = num_input; declare.num_output = num_output;
+    unsigned int num_table_rows = pow(4, static_cast<unsigned int>(num_input));
+
     vector<string> table; table.reserve(num_table_rows);
     for (int i = 0; i < num_table_rows; ++i) {
         string row;
@@ -69,7 +72,6 @@ void ModuleRegistry::register_module(
     ModuleSpec device_module_spec_{};
     device_module_spec_.num_input = declares.num_input;
     device_module_spec_.num_output = declares.num_output;
-    device_module_spec_.table_row_num = table_row_num;
     device_module_spec_.table = device_char_table;
 
     ModuleSpec* device_module_spec;

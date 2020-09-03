@@ -5,6 +5,8 @@
 #include <string>
 #include <ostream>
 
+#include "constants.h"
+
 
 typedef std::pair<int, int> BitWidth;
 typedef std::pair<std::string, int> Wirekey;
@@ -20,12 +22,12 @@ struct pair_hash {
 struct SubmoduleSpec {
     std::string name;
     std::string type;
-    std::vector<unsigned int> args;
+    std::vector<NUM_ARG_TYPE> args;
 };
 
 struct SDFSpec {
     unsigned int num_rows;
-    unsigned int *input_index, *output_index;
+    NUM_ARG_TYPE *input_index, *output_index;
     char* edge_type;
     int *rising_delay, *falling_delay;
 };
@@ -57,8 +59,8 @@ __host__ __device__ EdgeTypes get_edge_type(const Values& v1, const Values& v2);
 
 struct DelayInfo {
     DelayInfo() = default;
-    DelayInfo(unsigned int arg, char edge_type) : arg(arg), edge_type(raw_to_edge_type(edge_type)) {};
-    unsigned int arg = 0;
+    DelayInfo(NUM_ARG_TYPE arg, char edge_type) : arg(arg), edge_type(raw_to_edge_type(edge_type)) {};
+    NUM_ARG_TYPE arg = 0;
     EdgeTypes edge_type = EdgeTypes::UNDEF;
     bool operator== (const DelayInfo& other) const {
         return arg == other.arg and edge_type == other.edge_type;
@@ -89,15 +91,14 @@ struct Data {
 std::ostream& operator<< (std::ostream& os, const Transition& transition);
 
 struct ModuleSpec{
-    unsigned int num_input, num_output;
-    unsigned int table_row_num;
+    NUM_ARG_TYPE num_input, num_output;
     Values* table;
 };
 
 struct ResourceBuffer {
 
     std::vector<bool*> overflows;
-    std::vector<unsigned int> capacities;
+    std::vector<CAPACITY_TYPE> capacities;
     std::vector<const ModuleSpec*> module_specs;
     std::vector<const SDFSpec*> sdf_specs;
     std::vector<Data> data_schedule;
@@ -113,7 +114,7 @@ struct BatchResource {
     void free() const;
 
     bool** overflows;
-    unsigned int* capacities;
+    CAPACITY_TYPE* capacities;
     const ModuleSpec** module_specs;
     const SDFSpec** sdf_specs;
     Data* data_schedule;

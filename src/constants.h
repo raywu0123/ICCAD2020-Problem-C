@@ -1,12 +1,13 @@
 #ifndef ICCAD2020_CONSTANTS_H
 #define ICCAD2020_CONSTANTS_H
 
-#include "simulator/data_structures.h"
+using CAPACITY_TYPE = unsigned short int;
+using NUM_ARG_TYPE = uint8_t;
 
 const unsigned int N_CELL_PARALLEL = 512;
 const unsigned int N_STIMULI_PARALLEL = 256;
-const unsigned int INITIAL_CAPACITY = 16;
-const unsigned int MAX_NUM_MODULE_OUTPUT = 10;
-const unsigned int MAX_NUM_MODULE_ARGS = 20;
+const CAPACITY_TYPE INITIAL_CAPACITY = 16;
+const NUM_ARG_TYPE MAX_NUM_MODULE_OUTPUT = 10;
+const NUM_ARG_TYPE MAX_NUM_MODULE_ARGS = 20;
 
 #endif

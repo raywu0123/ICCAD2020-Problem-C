@@ -20,7 +20,7 @@ Cell::Cell(
 
 void Cell::set_paths() {
     vector<char> edge_types;
-    vector<unsigned int> input_indices, output_indices;
+    vector<NUM_ARG_TYPE> input_indices, output_indices;
     vector<int> rising_delays, falling_delays;
 
     for (const auto& path : sdf_paths) {
@@ -34,13 +34,13 @@ void Cell::set_paths() {
     const auto& num_rows = sdf_paths.size();
     host_sdf_spec.num_rows = num_rows;
     cudaMalloc((void**) &host_sdf_spec.edge_type, sizeof(char) * num_rows);
-    cudaMalloc((void**) &host_sdf_spec.input_index, sizeof(int) * num_rows);
-    cudaMalloc((void**) &host_sdf_spec.output_index, sizeof(int) * num_rows);
+    cudaMalloc((void**) &host_sdf_spec.input_index, sizeof(NUM_ARG_TYPE) * num_rows);
+    cudaMalloc((void**) &host_sdf_spec.output_index, sizeof(NUM_ARG_TYPE) * num_rows);
     cudaMalloc((void**) &host_sdf_spec.rising_delay, sizeof(int) * num_rows);
     cudaMalloc((void**) &host_sdf_spec.falling_delay, sizeof(int) * num_rows);
     cudaMemcpy(host_sdf_spec.edge_type, edge_types.data(), sizeof(char) * num_rows, cudaMemcpyHostToDevice);
-    cudaMemcpy(host_sdf_spec.input_index, input_indices.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
-    cudaMemcpy(host_sdf_spec.output_index, output_indices.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
+    cudaMemcpy(host_sdf_spec.input_index, input_indices.data(), sizeof(NUM_ARG_TYPE) * num_rows, cudaMemcpyHostToDevice);
+    cudaMemcpy(host_sdf_spec.output_index, output_indices.data(), sizeof(NUM_ARG_TYPE) * num_rows, cudaMemcpyHostToDevice);
     cudaMemcpy(host_sdf_spec.rising_delay, rising_delays.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
     cudaMemcpy(host_sdf_spec.falling_delay, falling_delays.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
 
@@ -52,20 +52,20 @@ void Cell::build_wire_map(const WireMap<Wire>& pin_specs) {
     if (num_args > MAX_NUM_MODULE_ARGS) {
         throw runtime_error("Too many module args (" + to_string(num_args) + ")\n");
     }
-    for (unsigned int arg = 0; arg < declare->num_input; ++arg) {
+    for (NUM_ARG_TYPE arg = 0; arg < declare->num_input; ++arg) {
         auto* wire_ptr = pin_specs.get(arg);
         if (wire_ptr == nullptr) continue;
         auto* scheduled_wire = new ScheduledWire(wire_ptr);
         wire_map.set(arg, scheduled_wire); input_wires.push_back(scheduled_wire);
     }
-    for (unsigned int arg = declare->num_input; arg < num_args; ++arg) {
+    for (NUM_ARG_TYPE arg = declare->num_input; arg < num_args; ++arg) {
         auto* wire_ptr = pin_specs.get(arg);
         if (wire_ptr == nullptr) continue;
         wire_ptr->set_drived();
         auto* indexed_wire = new IndexedWire(wire_ptr, output_capacity);
         wire_map.set(arg, indexed_wire); output_wires.push_back(indexed_wire);
     }
-    for (unsigned int arg = 0; arg < num_args; arg++) {
+    for (NUM_ARG_TYPE arg = 0; arg < num_args; arg++) {
         if (wire_map.get(arg) == nullptr) cerr << "| WARNING: Arg (" + to_string(arg) + ") not found in wiremap of cell " << name  << endl;
     }
 }
@@ -80,7 +80,7 @@ void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer) {
     for (auto& indexed_wire : input_wires) indexed_wire->load(session_id);
     for (auto& indexed_wire : output_wires) indexed_wire->load(session_id);
 
-    for (unsigned int arg = 0; arg < num_args; ++arg) {
+    for (NUM_ARG_TYPE arg = 0; arg < num_args; ++arg) {
         const auto* indexed_wire = wire_map.get(arg);
         if (indexed_wire == nullptr) {
             resource_buffer.data_schedule.push_back(Data{});
@@ -145,7 +145,7 @@ bool Cell::finished() const {
 }
 
 void Cell::build_bucket_index_schedule(vector<ScheduledWire*>& wires, unsigned int size) {
-    unsigned int num_finished = 0, num_inputs = wires.size();
+    NUM_ARG_TYPE num_finished = 0, num_inputs = wires.size();
 
     vector<unsigned int> starting_indices; starting_indices.resize(num_inputs);
     vector<bool> finished; finished.resize(num_inputs);

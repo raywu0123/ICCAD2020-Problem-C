@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "memory_manager.h"
 #include "utils.h"
 
