@@ -162,9 +162,10 @@ __device__ void simulate_module(
 ) {
     __shared__ Timestamp* s_input_timestamps; __shared__ DelayInfo* s_input_delay_infos; __shared__ Values* s_input_values;
     if (threadIdx.x == 0) {
-        s_input_timestamps = new Timestamp[N_STIMULI_PARALLEL * capacity];
-        s_input_delay_infos = new DelayInfo[N_STIMULI_PARALLEL * capacity];
-        s_input_values = new Values[N_STIMULI_PARALLEL * capacity * module_spec->num_input];
+        auto size = N_STIMULI_PARALLEL * static_cast<unsigned int>(capacity);
+        s_input_timestamps = new Timestamp[size];
+        s_input_delay_infos = new DelayInfo[size];
+        s_input_values = new Values[size * static_cast<unsigned int>(module_spec->num_input)];
         slice_waveforms(
             s_input_timestamps, s_input_delay_infos, s_input_values,
             data, capacity,
@@ -180,9 +181,10 @@ __device__ void simulate_module(
         output_data_ptrs_for_stimuli[i] = data[module_spec->num_input + i].transitions + stimuli_idx * capacity;
     }
 
+    auto offset = stimuli_idx * static_cast<unsigned int>(capacity);
     stepping_algorithm(
-        s_input_timestamps + stimuli_idx * capacity,
-        s_input_values + stimuli_idx * capacity * module_spec->num_input,
+        s_input_timestamps + offset,
+        s_input_values + offset * static_cast<unsigned int>(module_spec->num_input),
         output_data_ptrs_for_stimuli,
         module_spec,
         capacity
@@ -232,6 +234,8 @@ void Simulator::run() {
     cout << "| Total " << num_layers << " layers" << endl;
 
     ProgressBar progress_bar(num_layers);
+    ResourceBuffer resource_buffer;
+    BatchResource batch_data{}; batch_data.init();
     for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
         const auto& schedule_layer = circuit.cell_schedule[i_layer];
         stack<Cell*, std::vector<Cell*>> job_queue(schedule_layer);
@@ -240,15 +244,13 @@ void Simulator::run() {
 
         while (not job_queue.empty()) {
             unordered_set<Cell*> processing_cells;
-            ResourceBuffer resource_buffer;
             for (int i = 0; i < N_CELL_PARALLEL; i++) {
                 if (job_queue.empty()) break;
                 auto* cell = job_queue.top(); processing_cells.insert(cell);
                 cell->prepare_resource(session_id, resource_buffer);
                 if (cell->finished()) job_queue.pop();
             }
-            BatchResource batch_data{}; batch_data.init(resource_buffer);
-            cudaDeviceSynchronize(); // since async memcpy
+            batch_data.set(resource_buffer); resource_buffer.clear();
             simulate_batch<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL>>>(batch_data);
             cudaDeviceSynchronize();
 
@@ -257,10 +259,12 @@ void Simulator::run() {
                 bool overflow = cell->gather_results();
                 if (finished and overflow) job_queue.push(cell);
             }
-            batch_data.free();
             session_id++;
         }
+
+        for (auto* cell : schedule_layer) cell->free();
         progress_bar.Progressed(i_layer + 1);
     }
+    batch_data.free();
     cout << endl;
 }

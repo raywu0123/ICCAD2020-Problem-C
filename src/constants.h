@@ -1,8 +1,8 @@
 #ifndef ICCAD2020_CONSTANTS_H
 #define ICCAD2020_CONSTANTS_H
 
-using CAPACITY_TYPE = unsigned short int;
-using NUM_ARG_TYPE = uint8_t;
+using CAPACITY_TYPE = unsigned int;
+using NUM_ARG_TYPE = unsigned char;
 
 const unsigned int N_CELL_PARALLEL = 512;
 const unsigned int N_STIMULI_PARALLEL = 256;

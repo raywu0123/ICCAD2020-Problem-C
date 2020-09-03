@@ -86,6 +86,8 @@ struct Transition {
 struct Data {
     Transition* transitions = nullptr;
     unsigned int* size = nullptr;
+    Data() = default;
+    Data(void* p1, void* p2) : transitions((Transition*) p1), size((unsigned int*) p2) {}
 };
 
 std::ostream& operator<< (std::ostream& os, const Transition& transition);
@@ -93,32 +95,6 @@ std::ostream& operator<< (std::ostream& os, const Transition& transition);
 struct ModuleSpec{
     NUM_ARG_TYPE num_input, num_output;
     Values* table;
-};
-
-struct ResourceBuffer {
-
-    std::vector<bool*> overflows;
-    std::vector<CAPACITY_TYPE> capacities;
-    std::vector<const ModuleSpec*> module_specs;
-    std::vector<const SDFSpec*> sdf_specs;
-    std::vector<Data> data_schedule;
-
-    ResourceBuffer ();
-    void finish_module();
-    unsigned int size = 0;
-};
-
-
-struct BatchResource {
-    void init(const ResourceBuffer&);
-    void free() const;
-
-    bool** overflows;
-    CAPACITY_TYPE* capacities;
-    const ModuleSpec** module_specs;
-    const SDFSpec** sdf_specs;
-    Data* data_schedule;
-    unsigned int num_modules;
 };
 
 #endif

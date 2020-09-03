@@ -30,13 +30,20 @@ struct Bucket {
 
     void push_back(const Data& data, bool verbose=false) {
         // for storing output
-        unsigned int output_size;
-        cudaMemcpy(&output_size, data.size, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+        const auto& direction = cudaMemcpyDeviceToHost;
+        auto* output_size_ = static_cast<unsigned int*>(MemoryManager::alloc_host(sizeof(unsigned int)));
+        cudaMemcpyAsync(output_size_, data.size, sizeof(unsigned int), direction);
+        cudaStreamSynchronize(nullptr);
+        auto output_size = *output_size_;
+        MemoryManager::free_host(output_size_, sizeof(unsigned int));
         if (verbose) std::cout << "output_size = " << output_size << std::endl;
         if (output_size == 0) return;
 
-        Transition first_transition;
-        cudaMemcpy(&first_transition, data.transitions, sizeof(Transition), cudaMemcpyDeviceToHost);
+        auto* first_transition_ = static_cast<Transition*>(MemoryManager::alloc_host(sizeof(Transition)));
+        cudaMemcpyAsync(first_transition_, data.transitions, sizeof(Transition), direction);
+        cudaStreamSynchronize(nullptr);
+        auto first_transition = *first_transition_;
+        MemoryManager::free_host(first_transition_, sizeof(Transition));
         if (verbose) std::cout << "first transition = " << first_transition << std::endl;
 
         const auto& t = first_transition.timestamp;

@@ -2,9 +2,11 @@
 #define ICCAD2020_CELL_H
 
 #include <iostream>
+
 #include "constants.h"
 #include "wire.h"
 #include "simulator/module_registry.h"
+#include "simulator/containers.h"
 
 struct SDFPath {
     NUM_ARG_TYPE in, out;
@@ -81,6 +83,7 @@ public:
         std::string  name
     );
     void init();
+    void free();
 
     static void build_bucket_index_schedule(std::vector<ScheduledWire*>& wires, unsigned int size);
     bool finished() const;
@@ -97,7 +100,6 @@ private:
     void build_wire_map(const WireMap<Wire>& pin_specs);
     void set_paths();
     bool handle_overflow();
-    void free();
     static unsigned int find_end_index(const Bucket&, unsigned int, const Timestamp&, unsigned int);
 
     const ModuleSpec* module_spec;

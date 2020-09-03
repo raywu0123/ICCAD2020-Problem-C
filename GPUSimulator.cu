@@ -75,6 +75,7 @@ int main(int argc, char* argv[]) {
 
     Simulator simulator(circuit);
     simulator.run();
+    MemoryManager::finish();
 
     SimulationResult* simulation_result;
     const auto& referenced_wires = circuit.get_referenced_wires();

@@ -99,7 +99,6 @@ bool Cell::gather_results() {
     if (handle_overflow()) return true;
 
     for (const auto& indexed_wire : output_wires) indexed_wire->store_to_bucket();
-    if (finished()) free();
     return false;
 }
 
@@ -127,13 +126,16 @@ void Cell::init() {
 }
 
 bool Cell::handle_overflow() {
-    bool host_overflow_value;
-    cudaMemcpy(&host_overflow_value, overflow_ptr, sizeof(bool), cudaMemcpyDeviceToHost);
-    if(not host_overflow_value) return false;
+    auto* overflow_ = static_cast<bool*>(MemoryManager::alloc_host(sizeof(bool)));
+    cudaMemcpyAsync(overflow_, overflow_ptr, sizeof(bool), cudaMemcpyDeviceToHost);
+    cudaStreamSynchronize(nullptr);
+    bool overflow = *overflow_;
+    MemoryManager::free_host(overflow_, sizeof(bool));
+    if(not overflow) return false;
 
-    output_capacity *= 2;
     for (auto& indexed_wire : input_wires) indexed_wire->handle_overflow();
     for (auto& indexed_wire : output_wires) indexed_wire->handle_overflow();
+    output_capacity *= 2;
     return true;
 }
 
