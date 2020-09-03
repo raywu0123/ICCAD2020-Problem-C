@@ -119,11 +119,11 @@ void Cell::init() {
     set_paths();
     Cell::build_bucket_index_schedule(
         input_wires,
-        (INITIAL_CAPACITY * N_STIMULI_PARALLEL) / input_wires.size() - 1
+        (INITIAL_CAPACITY * N_STIMULI_PARALLEL) - 1
     );
     unsigned int sum_size = 0;
     for (const auto& indexed_wire : input_wires) sum_size += indexed_wire->wire->bucket.size();
-    for (auto& indexed_wire : output_wires) indexed_wire->wire->bucket.reserve(sum_size * 2);
+    for (auto& indexed_wire : output_wires) indexed_wire->wire->bucket.reserve(sum_size);
 }
 
 bool Cell::handle_overflow() {
