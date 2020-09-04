@@ -33,18 +33,18 @@ void Cell::set_paths() {
 
     const auto& num_rows = sdf_paths.size();
     host_sdf_spec.num_rows = num_rows;
-    cudaMalloc((void**) &host_sdf_spec.edge_type, sizeof(char) * num_rows);
-    cudaMalloc((void**) &host_sdf_spec.input_index, sizeof(NUM_ARG_TYPE) * num_rows);
-    cudaMalloc((void**) &host_sdf_spec.output_index, sizeof(NUM_ARG_TYPE) * num_rows);
-    cudaMalloc((void**) &host_sdf_spec.rising_delay, sizeof(int) * num_rows);
-    cudaMalloc((void**) &host_sdf_spec.falling_delay, sizeof(int) * num_rows);
+    host_sdf_spec.edge_type = static_cast<char*>(MemoryManager::alloc(sizeof(char) * num_rows));
+    host_sdf_spec.input_index = static_cast<NUM_ARG_TYPE*>(MemoryManager::alloc(sizeof(NUM_ARG_TYPE) * num_rows));
+    host_sdf_spec.output_index = static_cast<NUM_ARG_TYPE*>(MemoryManager::alloc(sizeof(NUM_ARG_TYPE) * num_rows));
+    host_sdf_spec.rising_delay = static_cast<int*>(MemoryManager::alloc(sizeof(int) * num_rows));
+    host_sdf_spec.falling_delay = static_cast<int*>(MemoryManager::alloc(sizeof(int) * num_rows));
     cudaMemcpy(host_sdf_spec.edge_type, edge_types.data(), sizeof(char) * num_rows, cudaMemcpyHostToDevice);
     cudaMemcpy(host_sdf_spec.input_index, input_indices.data(), sizeof(NUM_ARG_TYPE) * num_rows, cudaMemcpyHostToDevice);
     cudaMemcpy(host_sdf_spec.output_index, output_indices.data(), sizeof(NUM_ARG_TYPE) * num_rows, cudaMemcpyHostToDevice);
     cudaMemcpy(host_sdf_spec.rising_delay, rising_delays.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
     cudaMemcpy(host_sdf_spec.falling_delay, falling_delays.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
 
-    cudaMalloc((void**) &sdf_spec, sizeof(SDFSpec));
+    sdf_spec = static_cast<SDFSpec*>(MemoryManager::alloc(sizeof(SDFSpec)));
     cudaMemcpy(sdf_spec, &host_sdf_spec, sizeof(SDFSpec), cudaMemcpyHostToDevice);
 }
 
@@ -68,6 +68,18 @@ void Cell::build_wire_map(const WireMap<Wire>& pin_specs) {
     for (NUM_ARG_TYPE arg = 0; arg < num_args; arg++) {
         if (wire_map.get(arg) == nullptr) cerr << "| WARNING: Arg (" + to_string(arg) + ") not found in wiremap of cell " << name  << endl;
     }
+}
+
+void Cell::init() {
+    overflow_ptr = static_cast<bool*>(MemoryManager::alloc(sizeof(bool)));
+    set_paths();
+    Cell::build_bucket_index_schedule(
+            input_wires,
+            (INITIAL_CAPACITY * N_STIMULI_PARALLEL) - 1
+    );
+    unsigned int sum_size = 0;
+    for (const auto& indexed_wire : input_wires) sum_size += indexed_wire->wire->bucket.size();
+    for (auto& indexed_wire : output_wires) indexed_wire->wire->bucket.reserve(sum_size);
 }
 
 void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer) {
@@ -103,26 +115,18 @@ bool Cell::gather_results() {
 }
 
 void Cell::free() {
-    cudaFree(overflow_ptr);
-    cudaFree(sdf_spec);
-    cudaFree(host_sdf_spec.edge_type);
-    cudaFree(host_sdf_spec.input_index); cudaFree(host_sdf_spec.output_index);
-    cudaFree(host_sdf_spec.rising_delay); cudaFree(host_sdf_spec.falling_delay);
+    MemoryManager::free(overflow_ptr, sizeof(bool));
+    MemoryManager::free(sdf_spec, sizeof(SDFSpec));
+    const auto& num_rows = sdf_paths.size();
+    MemoryManager::free(host_sdf_spec.edge_type, sizeof(char) * num_rows);
+    MemoryManager::free(host_sdf_spec.input_index, sizeof(NUM_ARG_TYPE) * num_rows);
+    MemoryManager::free(host_sdf_spec.output_index, sizeof(NUM_ARG_TYPE) * num_rows);
+    MemoryManager::free(host_sdf_spec.rising_delay, sizeof(int) * num_rows);
+    MemoryManager::free(host_sdf_spec.falling_delay, sizeof(int) * num_rows);
+
     vector<SDFPath>().swap(sdf_paths);
     for (auto& indexed_wire : input_wires) indexed_wire->finish();
     for (auto& indexed_wire : output_wires) indexed_wire->finish();
-}
-
-void Cell::init() {
-    cudaMalloc((void**) &overflow_ptr, sizeof(bool));
-    set_paths();
-    Cell::build_bucket_index_schedule(
-        input_wires,
-        (INITIAL_CAPACITY * N_STIMULI_PARALLEL) - 1
-    );
-    unsigned int sum_size = 0;
-    for (const auto& indexed_wire : input_wires) sum_size += indexed_wire->wire->bucket.size();
-    for (auto& indexed_wire : output_wires) indexed_wire->wire->bucket.reserve(sum_size);
 }
 
 bool Cell::handle_overflow() {

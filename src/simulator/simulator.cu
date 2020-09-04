@@ -257,12 +257,14 @@ void Simulator::run() {
             for (auto* cell : processing_cells) {
                 bool finished = cell->finished();
                 bool overflow = cell->gather_results();
-                if (finished and overflow) job_queue.push(cell);
+                if (finished) {
+                    if (overflow) job_queue.push(cell);
+                    else cell->free();
+                }
             }
             session_id++;
         }
 
-        for (auto* cell : schedule_layer) cell->free();
         progress_bar.Progressed(i_layer + 1);
     }
     batch_data.free();

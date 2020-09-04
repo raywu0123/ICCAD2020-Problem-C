@@ -2,6 +2,7 @@
 #include <cassert>
 
 #include "memory_manager.h"
+#include "utils.h"
 
 using namespace std;
 
@@ -57,12 +58,22 @@ void MemoryManager::finish() {
     }
 }
 
+void MemoryManager::clear() { for (auto& it : pointer_hubs) it.second->clear(); }
+
+void MemoryManager::clear_host() { for (auto& it : pointer_hubs_host) it.second->clear(); }
+
 PointerHub::PointerHub(unsigned int size) :size(size) {}
 
 void* PointerHub::get() {
     void* ptr;
-    if (free_pointers.empty()) cudaMalloc(&ptr, size);
-    else {
+    if (free_pointers.empty()) {
+        auto status = cudaMalloc(&ptr, size);
+        if (status == cudaErrorMemoryAllocation) {
+            MemoryManager::clear();
+            status = cudaMalloc(&ptr, size);
+        }
+        cudaErrorCheck(status);
+    } else {
         ptr = *(free_pointers.begin());
         free_pointers.erase(ptr);
     }
@@ -81,12 +92,23 @@ void PointerHub::finish() {
     for (auto& ptr : used_pointers) cudaFree(ptr);
 }
 
+void PointerHub::clear() {
+    for (auto& ptr : free_pointers) cudaFree(ptr);
+    free_pointers.clear();
+}
+
 PointerHubHost::PointerHubHost(unsigned int size) : size(size) {}
 
 void* PointerHubHost::get() {
     void* ptr;
-    if (free_pointers.empty()) cudaMallocHost(&ptr, size);
-    else {
+    if (free_pointers.empty()) {
+        auto status = cudaMallocHost(&ptr, size);
+        if (status == cudaErrorMemoryAllocation) {
+            MemoryManager::clear_host();
+            status = cudaMallocHost(&ptr, size);
+        }
+        cudaErrorCheck(status);
+    } else {
         ptr = *(free_pointers.begin());
         free_pointers.erase(ptr);
     }
@@ -103,4 +125,9 @@ void PointerHubHost::free(void* ptr) {
 void PointerHubHost::finish() {
     for (auto& ptr : free_pointers) cudaFreeHost(ptr);
     for (auto& ptr : used_pointers) cudaFreeHost(ptr);
+}
+
+void PointerHubHost::clear() {
+    for (auto& ptr : free_pointers) cudaFree(ptr);
+    free_pointers.clear();
 }

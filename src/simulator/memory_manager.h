@@ -58,6 +58,7 @@ public:
 
     void* get();
     void free(void*);
+    void clear();
     void finish();
 };
 
@@ -70,6 +71,7 @@ public:
 
     void* get();
     void free(void*);
+    void clear();
     void finish();
 };
 
@@ -83,6 +85,9 @@ public:
     static void free(void*, size_t);
     static void* alloc_host(size_t size);
     static void free_host(void*, size_t);
+
+    static void clear();
+    static void clear_host();
     static void finish();
 
 private:
