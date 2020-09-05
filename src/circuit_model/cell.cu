@@ -18,41 +18,6 @@ Cell::Cell(
     build_wire_map(pin_specs);
 }
 
-//void Cell::set_paths() {
-//    const auto& num_rows = sdf_paths.size();
-//
-//    host_sdf_spec_.edge_type = static_cast<char*>(MemoryManager::alloc_host(sizeof(char) * num_rows));
-//    host_sdf_spec_.input_index = static_cast<NUM_ARG_TYPE *>(MemoryManager::alloc_host(sizeof(NUM_ARG_TYPE) * num_rows));
-//    host_sdf_spec_.output_index = static_cast<NUM_ARG_TYPE *>(MemoryManager::alloc_host(sizeof(NUM_ARG_TYPE) * num_rows));
-//    host_sdf_spec_.rising_delay = static_cast<int*>(MemoryManager::alloc_host(sizeof(int) * num_rows));
-//    host_sdf_spec_.falling_delay= static_cast<int*>(MemoryManager::alloc_host(sizeof(int) * num_rows));
-//
-//    for (unsigned int i = 0; i < num_rows; ++i) {
-//        const auto& path = sdf_paths[i];
-//        host_sdf_spec_.edge_type[i] = path.edge_type;
-//        host_sdf_spec_.input_index[i] = path.in; host_sdf_spec_.output_index[i] = path.out;
-//        host_sdf_spec_.rising_delay[i] = path.rising_delay; host_sdf_spec_.falling_delay[i] = path.falling_delay;
-//    }
-//
-//    host_sdf_spec = static_cast<SDFSpec *>(MemoryManager::alloc_host(sizeof(SDFSpec)));
-//    host_sdf_spec->num_rows = num_rows;
-//    host_sdf_spec->edge_type = static_cast<char*>(MemoryManager::alloc(sizeof(char) * num_rows));
-//    host_sdf_spec->input_index = static_cast<NUM_ARG_TYPE*>(MemoryManager::alloc(sizeof(NUM_ARG_TYPE) * num_rows));
-//    host_sdf_spec->output_index = static_cast<NUM_ARG_TYPE*>(MemoryManager::alloc(sizeof(NUM_ARG_TYPE) * num_rows));
-//    host_sdf_spec->rising_delay = static_cast<int*>(MemoryManager::alloc(sizeof(int) * num_rows));
-//    host_sdf_spec->falling_delay = static_cast<int*>(MemoryManager::alloc(sizeof(int) * num_rows));
-//
-//    auto direction = cudaMemcpyHostToDevice;
-//    cudaMemcpyAsync(host_sdf_spec->edge_type, host_sdf_spec_.edge_type, sizeof(char) * num_rows, direction, stream);
-//    cudaMemcpyAsync(host_sdf_spec->input_index, host_sdf_spec_.input_index, sizeof(NUM_ARG_TYPE) * num_rows, direction, stream);
-//    cudaMemcpyAsync(host_sdf_spec->output_index, host_sdf_spec_.output_index, sizeof(NUM_ARG_TYPE) * num_rows, direction, stream);
-//    cudaMemcpyAsync(host_sdf_spec->rising_delay, host_sdf_spec_.rising_delay, sizeof(int) * num_rows, direction, stream);
-//    cudaMemcpyAsync(host_sdf_spec->falling_delay, host_sdf_spec_.falling_delay, sizeof(int) * num_rows, direction, stream);
-//
-//    sdf_spec = static_cast<SDFSpec*>(MemoryManager::alloc(sizeof(SDFSpec)));
-//    cudaMemcpyAsync(sdf_spec, host_sdf_spec, sizeof(SDFSpec), direction, stream);
-//}
-
 void Cell::build_wire_map(const WireMap<Wire>& pin_specs) {
     if (num_args > MAX_NUM_MODULE_ARGS) {
         throw runtime_error("Too many module args (" + to_string(num_args) + ")\n");
@@ -79,6 +44,7 @@ void Cell::set_stream(cudaStream_t s) { stream = s; }
 
 void Cell::init(SDFCollector& sdf_collector) {
     overflow_ptr = static_cast<bool*>(MemoryManager::alloc(sizeof(bool)));
+    host_overflow_ptr = static_cast<bool*>(MemoryManager::alloc_host(sizeof(bool)));
     Cell::build_bucket_index_schedule(
             input_wires,
             (INITIAL_CAPACITY * N_STIMULI_PARALLEL) - 1
@@ -88,6 +54,8 @@ void Cell::init(SDFCollector& sdf_collector) {
 
 void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer) {
     cudaMemsetAsync(overflow_ptr, 0, sizeof(bool), stream);
+    *host_overflow_ptr = false;
+
     resource_buffer.overflows.push_back(overflow_ptr);
     resource_buffer.capacities.push_back(output_capacity);
     resource_buffer.module_specs.push_back(module_spec);
@@ -112,33 +80,39 @@ void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer) {
     resource_buffer.finish_module();
 }
 
-bool Cell::gather_results() {
-    if (handle_overflow()) return true;
+void Cell::gather_results_pre() {
+    for (const auto& indexed_wire : output_wires) indexed_wire->gather_result_pre();
+}
 
-    for (const auto& indexed_wire : output_wires) indexed_wire->store_to_bucket(stream);
-    return false;
+void Cell::gather_results_async() {
+    for (const auto& indexed_wire : output_wires) indexed_wire->gather_result_async(stream);
+}
+
+void Cell::gather_results_finalize() {
+    for (const auto& indexed_wire : output_wires) indexed_wire->finalize_result();
 }
 
 void Cell::free() {
     MemoryManager::free(overflow_ptr, sizeof(bool));
+    MemoryManager::free_host(host_overflow_ptr, sizeof(bool));
 
     vector<SDFPath>().swap(sdf_paths);
     for (auto& indexed_wire : input_wires) indexed_wire->finish();
     for (auto& indexed_wire : output_wires) indexed_wire->finish();
 }
 
-bool Cell::handle_overflow() {
-    auto* overflow_ = static_cast<bool*>(MemoryManager::alloc_host(sizeof(bool)));
-    cudaMemcpyAsync(overflow_, overflow_ptr, sizeof(bool), cudaMemcpyDeviceToHost, stream);
-    cudaStreamSynchronize(stream);
-    bool overflow = *overflow_;
-    MemoryManager::free_host(overflow_, sizeof(bool));
-    if(not overflow) return false;
 
-    for (auto& indexed_wire : input_wires) indexed_wire->handle_overflow();
-    for (auto& indexed_wire : output_wires) indexed_wire->handle_overflow();
-    output_capacity *= 2;
-    return true;
+void Cell::gather_overflow_async() {
+    cudaMemcpyAsync(host_overflow_ptr, overflow_ptr, sizeof(bool), cudaMemcpyDeviceToHost, stream);
+}
+
+bool Cell::handle_overflow() {
+    if (*host_overflow_ptr) {
+        for (auto& indexed_wire : input_wires) indexed_wire->handle_overflow();
+        for (auto& indexed_wire : output_wires) indexed_wire->handle_overflow();
+        output_capacity *= 2;
+    }
+    return *host_overflow_ptr;
 }
 
 bool Cell::finished() const {

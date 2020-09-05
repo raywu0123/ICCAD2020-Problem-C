@@ -13,7 +13,7 @@ struct WireInfo {
     int bus_index;
 };
 
-using TransitionContainer = PinnedMemoryVector<Transition>;
+using TransitionContainer = std::vector<Transition>;
 
 struct Bucket {
     TransitionContainer transitions{ Transition{0, Values::Z} };
@@ -28,26 +28,10 @@ struct Bucket {
 
     void reserve(unsigned int i) { transitions.reserve(i); }
 
-    void push_back(const Data& data, cudaStream_t stream, bool verbose=false) {
-        // for storing output
-        const auto& direction = cudaMemcpyDeviceToHost;
-        auto* output_size_ = static_cast<unsigned int*>(MemoryManager::alloc_host(sizeof(unsigned int)));
-        cudaMemcpyAsync(output_size_, data.size, sizeof(unsigned int), direction, stream);
-        cudaStreamSynchronize(stream);
-        auto output_size = *output_size_;
-        MemoryManager::free_host(output_size_, sizeof(unsigned int));
-        if (verbose) std::cout << "output_size = " << output_size << std::endl;
-        if (output_size == 0) return;
-
-        auto* first_transition_ = static_cast<Transition*>(MemoryManager::alloc_host(sizeof(Transition)));
-        cudaMemcpyAsync(first_transition_, data.transitions, sizeof(Transition), direction, stream);
-        cudaStreamSynchronize(stream);
-        auto first_transition = *first_transition_;
-        MemoryManager::free_host(first_transition_, sizeof(Transition));
-        if (verbose) std::cout << "first transition = " << first_transition << std::endl;
-
-        const auto& t = first_transition.timestamp;
-        const auto& v = first_transition.value;
+    void push_back(const Transition* data, unsigned int size) {
+        if (size == 0) return;
+        const auto& t = data[0].timestamp;
+        const auto& v = data[0].value;
 
         if (v == Values::PAD) return;  // batch contains no new transitions
         if (transitions.empty()) throw std::runtime_error("transitions is empty");
@@ -57,22 +41,9 @@ struct Bucket {
         if (t <= prev_t) write_index = binary_search(transitions.data(), write_index - 1, t);
         auto offset = (write_index > 0 and v == transitions[write_index - 1].value) ? 1: 0;
 
-        auto valid_data_size = output_size - offset;
+        auto valid_data_size = size - offset;
         transitions.resize(write_index + valid_data_size);
-        auto status =  cudaMemcpyAsync(
-            transitions.data() + write_index,
-            data.transitions + offset,
-            sizeof(Transition) * valid_data_size,
-            cudaMemcpyDeviceToHost,
-            stream
-        );
-        cudaStreamSynchronize(stream);
-        if (status != cudaSuccess) throw std::runtime_error(cudaGetErrorName(status));
-
-        if (verbose) {
-            for (int i = 0; i < min((int) valid_data_size, INITIAL_CAPACITY); ++i) std::cout << transitions[write_index + i] << " ";
-            std::cout << "\n";
-        }
+        memcpy(transitions.data() + write_index, data + offset, sizeof(Transition) * valid_data_size);
     }
 
     unsigned int size() const {
@@ -93,7 +64,8 @@ public:
     void set_drived();
 
     void load_from_bucket(Transition* ptr, unsigned int, unsigned int, cudaStream_t);
-    virtual void store_to_bucket(const std::vector<Data>& data_ptrs, unsigned int num_ptrs, cudaStream_t);
+//    TODO
+    virtual void store_to_bucket(const std::vector<Data>&);
     virtual void emplace_transition(const Timestamp& t, char r);
     std::vector<WireInfo> wire_infos;
     Bucket bucket;
@@ -111,7 +83,7 @@ public:
         bucket.transitions.clear();
         bucket.transitions.emplace_back(0, value);
     }
-    void store_to_bucket(const std::vector<Data>& data_ptrs, unsigned int num_ptrs, cudaStream_t) override {
+    void store_to_bucket(const std::vector<Data>&) override {
         if (not store_to_bucket_warning_flag) {
             std::cerr << "| Warning: storing to constant wire\n";
             store_to_bucket_warning_flag = true;

@@ -15,7 +15,10 @@ struct IndexedWire {
     virtual Data load(int session_index, cudaStream_t);
     virtual void free();
     virtual void finish();
-    void store_to_bucket(cudaStream_t) const;
+
+    void gather_result_pre();
+    void gather_result_async(cudaStream_t);
+    void finalize_result();
 
     virtual void handle_overflow();
 
@@ -23,6 +26,8 @@ struct IndexedWire {
     Wire* wire;
     const CAPACITY_TYPE& capacity;
     std::vector<Data> data_list;
+
+    std::vector<Data> host_data_storage;
 
     unsigned int first_free_data_ptr_index = 0;
     int previous_session_index = -1;
@@ -82,7 +87,13 @@ public:
     static void build_bucket_index_schedule(std::vector<ScheduledWire*>& wires, unsigned int size);
     bool finished() const;
     void prepare_resource(int, ResourceBuffer&);
-    bool gather_results();
+
+    void gather_overflow_async();
+    bool handle_overflow();
+
+    void gather_results_pre();
+    void gather_results_async();
+    void gather_results_finalize();
 
     std::vector<ScheduledWire*> input_wires;
     std::vector<IndexedWire*> output_wires;
@@ -92,13 +103,12 @@ public:
 
 private:
     void build_wire_map(const WireMap<Wire>& pin_specs);
-    bool handle_overflow();
     static unsigned int find_end_index(const Bucket&, unsigned int, const Timestamp&, unsigned int);
 
     const ModuleSpec* module_spec;
     NUM_ARG_TYPE num_args = 0;
     CAPACITY_TYPE output_capacity = INITIAL_CAPACITY;
-    bool* overflow_ptr = nullptr;
+    bool *overflow_ptr = nullptr, *host_overflow_ptr = nullptr;
     unsigned int sdf_offset = 0;
     cudaStream_t stream;
 

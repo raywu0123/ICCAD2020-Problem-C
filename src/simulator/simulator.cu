@@ -262,14 +262,25 @@ void Simulator::run() {
             simulate_batch<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL>>>(batch_data, device_sdf);
             cudaDeviceSynchronize();
 
+            for (auto* cell : processing_cells) cell->gather_overflow_async(); // async function
+            cudaDeviceSynchronize();
+            unordered_set<Cell*> non_overflow_cells, finished_cells;
             for (auto* cell : processing_cells) {
                 bool finished = cell->finished();
-                bool overflow = cell->gather_results();
-                if (finished) {
-                    if (overflow) job_queue.push(cell);
-                    else cell->free();
-                }
+                bool overflow = cell->handle_overflow();
+
+                if (not overflow) {
+                    non_overflow_cells.insert(cell);
+                    if (finished) finished_cells.insert(cell);
+                } else if (finished) job_queue.push(cell);
             }
+
+            for (auto* cell : non_overflow_cells) cell->gather_results_pre();
+            for (auto* cell : non_overflow_cells) cell->gather_results_async();
+            cudaDeviceSynchronize();
+            for (auto* cell : non_overflow_cells) cell->gather_results_finalize();
+
+            for (auto* cell : finished_cells) cell->free();
             session_id++;
         }
         sdf_collector.free();

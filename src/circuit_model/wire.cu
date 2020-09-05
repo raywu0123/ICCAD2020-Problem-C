@@ -31,11 +31,11 @@ void Wire::load_from_bucket(Transition* ptr, unsigned int start_bucket_index, un
         cudaMemcpyHostToDevice,
         stream
     );
-    if (status != cudaSuccess) throw runtime_error(cudaGetErrorString(status));
+    cudaErrorCheck(status);
 }
 
-void Wire::store_to_bucket(const vector<Data>& data_list, unsigned int num_ptrs, cudaStream_t stream) {
-    for (unsigned int i = 0; i < num_ptrs; i++) bucket.push_back(data_list[i], stream);
+void Wire::store_to_bucket(const std::vector<Data>& storage) {
+    for (const auto& data : storage) { bucket.push_back(data.transitions, *data.size); }
 }
 
 void Wire::set_drived() {

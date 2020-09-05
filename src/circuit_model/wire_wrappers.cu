@@ -36,9 +36,43 @@ void IndexedWire::free() {
     first_free_data_ptr_index = 0;
 }
 
-void IndexedWire::store_to_bucket(cudaStream_t stream) const {
+void IndexedWire::gather_result_pre() {
     const auto& num_data = first_free_data_ptr_index;
-    wire->store_to_bucket(data_list, num_data, stream);
+    auto data_size = capacity * N_STIMULI_PARALLEL;
+    for (int i = 0; i < num_data; ++i) {
+        host_data_storage.emplace_back(
+            static_cast<Transition*>(MemoryManager::alloc_host( sizeof(Transition) * data_size)),
+            static_cast<unsigned int*>(MemoryManager::alloc_host(sizeof(unsigned int)))
+        );
+    }
+}
+
+void IndexedWire::gather_result_async(cudaStream_t stream) {
+    const auto& num_data = first_free_data_ptr_index;
+    auto data_size = capacity * N_STIMULI_PARALLEL;
+
+    const auto& direction = cudaMemcpyDeviceToHost;
+    for (int i = 0; i < num_data; ++i) {
+        cudaMemcpyAsync(
+            host_data_storage[i].transitions, data_list[i].transitions,
+            sizeof(Transition) * data_size, direction, stream
+        );
+        cudaMemcpyAsync(
+            host_data_storage[i].size, data_list[i].size,
+            sizeof(unsigned int), direction, stream
+        );
+    }
+}
+
+void IndexedWire::finalize_result() {
+    wire->store_to_bucket(host_data_storage);
+    auto data_size = capacity * N_STIMULI_PARALLEL;
+
+    for (auto& data: host_data_storage) {
+        MemoryManager::free_host(data.transitions, sizeof(Transition) * data_size);
+        MemoryManager::free_host(data.size, sizeof(unsigned int));
+    }
+    host_data_storage.clear();
 }
 
 void IndexedWire::handle_overflow() {
