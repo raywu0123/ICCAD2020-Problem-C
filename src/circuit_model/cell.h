@@ -8,21 +8,14 @@
 #include "simulator/module_registry.h"
 #include "simulator/containers.h"
 
-struct SDFPath {
-    NUM_ARG_TYPE in, out;
-    char edge_type;
-    int rising_delay, falling_delay;
-};
-
-
 struct IndexedWire {
     explicit IndexedWire(Wire* w, const CAPACITY_TYPE& capacity = INITIAL_CAPACITY) : wire(w), capacity(capacity) {};
 
-    Data alloc(int session_index);
-    virtual Data load(int session_index);
+    Data alloc(int session_index, cudaStream_t);
+    virtual Data load(int session_index, cudaStream_t);
     virtual void free();
     virtual void finish();
-    void store_to_bucket() const;
+    void store_to_bucket(cudaStream_t) const;
 
     virtual void handle_overflow();
 
@@ -39,7 +32,7 @@ struct IndexedWire {
 struct ScheduledWire : public IndexedWire {
     explicit ScheduledWire(Wire* wire, const CAPACITY_TYPE& capacity = INITIAL_CAPACITY): IndexedWire(wire, capacity) {};
 
-    Data load(int session_index) override;
+    Data load(int session_index, cudaStream_t) override;
     void free() override;
     unsigned int size() const;
     void handle_overflow() override;
@@ -82,7 +75,8 @@ public:
         const WireMap<Wire>&  pin_specs,
         std::string  name
     );
-    void init();
+    void set_stream(cudaStream_t);
+    void init(SDFCollector&);
     void free();
 
     static void build_bucket_index_schedule(std::vector<ScheduledWire*>& wires, unsigned int size);
@@ -98,16 +92,15 @@ public:
 
 private:
     void build_wire_map(const WireMap<Wire>& pin_specs);
-    void set_paths();
     bool handle_overflow();
     static unsigned int find_end_index(const Bucket&, unsigned int, const Timestamp&, unsigned int);
 
     const ModuleSpec* module_spec;
-    SDFSpec* sdf_spec = nullptr;
-    SDFSpec host_sdf_spec{};
     NUM_ARG_TYPE num_args = 0;
     CAPACITY_TYPE output_capacity = INITIAL_CAPACITY;
     bool* overflow_ptr = nullptr;
+    unsigned int sdf_offset = 0;
+    cudaStream_t stream;
 
     WireMap<IndexedWire> wire_map;
 };

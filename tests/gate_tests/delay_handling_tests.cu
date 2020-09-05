@@ -10,9 +10,7 @@ struct TestPair{
     vector<Transition> waveform;
     vector<DelayInfo> delay_infos;
     vector<Transition> expected;
-    vector<char> edge_types;
-    vector<unsigned> input_indices, output_indices;
-    vector<int> rising_delays, falling_delays;
+    vector<SDFPath> sdf_paths;
     CAPACITY_TYPE capacity = 16;
 };
 
@@ -26,6 +24,7 @@ TEST_P(DelayTestFixture, SimpleCases) {
     const auto& capacity = params.capacity;
     auto waveform = params.waveform; waveform.resize(capacity);
     auto delay_infos = params.delay_infos; delay_infos.resize(capacity);
+    const auto sdf_paths = params.sdf_paths;
 
     auto** transitions = new Transition*;
     transitions[0] = new Transition[waveform.size()];
@@ -33,27 +32,7 @@ TEST_P(DelayTestFixture, SimpleCases) {
 
     CAPACITY_TYPE lengths = 0;
 
-    unsigned int num_rows = params.edge_types.size();
-    auto* edge_types = new char[num_rows];
-    auto* input_indices = new NUM_ARG_TYPE[num_rows];
-    auto* output_indices = new NUM_ARG_TYPE[num_rows];
-    auto* rising_delays = new int[num_rows];
-    auto* falling_delays = new int[num_rows];
-    for (int i = 0; i < num_rows; i++) {
-        edge_types[i] = params.edge_types[i];
-        input_indices[i] = params.input_indices[i]; output_indices[i] = params.output_indices[i];
-        rising_delays[i] = params.rising_delays[i]; falling_delays[i] = params.falling_delays[i];
-    }
-    SDFSpec sdf_spec = {
-        .num_rows = num_rows,
-        .input_index = input_indices,
-        .output_index = output_indices,
-        .edge_type = edge_types,
-        .rising_delay = rising_delays,
-        .falling_delay = falling_delays
-    };
-
-    compute_delay(transitions, capacity, delay_infos.data(), 1, 0, &sdf_spec, &lengths);
+    compute_delay(transitions, capacity, delay_infos.data(), 1, 0, sdf_paths.data(), sdf_paths.size(), &lengths);
 
     int err_num = 0;
     const auto& expected = params.expected;
@@ -81,9 +60,11 @@ INSTANTIATE_TEST_CASE_P(
             vector<Transition>{
                 Transition{29119, '0'},
             },
-            vector<char>{'x', 'x', 'x'},
-            vector<unsigned int>{0, 1, 2}, vector<unsigned int>{0, 0, 0},
-            vector<int>{29, 44, 28}, vector<int>{29, 29, 28}
+            vector<SDFPath> {
+                {'x', 0, 1, 29, 29},
+                {'x', 1, 0, 44, 29},
+                {'x', 2, 0, 28, 28}
+            }
         },
         TestPair{
             vector<Transition>{
@@ -94,9 +75,10 @@ INSTANTIATE_TEST_CASE_P(
             vector<Transition>{
                 Transition{21015, '0'},
             },
-            vector<char>{'x', 'x'},
-            vector<unsigned int>{0, 1}, vector<unsigned int>{0, 0},
-            vector<int>{38, 22}, vector<int>{25, 15}
+            vector<SDFPath> {
+                {'x', 0, 0, 38, 25},
+                {'x', 1, 0, 22, 15}
+            }
         },
         TestPair{
             vector<Transition>{
@@ -107,9 +89,10 @@ INSTANTIATE_TEST_CASE_P(
             vector<Transition>{
                 Transition{22022, '1'},
             },
-            vector<char>{'x', 'x'},
-            vector<unsigned int>{0, 1}, vector<unsigned int>{0, 0},
-            vector<int>{38, 22}, vector<int>{25, 15}
+            vector<SDFPath> {
+                {'x', 0, 0, 38, 25},
+                {'x', 1, 0, 22, 15}
+            }
         },
         TestPair{
             vector<Transition>{
@@ -119,9 +102,10 @@ INSTANTIATE_TEST_CASE_P(
             vector<Transition>{
                 Transition{65, '0'},
             },
-            vector<char>{'x', 'x'},
-            vector<unsigned int>{0, 1}, vector<unsigned int>{0, 0},
-            vector<int>{8, 32}, vector<int>{5, 35}
+            vector<SDFPath> {
+                {'x', 0, 0, 8, 5},
+                {'x', 1, 0, 32, 35}
+            }
         },
         TestPair{
             vector<Transition>{
@@ -132,9 +116,11 @@ INSTANTIATE_TEST_CASE_P(
             vector<Transition>{
                 Transition{22095, '1'}
             },
-            vector<char>{'x', 'x', 'x'},
-            vector<unsigned int>{0, 1, 2}, vector<unsigned int>{0, 0, 0},
-            vector<int>{4, 18, 20}, vector<int>{3, 18, 20}
+            vector<SDFPath> {
+                {'x', 0, 0, 4, 3},
+                {'x', 1, 0, 18, 18},
+                {'x', 2, 0, 20, 20}
+            }
         }
     )
 );

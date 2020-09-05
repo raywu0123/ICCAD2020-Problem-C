@@ -5,7 +5,7 @@
 
 using namespace std;
 
-Data IndexedWire::alloc(int session_index) {
+Data IndexedWire::alloc(int session_index, cudaStream_t stream) {
     if (session_index != previous_session_index) {
         first_free_data_ptr_index = 0;
         previous_session_index = session_index;
@@ -19,13 +19,13 @@ Data IndexedWire::alloc(int session_index) {
         throw std::runtime_error("Invalid access to data_ptrs");
 
     auto& data = data_list[first_free_data_ptr_index];
-    cudaMemsetAsync(data.transitions, 0, size);
-    cudaMemsetAsync(data.size, 0, sizeof(unsigned int));
+    cudaMemsetAsync(data.transitions, 0, size, stream);
+    cudaMemsetAsync(data.size, 0, sizeof(unsigned int), stream);
     first_free_data_ptr_index++;
     return data;
 }
 
-Data IndexedWire::load(int session_index) { return alloc(session_index); }
+Data IndexedWire::load(int session_index, cudaStream_t stream) { return alloc(session_index, stream); }
 
 void IndexedWire::free() {
     for (const auto& data : data_list) {
@@ -36,9 +36,9 @@ void IndexedWire::free() {
     first_free_data_ptr_index = 0;
 }
 
-void IndexedWire::store_to_bucket() const {
-    auto num_data = first_free_data_ptr_index;
-    wire->store_to_bucket(data_list, num_data);
+void IndexedWire::store_to_bucket(cudaStream_t stream) const {
+    const auto& num_data = first_free_data_ptr_index;
+    wire->store_to_bucket(data_list, num_data, stream);
 }
 
 void IndexedWire::handle_overflow() {
@@ -51,14 +51,14 @@ void IndexedWire::finish() {
     wire->bucket.transitions.shrink_to_fit();
 }
 
-Data ScheduledWire::load(int session_index) {
-    const auto& data = IndexedWire::alloc(session_index);
+Data ScheduledWire::load(int session_index, cudaStream_t stream) {
+    const auto& data = IndexedWire::alloc(session_index, stream);
     if (session_index > checkpoint.first) checkpoint = make_pair(session_index, bucket_idx);
 
     auto start_index = bucket_index_schedule[bucket_idx];
     const auto& end_index = bucket_index_schedule[bucket_idx + 1];
     if (start_index != 0) start_index--;
-    wire->load_from_bucket(data.transitions, start_index, end_index);
+    wire->load_from_bucket(data.transitions, start_index, end_index, stream);
     bucket_idx++;
     return data;
 }

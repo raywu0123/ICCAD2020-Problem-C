@@ -8,13 +8,14 @@
 
 __host__ __device__ int lookup_delay(
     NUM_ARG_TYPE, NUM_ARG_TYPE, EdgeTypes, EdgeTypes,
-    const SDFSpec*
+    const SDFPath*, const unsigned int&
 );
 
 __host__ __device__ void compute_delay(
     Transition**, const CAPACITY_TYPE& capacity, DelayInfo*,
     const NUM_ARG_TYPE&, const NUM_ARG_TYPE&,
-    const SDFSpec* sdf_spec, CAPACITY_TYPE* lengths, bool verbose = false
+    const SDFPath* sdf_paths, const unsigned int& sdf_num_rows,
+    CAPACITY_TYPE* lengths, bool verbose = false
 );
 
 __device__ __host__ void slice_waveforms(
@@ -32,4 +33,14 @@ public:
     Circuit& circuit;
 };
 
+class StreamManager {
+public:
+    explicit StreamManager(unsigned int n_stream);
+    ~StreamManager();
+    cudaStream_t get();
+
+    unsigned int n_stream;
+    unsigned int counter = 0;
+    std::vector<cudaStream_t> streams;
+};
 #endif

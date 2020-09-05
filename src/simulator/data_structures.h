@@ -25,11 +25,10 @@ struct SubmoduleSpec {
     std::vector<NUM_ARG_TYPE> args;
 };
 
-struct SDFSpec {
-    unsigned int num_rows;
-    NUM_ARG_TYPE *input_index, *output_index;
-    char* edge_type;
-    int *rising_delay, *falling_delay;
+struct SDFPath {
+    char edge_type;
+    NUM_ARG_TYPE in, out;
+    int rising_delay, falling_delay;
 };
 
 struct TokenInfo {

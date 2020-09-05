@@ -156,7 +156,7 @@ __host__ __device__ void stepping_algorithm(
 
 __device__ void simulate_module(
     const ModuleSpec* const module_spec,
-    const SDFSpec* const sdf_spec,
+    const SDFPath* const sdf_paths, const unsigned int& sdf_num_rows,
     Data* const data, const CAPACITY_TYPE& capacity,
     bool* overflow_ptr
 ) {
@@ -196,7 +196,8 @@ __device__ void simulate_module(
     compute_delay(
         output_data_ptrs_for_stimuli, capacity, delay_info_for_stimuli,
         module_spec->num_output, module_spec->num_input,
-        sdf_spec, lengths + stimuli_idx * module_spec->num_output
+        sdf_paths, sdf_num_rows,
+        lengths + stimuli_idx * module_spec->num_output
     );
 
     __syncthreads();
@@ -209,15 +210,16 @@ __device__ void simulate_module(
     }
 }
 
-__global__ void simulate_batch(BatchResource batch_resource) {
+__global__ void simulate_batch(BatchResource batch_resource, SDFPath* sdf) {
     if (blockIdx.x < batch_resource.num_modules) {
         const auto& module_spec = batch_resource.module_specs[blockIdx.x];
-        const auto& sdf_spec = batch_resource.sdf_specs[blockIdx.x];
+        const auto& sdf_offset = batch_resource.sdf_offsets[blockIdx.x];
+        const auto& sdf_num_rows = batch_resource.sdf_num_rows[blockIdx.x];
         const auto& overflow_ptr = batch_resource.overflows[blockIdx.x];
         const auto& module_data = &batch_resource.data_schedule[blockIdx.x * MAX_NUM_MODULE_ARGS];
         const auto& capacity = batch_resource.capacities[blockIdx.x];
         simulate_module(
-            module_spec, sdf_spec, module_data, capacity, overflow_ptr
+            module_spec, sdf + sdf_offset, sdf_num_rows, module_data, capacity, overflow_ptr
         );
     }
 }
@@ -236,10 +238,14 @@ void Simulator::run() {
     ProgressBar progress_bar(num_layers);
     ResourceBuffer resource_buffer;
     BatchResource batch_data{}; batch_data.init();
+    StreamManager stream_manager(N_STREAM);
     for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
         const auto& schedule_layer = circuit.cell_schedule[i_layer];
         stack<Cell*, std::vector<Cell*>> job_queue(schedule_layer);
-        for (auto* cell : schedule_layer) cell->init();
+        for (auto* cell : schedule_layer) cell->set_stream(stream_manager.get());
+        SDFCollector sdf_collector;
+        for (auto* cell : schedule_layer) cell->init(sdf_collector);
+        auto* device_sdf = sdf_collector.get();
         int session_id = 0;
 
         while (not job_queue.empty()) {
@@ -251,7 +257,9 @@ void Simulator::run() {
                 if (cell->finished()) job_queue.pop();
             }
             batch_data.set(resource_buffer); resource_buffer.clear();
-            simulate_batch<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL>>>(batch_data);
+
+            cudaDeviceSynchronize();  // ensure async copies from different streams are all finished
+            simulate_batch<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL>>>(batch_data, device_sdf);
             cudaDeviceSynchronize();
 
             for (auto* cell : processing_cells) {
@@ -264,9 +272,26 @@ void Simulator::run() {
             }
             session_id++;
         }
-
+        sdf_collector.free();
         progress_bar.Progressed(i_layer + 1);
     }
     batch_data.free();
     cout << endl;
+}
+
+StreamManager::StreamManager(unsigned int n_stream) : n_stream(n_stream) {
+    streams.reserve(n_stream);
+    for(int i = 0; i < n_stream; ++i) {
+        cudaStream_t stream;
+        cudaStreamCreate(&stream);
+        streams.push_back(stream);
+    }
+}
+
+StreamManager::~StreamManager() { for(auto& stream : streams) cudaStreamDestroy(stream); }
+
+cudaStream_t StreamManager::get() {
+    const auto& stream = streams[counter % n_stream];
+    counter ++;
+    return stream;
 }

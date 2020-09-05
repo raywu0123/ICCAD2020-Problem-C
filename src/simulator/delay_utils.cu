@@ -5,18 +5,18 @@
 
 extern __host__ __device__ int lookup_delay(
     NUM_ARG_TYPE input_index, NUM_ARG_TYPE output_index, EdgeTypes input_edge_type, EdgeTypes output_edge_type,
-    const SDFSpec* sdf_spec
+    const SDFPath* sdf_paths, const unsigned int& sdf_num_rows
 ) {
     if (input_edge_type == EdgeTypes::NODELAY) return 0;
 
     int delay = 0;
-    for (int i_row = 0; i_row < sdf_spec->num_rows; i_row++) {
-        if (sdf_spec->input_index[i_row] == input_index
-        and sdf_spec->output_index[i_row] == output_index
-        and (sdf_spec->edge_type[i_row] == 'x' or sdf_spec->edge_type[i_row] == edge_type_to_raw(input_edge_type))
+    for (int i_row = 0; i_row < sdf_num_rows; i_row++) {
+        if (sdf_paths[i_row].in == input_index
+        and sdf_paths[i_row].out == output_index
+        and (sdf_paths[i_row].edge_type == 'x' or sdf_paths[i_row].edge_type == edge_type_to_raw(input_edge_type))
         ) {
-            if (output_edge_type == EdgeTypes::RISING) delay += sdf_spec->rising_delay[i_row];
-            else if (output_edge_type == EdgeTypes::FALLING) delay += sdf_spec->falling_delay[i_row];
+            if (output_edge_type == EdgeTypes::RISING) delay += sdf_paths[i_row].rising_delay;
+            else if (output_edge_type == EdgeTypes::FALLING) delay += sdf_paths[i_row].falling_delay;
         }
     }
     assert(delay < 1000 and delay >= 0);
@@ -26,7 +26,8 @@ extern __host__ __device__ int lookup_delay(
 extern __host__ __device__ void compute_delay(
     Transition** data, const CAPACITY_TYPE& capacity, DelayInfo* delay_infos,
     const NUM_ARG_TYPE& num_output, const NUM_ARG_TYPE& num_input,
-    const SDFSpec* sdf_spec, CAPACITY_TYPE* lengths, bool verbose
+    const SDFPath* sdf_paths, const unsigned int& sdf_num_rows,
+    CAPACITY_TYPE* lengths, bool verbose
 ) {
     for (NUM_ARG_TYPE i = 0; i < num_output; i++) {
         auto* output_data = data[i];
@@ -62,7 +63,7 @@ extern __host__ __device__ void compute_delay(
                 auto d = lookup_delay(
                     delay_infos[timeblock_start - num + idx].arg, i + num_input,
                     delay_infos[timeblock_start - num + idx].edge_type, output_edge_type,
-                    sdf_spec
+                    sdf_paths, sdf_num_rows
                 );
                 min_delay = d < min_delay ? d : min_delay;
             }
