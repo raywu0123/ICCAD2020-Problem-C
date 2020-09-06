@@ -89,6 +89,11 @@ struct Data {
     Data(void* p1, void* p2) : transitions((Transition*) p1), size((unsigned int*) p2) {}
 };
 
+struct InputData {
+    Transition* transitions = nullptr;
+    unsigned int size = 0;
+};
+
 std::ostream& operator<< (std::ostream& os, const Transition& transition);
 
 struct ModuleSpec{

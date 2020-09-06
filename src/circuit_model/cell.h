@@ -8,10 +8,37 @@
 #include "simulator/module_registry.h"
 #include "simulator/containers.h"
 
-struct IndexedWire {
-    explicit IndexedWire(Wire* w, const CAPACITY_TYPE& capacity = INITIAL_CAPACITY) : wire(w), capacity(capacity) {};
 
-    Data alloc(int session_index, cudaStream_t);
+struct InputWire {
+    explicit InputWire(Wire* w, const CAPACITY_TYPE& capacity = INITIAL_CAPACITY) : wire(w), capacity(capacity) {};
+
+    InputData& alloc(int session_index, cudaStream_t stream);
+    InputData load(int session_index, cudaStream_t);
+    void free();
+    unsigned int size() const;
+    void handle_overflow();
+    bool finished() const;
+    void finish();
+
+    void push_back_schedule_index(unsigned int i);
+
+    Wire* wire;
+    const CAPACITY_TYPE& capacity;
+    std::vector<InputData> data_list;
+
+    unsigned int first_free_data_ptr_index = 0;
+    int previous_session_index = -1;
+
+    std::vector<unsigned int> bucket_index_schedule{ 0 };
+    unsigned int bucket_idx = 0;
+    std::pair<int, unsigned int> checkpoint = {0, 0};
+};
+
+
+struct OutputWire {
+    explicit OutputWire(Wire* w, const CAPACITY_TYPE& capacity = INITIAL_CAPACITY) : wire(w), capacity(capacity) {};
+
+    virtual Data& alloc(int session_index, cudaStream_t);
     virtual Data load(int session_index, cudaStream_t);
     virtual void free();
     virtual void finish();
@@ -26,30 +53,12 @@ struct IndexedWire {
     Wire* wire;
     const CAPACITY_TYPE& capacity;
     std::vector<Data> data_list;
-
     std::vector<Data> host_data_storage;
 
     unsigned int first_free_data_ptr_index = 0;
     int previous_session_index = -1;
 };
 
-
-struct ScheduledWire : public IndexedWire {
-    explicit ScheduledWire(Wire* wire, const CAPACITY_TYPE& capacity = INITIAL_CAPACITY): IndexedWire(wire, capacity) {};
-
-    Data load(int session_index, cudaStream_t) override;
-    void free() override;
-    unsigned int size() const;
-    void handle_overflow() override;
-    bool finished() const;
-    void finish() override;
-
-    void push_back_schedule_index(unsigned int i);
-
-    std::vector<unsigned int> bucket_index_schedule{ 0 };
-    unsigned int bucket_idx = 0;
-    std::pair<int, unsigned int> checkpoint = {0, 0};
-};
 
 template<class T>
 class WireMap {
@@ -84,7 +93,7 @@ public:
     void init(SDFCollector&);
     void free();
 
-    static void build_bucket_index_schedule(std::vector<ScheduledWire*>& wires, unsigned int size);
+    static void build_bucket_index_schedule(std::vector<InputWire*>& wires, unsigned int size);
     bool finished() const;
     void prepare_resource(int, ResourceBuffer&);
 
@@ -95,8 +104,8 @@ public:
     void gather_results_async();
     void gather_results_finalize();
 
-    std::vector<ScheduledWire*> input_wires;
-    std::vector<IndexedWire*> output_wires;
+    std::vector<InputWire*> input_wires;
+    std::vector<OutputWire*> output_wires;
     std::string name;
     std::vector<SDFPath> sdf_paths;
     const StdCellDeclare* declare;
@@ -111,8 +120,6 @@ private:
     bool *overflow_ptr = nullptr, *host_overflow_ptr = nullptr;
     unsigned int sdf_offset = 0;
     cudaStream_t stream;
-
-    WireMap<IndexedWire> wire_map;
 };
 
 #endif

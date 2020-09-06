@@ -63,13 +63,18 @@ public:
     void assign(const Wire&);
     void set_drived();
 
-    void load_from_bucket(Transition* ptr, unsigned int, unsigned int, cudaStream_t);
-//    TODO
+    void to_device(cudaStream_t);
+    void free_device();
+
     virtual void store_to_bucket(const std::vector<Data>&);
     virtual void emplace_transition(const Timestamp& t, char r);
+
     std::vector<WireInfo> wire_infos;
     Bucket bucket;
     bool is_constant = false;
+
+    Transition *device_ptr = nullptr, *pinned_host_ptr = nullptr;
+    int ref_count = 0;
 };
 
 

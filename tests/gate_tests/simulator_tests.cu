@@ -27,11 +27,8 @@ TEST_P(SliceWaveformTestFixture, SimpleCases) {
     auto* s_values = new Values[N_STIMULI_PARALLEL * capacity * num_wires];
 
     auto inputs = test_data.inputs;
-    Data data[MAX_NUM_MODULE_ARGS];
-    for (int i = 0; i < num_wires; ++i) {
-        inputs[i].resize(capacity * N_STIMULI_PARALLEL);
-        data[i].transitions = inputs[i].data();
-    }
+    InputData data[MAX_NUM_MODULE_ARGS];
+    for (int i = 0; i < num_wires; ++i) data[i] = {inputs[i].data(), static_cast<unsigned int>(inputs[i].size())};
 
     bool overflow = false;
     slice_waveforms(s_timestamps, s_delay_infos, s_values, data, 16, num_wires, &overflow);

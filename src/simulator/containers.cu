@@ -10,11 +10,13 @@ void BatchResource::init(cudaStream_t) {
     cudaMalloc((void**) &module_specs, sizeof(ModuleSpec*) * N_CELL_PARALLEL);
     cudaMalloc((void**) &sdf_offsets, sizeof(unsigned int) * N_CELL_PARALLEL);
     cudaMalloc((void**) &sdf_num_rows, sizeof(unsigned int) * N_CELL_PARALLEL);
-    cudaMalloc((void**) &data_schedule, sizeof(Data) * N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
+    cudaMalloc((void**) &input_data_schedule, sizeof(InputData) * N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
+    cudaMalloc((void**) &output_data_schedule, sizeof(Data) * N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
 }
 
 void BatchResource::set(const ResourceBuffer& resource_buffer, cudaStream_t stream) {
-    assert(resource_buffer.data_schedule.size() <= N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
+    assert(resource_buffer.input_data_schedule.size() <= N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
+    assert(resource_buffer.output_data_schedule.size() <= N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
     num_modules = resource_buffer.size;
 
     auto direction = cudaMemcpyHostToDevice;
@@ -23,7 +25,8 @@ void BatchResource::set(const ResourceBuffer& resource_buffer, cudaStream_t stre
     cudaMemcpyAsync(module_specs, resource_buffer.module_specs.data(), sizeof(ModuleSpec*) * num_modules, direction);
     cudaMemcpyAsync(sdf_offsets, resource_buffer.sdf_offsets.data(), sizeof(unsigned int) * num_modules, direction);
     cudaMemcpyAsync(sdf_num_rows, resource_buffer.sdf_num_rows.data(), sizeof(unsigned int) * num_modules, direction);
-    cudaMemcpyAsync(data_schedule, resource_buffer.data_schedule.data(), sizeof(Data) * resource_buffer.data_schedule.size(), direction);
+    cudaMemcpyAsync(input_data_schedule, resource_buffer.input_data_schedule.data(), sizeof(InputData) * resource_buffer.input_data_schedule.size(), direction);
+    cudaMemcpyAsync(output_data_schedule, resource_buffer.output_data_schedule.data(), sizeof(Data) * resource_buffer.output_data_schedule.size(), direction);
 }
 
 void BatchResource::free() const {
@@ -32,7 +35,7 @@ void BatchResource::free() const {
     cudaFree(module_specs);
     cudaFree(sdf_offsets);
     cudaFree(sdf_num_rows);
-    cudaFree(data_schedule);
+    cudaFree(input_data_schedule); cudaFree(output_data_schedule);
 }
 
 ResourceBuffer::ResourceBuffer() {
@@ -41,12 +44,14 @@ ResourceBuffer::ResourceBuffer() {
     module_specs.reserve(N_CELL_PARALLEL);
     sdf_offsets.reserve(N_CELL_PARALLEL);
     sdf_num_rows.reserve(N_CELL_PARALLEL);
-    data_schedule.reserve(N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
+    input_data_schedule.reserve(N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
+    output_data_schedule.reserve(N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
 }
 
 void ResourceBuffer::finish_module() {
     size++;
-    data_schedule.resize(size * MAX_NUM_MODULE_ARGS);
+    input_data_schedule.resize(size * MAX_NUM_MODULE_ARGS);
+    output_data_schedule.resize(size * MAX_NUM_MODULE_ARGS);
 }
 
 void ResourceBuffer::clear() {
@@ -55,7 +60,8 @@ void ResourceBuffer::clear() {
     module_specs.clear();
     sdf_offsets.clear();
     sdf_num_rows.clear();
-    data_schedule.clear();
+    input_data_schedule.clear();
+    output_data_schedule.clear();
     size = 0;
 }
 

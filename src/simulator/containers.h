@@ -21,7 +21,8 @@ struct ResourceBuffer {
     PinnedMemoryVector<const ModuleSpec*> module_specs;
     PinnedMemoryVector<unsigned int> sdf_offsets;
     PinnedMemoryVector<unsigned int> sdf_num_rows;
-    PinnedMemoryVector<Data> data_schedule;
+    PinnedMemoryVector<InputData> input_data_schedule;
+    PinnedMemoryVector<Data> output_data_schedule;
 
     ResourceBuffer();
     void finish_module();
@@ -39,7 +40,8 @@ struct BatchResource {
     unsigned int* capacities;
     const ModuleSpec** module_specs;
     unsigned int *sdf_offsets, *sdf_num_rows;
-    Data* data_schedule;
+    InputData* input_data_schedule;
+    Data* output_data_schedule;
     unsigned int num_modules;
 };
 

@@ -23,17 +23,6 @@ void Wire::assign(const Wire& other_wire) {
     wire_infos.insert(wire_infos.end(), other_wire.wire_infos.begin(), other_wire.wire_infos.end());
 }
 
-void Wire::load_from_bucket(Transition* ptr, unsigned int start_bucket_index, unsigned int end_bucket_index, cudaStream_t stream) {
-    auto status = cudaMemcpyAsync(
-        ptr,
-        bucket.transitions.data() + start_bucket_index,
-        sizeof(Transition) * (end_bucket_index - start_bucket_index),
-        cudaMemcpyHostToDevice,
-        stream
-    );
-    cudaErrorCheck(status);
-}
-
 void Wire::store_to_bucket(const std::vector<Data>& storage) {
     for (const auto& data : storage) { bucket.push_back(data.transitions, *data.size); }
 }
@@ -44,6 +33,26 @@ void Wire::set_drived() {
 
 void Wire::emplace_transition(const Timestamp &t, char r) {
     bucket.emplace_transition(t, r);
+}
+
+void Wire::to_device(cudaStream_t stream) {
+    ref_count++;
+    if (device_ptr != nullptr) return;
+
+    auto size = sizeof(Transition) * bucket.size();
+    cudaMallocHost((void**) &pinned_host_ptr, size);
+    memcpy(pinned_host_ptr, bucket.transitions.data(), size);
+
+    cudaMalloc((void**) &device_ptr, size);
+    cudaMemcpyAsync(device_ptr, pinned_host_ptr, size, cudaMemcpyHostToDevice, stream);
+}
+
+void Wire::free_device() {
+    ref_count--;
+    if (ref_count > 0) return;
+
+    cudaFree(device_ptr); cudaFreeHost(pinned_host_ptr);
+    device_ptr = nullptr; pinned_host_ptr = nullptr;
 }
 
 bool ConstantWire::store_to_bucket_warning_flag = false;

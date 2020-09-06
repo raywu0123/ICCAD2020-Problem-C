@@ -5,7 +5,7 @@
 
 using namespace std;
 
-Data IndexedWire::alloc(int session_index, cudaStream_t stream) {
+Data& OutputWire::alloc(int session_index, cudaStream_t stream) {
     if (session_index != previous_session_index) {
         first_free_data_ptr_index = 0;
         previous_session_index = session_index;
@@ -25,9 +25,9 @@ Data IndexedWire::alloc(int session_index, cudaStream_t stream) {
     return data;
 }
 
-Data IndexedWire::load(int session_index, cudaStream_t stream) { return alloc(session_index, stream); }
+Data OutputWire::load(int session_index, cudaStream_t stream) { return alloc(session_index, stream); }
 
-void IndexedWire::free() {
+void OutputWire::free() {
     for (const auto& data : data_list) {
         MemoryManager::free(data.transitions, sizeof(Transition) * static_cast<unsigned int>(capacity) * N_STIMULI_PARALLEL);
         MemoryManager::free(data.size, sizeof(unsigned int));
@@ -36,7 +36,7 @@ void IndexedWire::free() {
     first_free_data_ptr_index = 0;
 }
 
-void IndexedWire::gather_result_pre() {
+void OutputWire::gather_result_pre() {
     const auto& num_data = first_free_data_ptr_index;
     auto data_size = capacity * N_STIMULI_PARALLEL;
     for (int i = 0; i < num_data; ++i) {
@@ -47,7 +47,7 @@ void IndexedWire::gather_result_pre() {
     }
 }
 
-void IndexedWire::gather_result_async(cudaStream_t stream) {
+void OutputWire::gather_result_async(cudaStream_t stream) {
     const auto& num_data = first_free_data_ptr_index;
     auto data_size = capacity * N_STIMULI_PARALLEL;
 
@@ -64,7 +64,7 @@ void IndexedWire::gather_result_async(cudaStream_t stream) {
     }
 }
 
-void IndexedWire::finalize_result() {
+void OutputWire::finalize_result() {
     wire->store_to_bucket(host_data_storage);
     auto data_size = capacity * N_STIMULI_PARALLEL;
 
@@ -75,37 +75,60 @@ void IndexedWire::finalize_result() {
     host_data_storage.clear();
 }
 
-void IndexedWire::handle_overflow() {
+void OutputWire::handle_overflow() {
     free();
     first_free_data_ptr_index = 0;
 }
 
-void IndexedWire::finish() {
+void OutputWire::finish() {
     free();
     wire->bucket.transitions.shrink_to_fit();
 }
 
-Data ScheduledWire::load(int session_index, cudaStream_t stream) {
-    const auto& data = IndexedWire::alloc(session_index, stream);
+InputData& InputWire::alloc(int session_index, cudaStream_t stream) {
+    if (session_index != previous_session_index) {
+        first_free_data_ptr_index = 0;
+        previous_session_index = session_index;
+    }
+
+    if (first_free_data_ptr_index >= data_list.size())
+        data_list.push_back({});
+
+    if (first_free_data_ptr_index >= data_list.size())
+        throw std::runtime_error("Invalid access to data_ptrs");
+
+    auto& data = data_list[first_free_data_ptr_index];
+    first_free_data_ptr_index++;
+    return data;
+}
+
+InputData InputWire::load(int session_index, cudaStream_t stream) {
+    auto& data = alloc(session_index, stream);
     if (session_index > checkpoint.first) checkpoint = make_pair(session_index, bucket_idx);
 
     auto start_index = bucket_index_schedule[bucket_idx];
     const auto& end_index = bucket_index_schedule[bucket_idx + 1];
     if (start_index != 0) start_index--;
-    wire->load_from_bucket(data.transitions, start_index, end_index, stream);
     bucket_idx++;
+
+    data.size = end_index - start_index;
+    data.transitions = wire->device_ptr + start_index;
     return data;
 }
 
-void ScheduledWire::free() { IndexedWire::free(); }
+void InputWire::free() {
+    data_list.clear();
+    wire->free_device();
+    first_free_data_ptr_index = 0;
+}
 
-unsigned int ScheduledWire::size() const { return wire->bucket.size(); }
+unsigned int InputWire::size() const { return wire->bucket.size(); }
 
-bool ScheduledWire::finished() const {
+bool InputWire::finished() const {
     return bucket_idx + 1 >= bucket_index_schedule.size();
 }
 
-void ScheduledWire::push_back_schedule_index(unsigned int i) {
+void InputWire::push_back_schedule_index(unsigned int i) {
     if (i > wire->bucket.size())
         throw std::runtime_error("Schedule index out of range.");
     if (not bucket_index_schedule.empty() and i < bucket_index_schedule.back())
@@ -113,12 +136,12 @@ void ScheduledWire::push_back_schedule_index(unsigned int i) {
     bucket_index_schedule.push_back(i);
 }
 
-void ScheduledWire::handle_overflow() {
+void InputWire::handle_overflow() {
     first_free_data_ptr_index = 0;
     bucket_idx = checkpoint.second;
 }
 
-void ScheduledWire::finish() {
+void InputWire::finish() {
     free();
     wire->bucket.transitions.shrink_to_fit();
     vector<unsigned int>().swap(bucket_index_schedule);
