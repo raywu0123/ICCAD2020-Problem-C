@@ -14,7 +14,6 @@ struct InputWire {
 
     InputData& alloc(int session_index, cudaStream_t stream);
     InputData load(int session_index, cudaStream_t);
-    void free();
     unsigned int size() const;
     void handle_overflow();
     bool finished() const;
@@ -38,10 +37,10 @@ struct InputWire {
 struct OutputWire {
     explicit OutputWire(Wire* w, const CAPACITY_TYPE& capacity = INITIAL_CAPACITY) : wire(w), capacity(capacity) {};
 
-    virtual Data& alloc(int session_index, cudaStream_t);
-    virtual Data load(int session_index, cudaStream_t);
-    virtual void free();
-    virtual void finish();
+    Data& alloc(int session_index, cudaStream_t);
+    Data load(int session_index, cudaStream_t);
+    void free();
+    void finish();
 
     void gather_result_pre();
     void gather_result_async(cudaStream_t);
@@ -90,7 +89,7 @@ public:
         std::string  name
     );
     void set_stream(cudaStream_t);
-    void init(SDFCollector&);
+    void init(ResourceCollector<SDFPath>&, ResourceCollector<Transition>&);
     void free();
 
     static void build_bucket_index_schedule(std::vector<InputWire*>& wires, unsigned int size);

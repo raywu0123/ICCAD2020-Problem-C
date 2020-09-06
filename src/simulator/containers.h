@@ -4,13 +4,40 @@
 #include "constants.h"
 #include "memory_manager.h"
 
-struct SDFCollector {
-    std::vector<SDFPath> paths;
-    SDFPath *device_sdf, *pinned_sdf;
 
-    unsigned int push(const std::vector<SDFPath>& cell_paths);
-    SDFPath* get();
-    void free() const;
+template <class T>
+struct ResourceCollector {
+    std::vector<const std::vector<T>*> vecs;
+    unsigned int size = 0; // accumulator of total number of elements
+    T *device_ptr, *pinned_ptr;
+
+    explicit ResourceCollector(unsigned int num = 0) {
+        vecs.reserve(num);
+    }
+
+    unsigned int push(const std::vector<T>& in_vec) {
+        auto ret = size;
+        vecs.push_back(&in_vec);
+        size += in_vec.size();
+        return ret;
+    }
+    T* get() {
+        cudaMallocHost((void**) &pinned_ptr, sizeof(T) * size);
+        unsigned int offset = 0;
+        for (auto* vec_ptr : vecs) {
+            memcpy(pinned_ptr + offset, vec_ptr->data(), sizeof(T) * vec_ptr->size());
+            offset += vec_ptr->size();
+        }
+        std::vector<const std::vector<T>*>().swap(vecs);
+
+        cudaMalloc((void**) &device_ptr, sizeof(T) * size);
+        cudaMemcpyAsync(device_ptr, pinned_ptr, sizeof(T) * size, cudaMemcpyHostToDevice);
+        return device_ptr;
+    }
+    void free() const {
+        cudaFreeHost(pinned_ptr);
+        cudaFree(device_ptr);
+    }
 };
 
 

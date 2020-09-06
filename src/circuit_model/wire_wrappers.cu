@@ -92,7 +92,7 @@ InputData& InputWire::alloc(int session_index, cudaStream_t stream) {
     }
 
     if (first_free_data_ptr_index >= data_list.size())
-        data_list.push_back({});
+        data_list.emplace_back();
 
     if (first_free_data_ptr_index >= data_list.size())
         throw std::runtime_error("Invalid access to data_ptrs");
@@ -112,14 +112,9 @@ InputData InputWire::load(int session_index, cudaStream_t stream) {
     bucket_idx++;
 
     data.size = end_index - start_index;
-    data.transitions = wire->device_ptr + start_index;
+    assert(wire->ref_count);
+    data.offset = wire->offset + start_index;
     return data;
-}
-
-void InputWire::free() {
-    data_list.clear();
-    wire->free_device();
-    first_free_data_ptr_index = 0;
 }
 
 unsigned int InputWire::size() const { return wire->bucket.size(); }
@@ -142,7 +137,9 @@ void InputWire::handle_overflow() {
 }
 
 void InputWire::finish() {
-    free();
+    data_list.clear();
+    first_free_data_ptr_index = 0;
+    wire->free_device();
     wire->bucket.transitions.shrink_to_fit();
     vector<unsigned int>().swap(bucket_index_schedule);
 }

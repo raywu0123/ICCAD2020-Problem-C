@@ -42,7 +42,7 @@ void Cell::build_wire_map(const WireMap<Wire>& pin_specs) {
 
 void Cell::set_stream(cudaStream_t s) { stream = s; }
 
-void Cell::init(SDFCollector& sdf_collector) {
+void Cell::init(ResourceCollector<SDFPath>& sdf_collector, ResourceCollector<Transition>& input_data_collector) {
     overflow_ptr = static_cast<bool*>(MemoryManager::alloc(sizeof(bool)));
     host_overflow_ptr = static_cast<bool*>(MemoryManager::alloc_host(sizeof(bool)));
     Cell::build_bucket_index_schedule(
@@ -50,7 +50,7 @@ void Cell::init(SDFCollector& sdf_collector) {
             (INITIAL_CAPACITY * N_STIMULI_PARALLEL) - 1
     );
     for (const auto& input_wire : input_wires) {
-        if (input_wire != nullptr) input_wire->wire->to_device(stream);
+        if (input_wire != nullptr) input_wire->wire->to_device(input_data_collector);
     }
     sdf_offset = sdf_collector.push(sdf_paths);
 }

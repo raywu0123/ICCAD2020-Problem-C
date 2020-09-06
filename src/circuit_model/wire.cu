@@ -35,24 +35,14 @@ void Wire::emplace_transition(const Timestamp &t, char r) {
     bucket.emplace_transition(t, r);
 }
 
-void Wire::to_device(cudaStream_t stream) {
+void Wire::to_device(ResourceCollector<Transition>& input_data_collector) {
     ref_count++;
-    if (device_ptr != nullptr) return;
-
-    auto size = sizeof(Transition) * bucket.size();
-    cudaMallocHost((void**) &pinned_host_ptr, size);
-    memcpy(pinned_host_ptr, bucket.transitions.data(), size);
-
-    cudaMalloc((void**) &device_ptr, size);
-    cudaMemcpyAsync(device_ptr, pinned_host_ptr, size, cudaMemcpyHostToDevice, stream);
+    if (ref_count > 1) return;
+    offset = input_data_collector.push(bucket.transitions);
 }
 
 void Wire::free_device() {
     ref_count--;
-    if (ref_count > 0) return;
-
-    cudaFree(device_ptr); cudaFreeHost(pinned_host_ptr);
-    device_ptr = nullptr; pinned_host_ptr = nullptr;
 }
 
 bool ConstantWire::store_to_bucket_warning_flag = false;

@@ -90,8 +90,10 @@ struct Data {
 };
 
 struct InputData {
-    Transition* transitions = nullptr;
+    unsigned int offset = 0;
     unsigned int size = 0;
+    InputData() = default;
+    InputData(unsigned int offset, unsigned int size) : offset(offset), size(size) {}
 };
 
 std::ostream& operator<< (std::ostream& os, const Transition& transition);

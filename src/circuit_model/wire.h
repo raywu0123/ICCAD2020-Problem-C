@@ -5,6 +5,7 @@
 #include <cassert>
 #include <map>
 #include "simulator/data_structures.h"
+#include "simulator/containers.h"
 #include "simulator/memory_manager.h"
 #include "simulator/collision_utils.h"
 
@@ -63,7 +64,7 @@ public:
     void assign(const Wire&);
     void set_drived();
 
-    void to_device(cudaStream_t);
+    void to_device(ResourceCollector<Transition>&);
     void free_device();
 
     virtual void store_to_bucket(const std::vector<Data>&);
@@ -73,8 +74,8 @@ public:
     Bucket bucket;
     bool is_constant = false;
 
-    Transition *device_ptr = nullptr, *pinned_host_ptr = nullptr;
-    int ref_count = 0;
+    unsigned int offset = 0;
+    unsigned int ref_count = 0;
 };
 
 

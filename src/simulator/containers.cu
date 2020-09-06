@@ -64,25 +64,3 @@ void ResourceBuffer::clear() {
     output_data_schedule.clear();
     size = 0;
 }
-
-unsigned int SDFCollector::push(const vector<SDFPath>& cell_paths) {
-    auto ret = paths.size();
-    paths.insert(paths.end(), cell_paths.begin(), cell_paths.end());
-    return ret;
-}
-
-SDFPath* SDFCollector::get() {
-    auto size = sizeof(SDFPath) * paths.size();
-    cudaMallocHost((void**) &pinned_sdf, size);
-    memcpy(pinned_sdf, paths.data(), size);
-    vector<SDFPath>().swap(paths);
-
-    cudaMalloc((void**) &device_sdf, size);
-    cudaMemcpyAsync(device_sdf, pinned_sdf, size, cudaMemcpyHostToDevice);
-    return device_sdf;
-}
-
-void SDFCollector::free() const {
-    cudaFreeHost(pinned_sdf);
-    cudaFree(device_sdf);
-}
