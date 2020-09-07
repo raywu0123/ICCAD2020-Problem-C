@@ -37,25 +37,15 @@ struct InputWire {
 struct OutputWire {
     explicit OutputWire(Wire* w, const CAPACITY_TYPE& capacity = INITIAL_CAPACITY) : wire(w), capacity(capacity) {};
 
-    Data& alloc(int session_index, cudaStream_t);
-    Data load(int session_index, cudaStream_t);
-    void free();
+    Data load(int session_index, cudaStream_t, OutputCollector<Transition>&, OutputCollector<unsigned int>&);
     void finish();
-
-    void gather_result_pre();
-    void gather_result_async(cudaStream_t);
-    void finalize_result();
-
-    virtual void handle_overflow();
+    void gather_result(Transition*, unsigned int*);
+    void handle_overflow();
 
     // records capacity
     Wire* wire;
     const CAPACITY_TYPE& capacity;
     std::vector<Data> data_list;
-    std::vector<Data> host_data_storage;
-
-    unsigned int first_free_data_ptr_index = 0;
-    int previous_session_index = -1;
 };
 
 
@@ -94,14 +84,12 @@ public:
 
     static void build_bucket_index_schedule(std::vector<InputWire*>& wires, unsigned int size);
     bool finished() const;
-    void prepare_resource(int, ResourceBuffer&);
+    void prepare_resource(int, ResourceBuffer&, OutputCollector<Transition>&, OutputCollector<unsigned int>&);
 
     void gather_overflow_async();
     bool handle_overflow();
 
-    void gather_results_pre();
-    void gather_results_async();
-    void gather_results_finalize();
+    void gather_results(Transition*, unsigned int*);
 
     std::vector<InputWire*> input_wires;
     std::vector<OutputWire*> output_wires;

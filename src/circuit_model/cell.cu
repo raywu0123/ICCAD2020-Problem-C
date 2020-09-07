@@ -68,7 +68,12 @@ void Cell::free() {
     }
 }
 
-void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer) {
+void Cell::prepare_resource(
+    int session_id,
+    ResourceBuffer& resource_buffer,
+    OutputCollector<Transition>& output_data_collector,
+    OutputCollector<unsigned int>& output_size_collector
+) {
     cudaMemsetAsync(overflow_ptr, 0, sizeof(bool), stream);
     *host_overflow_ptr = false;
 
@@ -84,26 +89,16 @@ void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer) {
     }
     for (auto* output_wire : output_wires) {
         if (output_wire == nullptr) resource_buffer.output_data_schedule.push_back(Data{});
-        else resource_buffer.output_data_schedule.push_back(output_wire->load(session_id, stream));
+        else resource_buffer.output_data_schedule.push_back(
+            output_wire->load(session_id, stream, output_data_collector, output_size_collector)
+        );
     }
     resource_buffer.finish_module();
 }
 
-void Cell::gather_results_pre() {
+void Cell::gather_results(Transition* output_data, unsigned int* sizes) {
     for (const auto& output_wire : output_wires) {
-        if (output_wire != nullptr) output_wire->gather_result_pre();
-    }
-}
-
-void Cell::gather_results_async() {
-    for (const auto& output_wire : output_wires) {
-        if (output_wire != nullptr) output_wire->gather_result_async(stream);
-    }
-}
-
-void Cell::gather_results_finalize() {
-    for (const auto& output_wire : output_wires) {
-        if (output_wire != nullptr) output_wire->finalize_result();
+        if (output_wire != nullptr) output_wire->gather_result(output_data, sizes);
     }
 }
 

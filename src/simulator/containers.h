@@ -40,6 +40,37 @@ struct ResourceCollector {
     }
 };
 
+template<class T>
+struct OutputCollector {
+
+    unsigned int push(unsigned int size) {
+        unsigned int ret = size_accumulator;
+        size_accumulator += size;
+        return ret;
+    }
+
+    T* get_device() {
+        cudaMalloc((void**) &device_ptr, sizeof(T) * size_accumulator);
+        cudaMemset(device_ptr, 0, sizeof(T) * size_accumulator);
+        return device_ptr;
+    }
+
+    T* get_host() {
+        cudaMallocHost((void**) &host_ptr, sizeof(T) * size_accumulator);
+        cudaMemcpyAsync(host_ptr, device_ptr, sizeof(T) * size_accumulator, cudaMemcpyDeviceToHost);
+        return host_ptr;
+    }
+
+    void free() {
+        cudaFreeHost(host_ptr); host_ptr = nullptr;
+        cudaFree(device_ptr); device_ptr = nullptr;
+        size_accumulator = 0;
+    }
+
+    T *device_ptr = nullptr, *host_ptr = nullptr;
+    unsigned int size_accumulator = 0;
+};
+
 
 struct ResourceBuffer {
 

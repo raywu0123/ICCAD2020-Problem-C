@@ -83,10 +83,11 @@ struct Transition {
 };
 
 struct Data {
-    Transition* transitions = nullptr;
-    unsigned int* size = nullptr;
+    unsigned int transition_offset = 0;
+    unsigned int size_offset = 0;
+    bool is_dummy = true;
     Data() = default;
-    Data(void* p1, void* p2) : transitions((Transition*) p1), size((unsigned int*) p2) {}
+    Data(unsigned int o1, unsigned int o2) : transition_offset(o1), size_offset(o2), is_dummy(false) {}
 };
 
 struct InputData {

@@ -23,8 +23,8 @@ void Wire::assign(const Wire& other_wire) {
     wire_infos.insert(wire_infos.end(), other_wire.wire_infos.begin(), other_wire.wire_infos.end());
 }
 
-void Wire::store_to_bucket(const std::vector<Data>& storage) {
-    for (const auto& data : storage) { bucket.push_back(data.transitions, *data.size); }
+void Wire::store_to_bucket(const std::vector<Data>& data_list, Transition* output_data, unsigned int* sizes) {
+    for(const auto& data : data_list) bucket.push_back(output_data + data.transition_offset, sizes[data.size_offset]);
 }
 
 void Wire::set_drived() {

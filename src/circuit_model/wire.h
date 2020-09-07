@@ -67,7 +67,7 @@ public:
     void to_device(ResourceCollector<Transition>&);
     void free_device();
 
-    virtual void store_to_bucket(const std::vector<Data>&);
+    virtual void store_to_bucket(const std::vector<Data>&, Transition*, unsigned int*);
     virtual void emplace_transition(const Timestamp& t, char r);
 
     std::vector<WireInfo> wire_infos;
@@ -89,7 +89,7 @@ public:
         bucket.transitions.clear();
         bucket.transitions.emplace_back(0, value);
     }
-    void store_to_bucket(const std::vector<Data>&) override {
+    void store_to_bucket(const std::vector<Data>&, Transition*, unsigned int*) override {
         if (not store_to_bucket_warning_flag) {
             std::cerr << "| Warning: storing to constant wire\n";
             store_to_bucket_warning_flag = true;

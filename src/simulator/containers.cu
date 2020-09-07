@@ -64,3 +64,4 @@ void ResourceBuffer::clear() {
     output_data_schedule.clear();
     size = 0;
 }
+
