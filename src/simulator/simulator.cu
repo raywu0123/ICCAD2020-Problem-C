@@ -252,6 +252,9 @@ void Simulator::run() {
     ResourceBuffer resource_buffer;
     BatchResource batch_data{}; batch_data.init();
     StreamManager stream_manager(N_STREAM);
+    OutputCollector<Transition> output_data_collector; OutputCollector<unsigned int> output_size_collector;
+    OutputCollector<bool> overflow_collector;
+
     for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
         const auto& schedule_layer = circuit.cell_schedule[i_layer];
         stack<Cell*, std::vector<Cell*>> job_queue(schedule_layer);
@@ -259,19 +262,21 @@ void Simulator::run() {
 
         ResourceCollector<SDFPath> sdf_collector(schedule_layer.size());
         ResourceCollector<Transition> input_data_collector(schedule_layer.size() * MAX_NUM_MODULE_ARGS);
-        for (auto* cell : schedule_layer) cell->init(sdf_collector, input_data_collector);
+        overflow_collector.reset();
+        for (auto* cell : schedule_layer) cell->init(sdf_collector, input_data_collector, overflow_collector);
         auto* device_sdf = sdf_collector.get();
         auto* device_input_data = input_data_collector.get();
         int session_id = 0;
 
         while (not job_queue.empty()) {
             unordered_set<Cell*> processing_cells;
-            OutputCollector<Transition> output_data_collector; OutputCollector<unsigned int> output_size_collector;
-
+            output_data_collector.reset(); output_size_collector.reset();
+            overflow_collector.clear();
+            auto* device_overflow = overflow_collector.get_device();
             for (int i = 0; i < N_CELL_PARALLEL; i++) {
                 if (job_queue.empty()) break;
                 auto* cell = job_queue.top(); processing_cells.insert(cell);
-                cell->prepare_resource(session_id, resource_buffer, output_data_collector, output_size_collector);
+                cell->prepare_resource(session_id, resource_buffer, output_data_collector, output_size_collector, device_overflow);
                 if (cell->finished()) job_queue.pop();
             }
             batch_data.set(resource_buffer); resource_buffer.clear();
@@ -285,32 +290,29 @@ void Simulator::run() {
                 device_input_data,
                 device_output_data, device_sizes
             );
+            auto* host_output_data = output_data_collector.get_host();
+            auto* host_sizes = output_size_collector.get_host();
+            auto* host_overflows = overflow_collector.get_host();
             cudaDeviceSynchronize();
 
-            for (auto* cell : processing_cells) cell->gather_overflow_async(); // async function
-            cudaDeviceSynchronize();
             unordered_set<Cell*> non_overflow_cells, finished_cells;
             for (auto* cell : processing_cells) {
                 bool finished = cell->finished();
-                bool overflow = cell->handle_overflow();
+                bool overflow = cell->handle_overflow(host_overflows);
                 if (not overflow) {
                     non_overflow_cells.insert(cell);
                     if (finished) finished_cells.insert(cell);
                 } else if (finished) job_queue.push(cell);
             }
 
-            auto* host_output_data = output_data_collector.get_host();
-            auto* host_sizes = output_size_collector.get_host();
-            cudaDeviceSynchronize();
-
             for (auto* cell : non_overflow_cells) cell->gather_results(host_output_data, host_sizes);
             for (auto* cell : finished_cells) cell->free();
-            output_data_collector.free(); output_size_collector.free();
             session_id++;
         }
         sdf_collector.free(); input_data_collector.free();
         progress_bar.Progressed(i_layer + 1);
     }
+    output_data_collector.free(); output_size_collector.free(); overflow_collector.free();
     batch_data.free();
     cout << endl;
 }

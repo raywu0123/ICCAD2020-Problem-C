@@ -79,15 +79,14 @@ public:
         std::string  name
     );
     void set_stream(cudaStream_t);
-    void init(ResourceCollector<SDFPath>&, ResourceCollector<Transition>&);
+    void init(ResourceCollector<SDFPath>&, ResourceCollector<Transition>&, OutputCollector<bool>&);
     void free();
 
     static void build_bucket_index_schedule(std::vector<InputWire*>& wires, unsigned int size);
     bool finished() const;
-    void prepare_resource(int, ResourceBuffer&, OutputCollector<Transition>&, OutputCollector<unsigned int>&);
+    void prepare_resource(int, ResourceBuffer&, OutputCollector<Transition>&, OutputCollector<unsigned int>&, bool* device_overflow);
 
-    void gather_overflow_async();
-    bool handle_overflow();
+    bool handle_overflow(bool*);
 
     void gather_results(Transition*, unsigned int*);
 
@@ -104,7 +103,7 @@ private:
     const ModuleSpec* module_spec;
     NUM_ARG_TYPE num_args = 0;
     CAPACITY_TYPE output_capacity = INITIAL_CAPACITY;
-    bool *overflow_ptr = nullptr, *host_overflow_ptr = nullptr;
+    unsigned int overflow_offset = 0;
     unsigned int sdf_offset = 0;
     cudaStream_t stream;
 };

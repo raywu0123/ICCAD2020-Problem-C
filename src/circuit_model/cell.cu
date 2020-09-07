@@ -42,9 +42,12 @@ void Cell::build_wire_map(const WireMap<Wire>& pin_specs) {
 
 void Cell::set_stream(cudaStream_t s) { stream = s; }
 
-void Cell::init(ResourceCollector<SDFPath>& sdf_collector, ResourceCollector<Transition>& input_data_collector) {
-    overflow_ptr = static_cast<bool*>(MemoryManager::alloc(sizeof(bool)));
-    host_overflow_ptr = static_cast<bool*>(MemoryManager::alloc_host(sizeof(bool)));
+void Cell::init(
+    ResourceCollector<SDFPath>& sdf_collector,
+    ResourceCollector<Transition>& input_data_collector,
+    OutputCollector<bool>& overflow_collector
+) {
+    overflow_offset = overflow_collector.push(1);
     Cell::build_bucket_index_schedule(
             input_wires,
             (INITIAL_CAPACITY * N_STIMULI_PARALLEL) - 1
@@ -56,9 +59,6 @@ void Cell::init(ResourceCollector<SDFPath>& sdf_collector, ResourceCollector<Tra
 }
 
 void Cell::free() {
-    MemoryManager::free(overflow_ptr, sizeof(bool));
-    MemoryManager::free_host(host_overflow_ptr, sizeof(bool));
-
     vector<SDFPath>().swap(sdf_paths);
     for (auto& input_wire : input_wires) {
         if (input_wire != nullptr) input_wire->finish();
@@ -72,12 +72,10 @@ void Cell::prepare_resource(
     int session_id,
     ResourceBuffer& resource_buffer,
     OutputCollector<Transition>& output_data_collector,
-    OutputCollector<unsigned int>& output_size_collector
+    OutputCollector<unsigned int>& output_size_collector,
+    bool* device_overflow
 ) {
-    cudaMemsetAsync(overflow_ptr, 0, sizeof(bool), stream);
-    *host_overflow_ptr = false;
-
-    resource_buffer.overflows.push_back(overflow_ptr);
+    resource_buffer.overflows.push_back(device_overflow + overflow_offset);
     resource_buffer.capacities.push_back(output_capacity);
     resource_buffer.module_specs.push_back(module_spec);
     resource_buffer.sdf_offsets.push_back(sdf_offset);
@@ -102,12 +100,8 @@ void Cell::gather_results(Transition* output_data, unsigned int* sizes) {
     }
 }
 
-void Cell::gather_overflow_async() {
-    cudaMemcpyAsync(host_overflow_ptr, overflow_ptr, sizeof(bool), cudaMemcpyDeviceToHost, stream);
-}
-
-bool Cell::handle_overflow() {
-    if (*host_overflow_ptr) {
+bool Cell::handle_overflow(bool* host_overflows) {
+    if (host_overflows[overflow_offset]) {
         for (auto& input_wire : input_wires) {
             if (input_wire != nullptr) input_wire->handle_overflow();
         }
@@ -116,7 +110,7 @@ bool Cell::handle_overflow() {
         }
         output_capacity *= 2;
     }
-    return *host_overflow_ptr;
+    return host_overflows[overflow_offset];
 }
 
 bool Cell::finished() const {

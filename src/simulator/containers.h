@@ -49,14 +49,26 @@ struct OutputCollector {
         return ret;
     }
 
+    void reset() {
+        size_accumulator = 0;
+    }
+
+    void clear() {
+        cudaMemsetAsync(device_ptr, 0, sizeof(T) * size_accumulator);
+    }
+
     T* get_device() {
-        cudaMalloc((void**) &device_ptr, sizeof(T) * size_accumulator);
-        cudaMemset(device_ptr, 0, sizeof(T) * size_accumulator);
+        if (size_accumulator > current_alloced_size) {
+            cudaFree(device_ptr); cudaFreeHost(host_ptr);
+            current_alloced_size = size_accumulator * 2;
+            cudaMalloc((void**) &device_ptr, sizeof(T) * current_alloced_size);
+            cudaMallocHost((void**) &host_ptr, sizeof(T) * current_alloced_size);
+        }
+        cudaMemsetAsync(device_ptr, 0, sizeof(T) * size_accumulator);
         return device_ptr;
     }
 
     T* get_host() {
-        cudaMallocHost((void**) &host_ptr, sizeof(T) * size_accumulator);
         cudaMemcpyAsync(host_ptr, device_ptr, sizeof(T) * size_accumulator, cudaMemcpyDeviceToHost);
         return host_ptr;
     }
@@ -68,6 +80,7 @@ struct OutputCollector {
     }
 
     T *device_ptr = nullptr, *host_ptr = nullptr;
+    unsigned int current_alloced_size = 0;
     unsigned int size_accumulator = 0;
 };
 
