@@ -79,7 +79,7 @@ public:
         BusManager& bus_manager
     );
     void write(char* path) override;
-    static WireStat calculate_wire_stats(const Bucket&, Timestamp dumpon_time, Timestamp dumpoff_time);
+    static WireStat calculate_wire_stats(const Bucket&, const Timestamp& dumpon_time, const Timestamp& dumpoff_time);
     void write_wirekey_result(const BitWidth& bitwidth, const Wirekey& wirekey, const WireStat& wirestat);
 
     std::string indent = "   ";

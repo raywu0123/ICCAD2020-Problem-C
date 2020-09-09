@@ -23,20 +23,8 @@ void Wire::assign(const Wire& other_wire) {
     wire_infos.insert(wire_infos.end(), other_wire.wire_infos.begin(), other_wire.wire_infos.end());
 }
 
-void Wire::load_from_bucket(
-    Transition* ptr, unsigned int start_bucket_index, unsigned int end_bucket_index
-) {
-    auto status = cudaMemcpyAsync(
-        ptr,
-        bucket.transitions.data() + start_bucket_index,
-        sizeof(Transition) * (end_bucket_index - start_bucket_index),
-        cudaMemcpyHostToDevice
-    );
-    if (status != cudaSuccess) throw runtime_error(cudaGetErrorString(status));
-}
-
-void Wire::store_to_bucket(const vector<Data>& data_list, unsigned int num_ptrs) {
-    for (unsigned int i = 0; i < num_ptrs; i++) bucket.push_back(data_list[i]);
+void Wire::store_to_bucket(const std::vector<Data>& data_list, Transition* output_data, unsigned int* sizes) {
+    for(const auto& data : data_list) bucket.push_back(output_data + data.transition_offset, sizes[data.size_offset]);
 }
 
 void Wire::set_drived() {
@@ -46,6 +34,11 @@ void Wire::set_drived() {
 void Wire::emplace_transition(const Timestamp &t, char r) {
     bucket.emplace_transition(t, r);
 }
+
+void Wire::to_device(ResourceCollector<Transition, Wire>& input_data_collector) {
+    offset = input_data_collector.push(bucket.transitions, this);
+}
+
 
 bool ConstantWire::store_to_bucket_warning_flag = false;
 bool ConstantWire::emplace_transition_warning_flag = false;

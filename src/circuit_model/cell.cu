@@ -18,140 +18,121 @@ Cell::Cell(
     build_wire_map(pin_specs);
 }
 
-void Cell::set_paths() {
-    vector<char> edge_types;
-    vector<unsigned int> input_indices, output_indices;
-    vector<int> rising_delays, falling_delays;
-
-    for (const auto& path : sdf_paths) {
-        input_indices.push_back(path.in);
-        output_indices.push_back(path.out);
-        edge_types.push_back(path.edge_type);
-        rising_delays.push_back(path.rising_delay);
-        falling_delays.push_back(path.falling_delay);
-    }
-
-    const auto& num_rows = sdf_paths.size();
-    host_sdf_spec.num_rows = num_rows;
-    cudaMalloc((void**) &host_sdf_spec.edge_type, sizeof(char) * num_rows);
-    cudaMalloc((void**) &host_sdf_spec.input_index, sizeof(int) * num_rows);
-    cudaMalloc((void**) &host_sdf_spec.output_index, sizeof(int) * num_rows);
-    cudaMalloc((void**) &host_sdf_spec.rising_delay, sizeof(int) * num_rows);
-    cudaMalloc((void**) &host_sdf_spec.falling_delay, sizeof(int) * num_rows);
-    cudaMemcpy(host_sdf_spec.edge_type, edge_types.data(), sizeof(char) * num_rows, cudaMemcpyHostToDevice);
-    cudaMemcpy(host_sdf_spec.input_index, input_indices.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
-    cudaMemcpy(host_sdf_spec.output_index, output_indices.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
-    cudaMemcpy(host_sdf_spec.rising_delay, rising_delays.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
-    cudaMemcpy(host_sdf_spec.falling_delay, falling_delays.data(), sizeof(int) * num_rows, cudaMemcpyHostToDevice);
-
-    cudaMalloc((void**) &sdf_spec, sizeof(SDFSpec));
-    cudaMemcpy(sdf_spec, &host_sdf_spec, sizeof(SDFSpec), cudaMemcpyHostToDevice);
-}
-
 void Cell::build_wire_map(const WireMap<Wire>& pin_specs) {
     if (num_args > MAX_NUM_MODULE_ARGS) {
         throw runtime_error("Too many module args (" + to_string(num_args) + ")\n");
     }
-    for (unsigned int arg = 0; arg < declare->num_input; ++arg) {
+    input_wires.resize(declare->num_input);
+    for (NUM_ARG_TYPE arg = 0; arg < declare->num_input; ++arg) {
         auto* wire_ptr = pin_specs.get(arg);
         if (wire_ptr == nullptr) continue;
-        auto* scheduled_wire = new ScheduledWire(wire_ptr);
-        wire_map.set(arg, scheduled_wire); input_wires.push_back(scheduled_wire);
+        auto* scheduled_wire = new InputWire(wire_ptr);
+        input_wires[arg] = scheduled_wire;
     }
-    for (unsigned int arg = declare->num_input; arg < num_args; ++arg) {
+
+    output_wires.resize(declare->num_output);
+    for (NUM_ARG_TYPE arg = declare->num_input; arg < num_args; ++arg) {
         auto* wire_ptr = pin_specs.get(arg);
         if (wire_ptr == nullptr) continue;
         wire_ptr->set_drived();
-        auto* indexed_wire = new IndexedWire(wire_ptr, output_capacity);
-        wire_map.set(arg, indexed_wire); output_wires.push_back(indexed_wire);
-    }
-    for (unsigned int arg = 0; arg < num_args; arg++) {
-        if (wire_map.get(arg) == nullptr) cerr << "| WARNING: Arg (" + to_string(arg) + ") not found in wiremap of cell " << name  << endl;
+        auto* indexed_wire = new OutputWire(wire_ptr, output_capacity);
+        output_wires[arg - declare->num_input] = indexed_wire;
     }
 }
 
-void Cell::prepare_resource(int session_id, ResourceBuffer& resource_buffer) {
-    cudaMemsetAsync(overflow_ptr, 0, sizeof(bool));
-    resource_buffer.overflows.push_back(overflow_ptr);
+void Cell::init(
+    ResourceCollector<SDFPath, Cell>& sdf_collector,
+    ResourceCollector<Transition, Wire>& input_data_collector,
+    OutputCollector<bool>& overflow_collector
+) {
+    overflow_offset = overflow_collector.push(1);
+    Cell::build_bucket_index_schedule(
+            input_wires,
+            (INITIAL_CAPACITY * N_STIMULI_PARALLEL) - 1
+    );
+    unsigned int sum_size = 0;
+    for (const auto& input_wire : input_wires) {
+        if (input_wire != nullptr) {
+            input_wire->wire->to_device(input_data_collector);
+            sum_size += input_wire->size();
+        }
+    }
+    for (const auto& output_wire: output_wires) {
+        if (output_wire != nullptr) output_wire->wire->bucket.reserve(sum_size);
+    }
+    sdf_offset = sdf_collector.push(sdf_paths, this);
+}
+
+void Cell::free() {
+    vector<SDFPath>().swap(sdf_paths);
+    for (auto& input_wire : input_wires) {
+        if (input_wire != nullptr) input_wire->finish();
+    }
+    for (auto& output_wire : output_wires) {
+        if (output_wire != nullptr) output_wire->finish();
+    }
+}
+
+void Cell::prepare_resource(
+    int session_id,
+    ResourceBuffer& resource_buffer,
+    OutputCollector<Transition>& output_data_collector,
+    OutputCollector<unsigned int>& output_size_collector,
+    bool* device_overflow
+) {
+    resource_buffer.overflows.push_back(device_overflow + overflow_offset);
     resource_buffer.capacities.push_back(output_capacity);
     resource_buffer.module_specs.push_back(module_spec);
-    resource_buffer.sdf_specs.push_back(sdf_spec);
+    resource_buffer.sdf_offsets.push_back(sdf_offset);
+    resource_buffer.sdf_num_rows.push_back(sdf_paths.size());
 
-    for (auto& indexed_wire : input_wires) indexed_wire->load(session_id);
-    for (auto& indexed_wire : output_wires) indexed_wire->load(session_id);
-
-    for (unsigned int arg = 0; arg < num_args; ++arg) {
-        const auto* indexed_wire = wire_map.get(arg);
-        if (indexed_wire == nullptr) {
-            resource_buffer.data_schedule.push_back(Data{});
-        } else {
-            if (indexed_wire->first_free_data_ptr_index - 1 >= indexed_wire->data_list.size())
-                throw runtime_error("Invalid access to indexed_wire's data_ptrs");
-            resource_buffer.data_schedule.push_back(
-                    indexed_wire->data_list[indexed_wire->first_free_data_ptr_index - 1]
-            );
-        }
+    for (auto* input_wire : input_wires) {
+        if (input_wire == nullptr) resource_buffer.input_data_schedule.push_back(InputData{});
+        else resource_buffer.input_data_schedule.push_back(input_wire->load(session_id));
+    }
+    for (auto* output_wire : output_wires) {
+        if (output_wire == nullptr) resource_buffer.output_data_schedule.push_back(Data{});
+        else resource_buffer.output_data_schedule.push_back(
+            output_wire->load(output_data_collector, output_size_collector)
+        );
     }
     resource_buffer.finish_module();
 }
 
-bool Cell::gather_results() {
-    if (handle_overflow()) return true;
-
-    for (const auto& indexed_wire : output_wires) indexed_wire->store_to_bucket();
-    if (finished()) free();
-    return false;
+void Cell::gather_results(Transition* output_data, unsigned int* sizes) {
+    for (const auto& output_wire : output_wires) {
+        if (output_wire != nullptr) output_wire->gather_result(output_data, sizes);
+    }
 }
 
-void Cell::free() {
-    cudaFree(overflow_ptr);
-    cudaFree(sdf_spec);
-    cudaFree(host_sdf_spec.edge_type);
-    cudaFree(host_sdf_spec.input_index); cudaFree(host_sdf_spec.output_index);
-    cudaFree(host_sdf_spec.rising_delay); cudaFree(host_sdf_spec.falling_delay);
-    vector<SDFPath>().swap(sdf_paths);
-    for (auto& indexed_wire : input_wires) indexed_wire->finish();
-    for (auto& indexed_wire : output_wires) indexed_wire->finish();
-}
-
-void Cell::init() {
-    cudaMalloc((void**) &overflow_ptr, sizeof(bool));
-    set_paths();
-    Cell::build_bucket_index_schedule(
-        input_wires,
-        (INITIAL_CAPACITY * N_STIMULI_PARALLEL) / input_wires.size() - 1
-    );
-    unsigned int sum_size = 0;
-    for (const auto& indexed_wire : input_wires) sum_size += indexed_wire->wire->bucket.size();
-    for (auto& indexed_wire : output_wires) indexed_wire->wire->bucket.reserve(sum_size * 2);
-}
-
-bool Cell::handle_overflow() {
-    bool host_overflow_value;
-    cudaMemcpy(&host_overflow_value, overflow_ptr, sizeof(bool), cudaMemcpyDeviceToHost);
-    if(not host_overflow_value) return false;
-
-    output_capacity *= 2;
-    for (auto& indexed_wire : input_wires) indexed_wire->handle_overflow();
-    for (auto& indexed_wire : output_wires) indexed_wire->handle_overflow();
-    return true;
+bool Cell::handle_overflow(bool* host_overflows) {
+    if (host_overflows[overflow_offset]) {
+        for (auto& input_wire : input_wires) {
+            if (input_wire != nullptr) input_wire->handle_overflow();
+        }
+        for (auto& output_wire : output_wires) {
+            if (output_wire != nullptr) output_wire->handle_overflow();
+        }
+        output_capacity *= 2;
+    }
+    return host_overflows[overflow_offset];
 }
 
 bool Cell::finished() const {
-    for (const auto& indexed_wire : input_wires) {
-        if (not indexed_wire->finished()) return false;
+    for (const auto& input_wire : input_wires) {
+        if (input_wire != nullptr and not input_wire->finished()) return false;
     }
     return true;
 }
 
-void Cell::build_bucket_index_schedule(vector<ScheduledWire*>& wires, unsigned int size) {
-    unsigned int num_finished = 0, num_inputs = wires.size();
+void Cell::build_bucket_index_schedule(vector<InputWire*>& wires, unsigned int size) {
+    NUM_ARG_TYPE num_finished = 0, num_inputs = wires.size();
 
     vector<unsigned int> starting_indices; starting_indices.resize(num_inputs);
     vector<bool> finished; finished.resize(num_inputs);
     for (int i_wire = 0; i_wire < num_inputs; i_wire++) {
         const auto& wire = wires[i_wire];
-        if (size >= wire->wire->bucket.size()) {
+        if (wire == nullptr or size >= wire->wire->bucket.size()) {
             finished[i_wire] = true;
             num_finished++;
         }

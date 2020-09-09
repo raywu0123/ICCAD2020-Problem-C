@@ -9,7 +9,7 @@ using namespace std;
 struct BatchWaveformTestPair{
     vector<vector<Transition>> batch_waveform;
     vector<Transition> expected;
-    unsigned int capacity = 16;
+    CAPACITY_TYPE capacity = 16;
 };
 
 class BatchWaveformCollisionTestFixture: public ::testing::TestWithParam<BatchWaveformTestPair>{};
@@ -21,7 +21,7 @@ TEST_P(BatchWaveformCollisionTestFixture, SimpleCases) {
     const auto num_stimuli = batch_waveform.size();
 
     auto w = new Transition[capacity * num_stimuli];
-    auto stimuli_lengths = new unsigned int[num_stimuli];
+    auto stimuli_lengths = new CAPACITY_TYPE[num_stimuli];
     for (int i_stimuli = 0; i_stimuli < num_stimuli; i_stimuli++) {
         unsigned int stimuli_length = batch_waveform[i_stimuli].size();
         stimuli_lengths[i_stimuli] = stimuli_length;

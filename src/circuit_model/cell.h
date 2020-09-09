@@ -2,65 +2,63 @@
 #define ICCAD2020_CELL_H
 
 #include <iostream>
+
 #include "constants.h"
 #include "wire.h"
 #include "simulator/module_registry.h"
-
-struct SDFPath {
-    unsigned int in, out;
-    char edge_type;
-    int rising_delay, falling_delay;
-};
+#include "simulator/containers.h"
 
 
-struct IndexedWire {
-    explicit IndexedWire(Wire* w, const unsigned int& capacity = INITIAL_CAPACITY) : wire(w), capacity(capacity) {};
+struct InputWire {
+    explicit InputWire(Wire* w, const CAPACITY_TYPE& capacity = INITIAL_CAPACITY) : wire(w), capacity(capacity) {};
 
-    Data alloc(int session_index);
-    virtual Data load(int session_index);
-    virtual void free();
-    virtual void finish();
-    void store_to_bucket() const;
+    InputData& alloc(int session_index);
+    InputData load(int session_index);
+    unsigned int size() const;
+    void handle_overflow();
+    bool finished() const;
+    void finish();
 
-    virtual void handle_overflow();
+    void push_back_schedule_index(unsigned int i);
 
-    // records capacity
     Wire* wire;
-    const unsigned int& capacity;
-    std::vector<Data> data_list;
+    const CAPACITY_TYPE& capacity;
+    std::vector<InputData> data_list;
 
     unsigned int first_free_data_ptr_index = 0;
     int previous_session_index = -1;
-};
-
-
-struct ScheduledWire : public IndexedWire {
-    explicit ScheduledWire(Wire* wire, const unsigned int& capacity = INITIAL_CAPACITY): IndexedWire(wire, capacity) {};
-
-    Data load(int session_index) override;
-    void free() override;
-    unsigned int size() const;
-    void handle_overflow() override;
-    bool finished() const;
-    void finish() override;
-
-    void push_back_schedule_index(unsigned int i);
 
     std::vector<unsigned int> bucket_index_schedule{ 0 };
     unsigned int bucket_idx = 0;
     std::pair<int, unsigned int> checkpoint = {0, 0};
 };
 
+
+struct OutputWire {
+    explicit OutputWire(Wire* w, const CAPACITY_TYPE& capacity = INITIAL_CAPACITY) : wire(w), capacity(capacity) {};
+
+    Data load(OutputCollector<Transition>&, OutputCollector<unsigned int>&);
+    void finish();
+    void gather_result(Transition*, unsigned int*);
+    void handle_overflow();
+
+    // records capacity
+    Wire* wire;
+    const CAPACITY_TYPE& capacity;
+    std::vector<Data> data_list;
+};
+
+
 template<class T>
 class WireMap {
 public:
-    T* get(unsigned int i) const {
+    T* get(NUM_ARG_TYPE i) const {
         if (i >= MAX_NUM_MODULE_ARGS)
             throw std::runtime_error("Out-of-bounds access (" + std::to_string(i) + ") to getter of WireMap\n");
         auto* w = map[i];
         return w;
     }
-    void set(unsigned int i, T* ptr) {
+    void set(NUM_ARG_TYPE i, T* ptr) {
         if (i >= MAX_NUM_MODULE_ARGS)
             throw std::runtime_error("Out-of-bounds access (" + std::to_string(i) + ") to setter of WireMap\n");
         auto& entry = map[i];
@@ -80,34 +78,32 @@ public:
         const WireMap<Wire>&  pin_specs,
         std::string  name
     );
-    void init();
+    void init(ResourceCollector<SDFPath, Cell>&, ResourceCollector<Transition, Wire>&, OutputCollector<bool>&);
+    void free();
 
-    static void build_bucket_index_schedule(std::vector<ScheduledWire*>& wires, unsigned int size);
+    static void build_bucket_index_schedule(std::vector<InputWire*>& wires, unsigned int size);
     bool finished() const;
-    void prepare_resource(int, ResourceBuffer&);
-    bool gather_results();
+    void prepare_resource(int, ResourceBuffer&, OutputCollector<Transition>&, OutputCollector<unsigned int>&, bool* device_overflow);
 
-    std::vector<ScheduledWire*> input_wires;
-    std::vector<IndexedWire*> output_wires;
+    bool handle_overflow(bool*);
+
+    void gather_results(Transition*, unsigned int*);
+
+    std::vector<InputWire*> input_wires;
+    std::vector<OutputWire*> output_wires;
     std::string name;
     std::vector<SDFPath> sdf_paths;
     const StdCellDeclare* declare;
 
 private:
     void build_wire_map(const WireMap<Wire>& pin_specs);
-    void set_paths();
-    bool handle_overflow();
-    void free();
     static unsigned int find_end_index(const Bucket&, unsigned int, const Timestamp&, unsigned int);
 
     const ModuleSpec* module_spec;
-    SDFSpec* sdf_spec = nullptr;
-    SDFSpec host_sdf_spec{};
-    unsigned int num_args = 0;
-    unsigned int output_capacity = INITIAL_CAPACITY;
-    bool* overflow_ptr = nullptr;
-
-    WireMap<IndexedWire> wire_map;
+    NUM_ARG_TYPE num_args = 0;
+    CAPACITY_TYPE output_capacity = INITIAL_CAPACITY;
+    unsigned int overflow_offset = 0;
+    unsigned int sdf_offset = 0;
 };
 
 #endif

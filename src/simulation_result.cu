@@ -12,6 +12,8 @@ using namespace std;
 
 void SimulationResult::write(char *path) {
     f_out = ofstream(path);
+    char buf[1024 * 1024];
+    f_out.rdbuf()->pubsetbuf(buf, 1024 * 1024);
 }
 
 VCDResult::VCDResult(
@@ -156,34 +158,34 @@ SAIFResult::SAIFResult(
 
 void SAIFResult::write(char *path) {
     SimulationResult::write(path);
-    f_out << "(SAIFILE" << endl;
-    f_out << "(SAIFVERSION \"2.0\")" << endl;
-    f_out << "(DIRECTION \"backward\")" << endl;
+    f_out << "(SAIFILE\n";
+    f_out << "(SAIFVERSION \"2.0\")\n";
+    f_out << "(DIRECTION \"backward\")\n";
     f_out << "(DESIGN )" << endl;
     std::time_t t_now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    f_out << "(DATE \"" << strtok(std::ctime(&t_now), "\n") << "\")" << endl;
-    f_out << "(VENDOR \"Synopsys, Inc\")" << endl;
-    f_out << "(PROGRAM_NAME \"VCS K-2015.09-SP2_Full64\")" << endl;
-    f_out << "(VERSION \"1.0\")" << endl;
-    f_out << "(DIVIDER / )" << endl;
-    f_out << "(TIMESCALE " << timescale_pair.first << " " << timescale_pair.second << ")" << endl;
-    f_out << "(DURATION " << dumpoff_time - dumpon_time << ")" << endl;
-    f_out << "(INSTANCE " << scopes[0] << endl;
-    f_out << indent << "(INSTANCE " << scopes[1] << endl;
-    f_out << indent << indent << "(NET" << endl;
+    f_out << "(DATE \"" << strtok(std::ctime(&t_now), "\n") << "\")\n";
+    f_out << "(VENDOR \"Synopsys, Inc\")\n";
+    f_out << "(PROGRAM_NAME \"VCS K-2015.09-SP2_Full64\")\n";
+    f_out << "(VERSION \"1.0\")\n";
+    f_out << "(DIVIDER / )\n";
+    f_out << "(TIMESCALE " << timescale_pair.first << " " << timescale_pair.second << ")\n";
+    f_out << "(DURATION " << dumpoff_time - dumpon_time << ")\n";
+    f_out << "(INSTANCE " << scopes[0] << "\n";
+    f_out << indent << "(INSTANCE " << scopes[1] << "\n";
+    f_out << indent << indent << "(NET\n";
 
     for (const auto& wire : wires) {
-        const auto wire_stats = calculate_wire_stats(wire->bucket, dumpon_time, dumpoff_time);
+        const auto& wire_stats = calculate_wire_stats(wire->bucket, dumpon_time, dumpoff_time);
         for (const auto& wireinfo : wire->wire_infos){
             const auto& bus = bus_manager.buses[wireinfo.bus_index];
             write_wirekey_result(bus.bitwidth, wireinfo.wirekey, wire_stats);
         }
     }
 
-    f_out << indent << indent << ")" << endl; // NET
-    f_out << indent << ")" << endl;  // Second INSTANCE
-    f_out << ")" << endl;  // First INSTANCE
-    f_out << ")" << endl;  // SAIFILE
+    f_out << indent << indent << ")\n"; // NET
+    f_out << indent << ")\n";  // Second INSTANCE
+    f_out << ")\n";  // First INSTANCE
+    f_out << ")\n";  // SAIFILE
 }
 
 void SAIFResult::write_wirekey_result(const BitWidth& bitwidth, const Wirekey &wirekey, const WireStat &wirestat) {
@@ -191,18 +193,18 @@ void SAIFResult::write_wirekey_result(const BitWidth& bitwidth, const Wirekey &w
             << "(" << wirekey.first;
 
     if (bitwidth.first != bitwidth.second) f_out   << "\\[" << wirekey.second << "\\]";
-    f_out   << endl;
+    f_out   << "\n";
 
     f_out   << indent << indent << indent << indent
             << "(T0 " << wirestat.T0 << ") (T1 " << wirestat.T1 << ") (TX " << wirestat.TX << ")";
     if (wirestat.TZ != 0) f_out << " (TZ " << wirestat.TZ << ")";
-    f_out   << endl;
+    f_out   << "\n";
 
     f_out   << indent << indent << indent
-            << ")" << endl;
+            << ")\n";
 }
 
-WireStat SAIFResult::calculate_wire_stats(const Bucket& bucket, Timestamp dumpon_time, Timestamp dumpoff_time) {
+WireStat SAIFResult::calculate_wire_stats(const Bucket& bucket, const Timestamp& dumpon_time, const Timestamp& dumpoff_time) {
     WireStat wirestat{};
     const auto& transitions = bucket.transitions;
     const auto& size = transitions.size();
@@ -216,7 +218,7 @@ WireStat SAIFResult::calculate_wire_stats(const Bucket& bucket, Timestamp dumpon
         wirestat.update(prev_v, d);
     }
 
-    const auto last_transition = transitions.back();
+    const auto& last_transition = transitions.back();
     if (last_transition.timestamp < dumpoff_time) {
         wirestat.update(last_transition.value, dumpoff_time - max(last_transition.timestamp, dumpon_time));
     }

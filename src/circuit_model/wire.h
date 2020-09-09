@@ -5,6 +5,7 @@
 #include <cassert>
 #include <map>
 #include "simulator/data_structures.h"
+#include "simulator/containers.h"
 #include "simulator/memory_manager.h"
 #include "simulator/collision_utils.h"
 
@@ -13,7 +14,7 @@ struct WireInfo {
     int bus_index;
 };
 
-using TransitionContainer = PinnedMemoryVector<Transition>;
+using TransitionContainer = std::vector<Transition>;
 
 struct Bucket {
     TransitionContainer transitions{ Transition{0, Values::Z} };
@@ -28,19 +29,10 @@ struct Bucket {
 
     void reserve(unsigned int i) { transitions.reserve(i); }
 
-    void push_back(const Data& data, bool verbose=false) {
-        // for storing output
-        unsigned int output_size;
-        cudaMemcpy(&output_size, data.size, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-        if (verbose) std::cout << "output_size = " << output_size << std::endl;
-        if (output_size == 0) return;
-
-        Transition first_transition;
-        cudaMemcpy(&first_transition, data.transitions, sizeof(Transition), cudaMemcpyDeviceToHost);
-        if (verbose) std::cout << "first transition = " << first_transition << std::endl;
-
-        const auto& t = first_transition.timestamp;
-        const auto& v = first_transition.value;
+    void push_back(const Transition* data, unsigned int size) {
+        if (size == 0) return;
+        const auto& t = data[0].timestamp;
+        const auto& v = data[0].value;
 
         if (v == Values::PAD) return;  // batch contains no new transitions
         if (transitions.empty()) throw std::runtime_error("transitions is empty");
@@ -50,20 +42,9 @@ struct Bucket {
         if (t <= prev_t) write_index = binary_search(transitions.data(), write_index - 1, t);
         auto offset = (write_index > 0 and v == transitions[write_index - 1].value) ? 1: 0;
 
-        auto valid_data_size = output_size - offset;
+        auto valid_data_size = size - offset;
         transitions.resize(write_index + valid_data_size);
-        auto status =  cudaMemcpy(
-            transitions.data() + write_index,
-            data.transitions + offset,
-            sizeof(Transition) * valid_data_size,
-            cudaMemcpyDeviceToHost
-        );
-        if (status != cudaSuccess) throw std::runtime_error(cudaGetErrorName(status));
-
-        if (verbose) {
-            for (int i = 0; i < min((int) valid_data_size, INITIAL_CAPACITY); ++i) std::cout << transitions[write_index + i] << " ";
-            std::cout << "\n";
-        }
+        memcpy(transitions.data() + write_index, data + offset, sizeof(Transition) * valid_data_size);
     }
 
     unsigned int size() const {
@@ -83,14 +64,16 @@ public:
     void assign(const Wire&);
     void set_drived();
 
-    void load_from_bucket(
-        Transition* ptr, unsigned int, unsigned int
-    );
-    virtual void store_to_bucket(const std::vector<Data>& data_ptrs, unsigned int num_ptrs);
+    void to_device(ResourceCollector<Transition, Wire>&);
+
+    virtual void store_to_bucket(const std::vector<Data>&, Transition*, unsigned int*);
     virtual void emplace_transition(const Timestamp& t, char r);
+
     std::vector<WireInfo> wire_infos;
     Bucket bucket;
     bool is_constant = false;
+
+    unsigned int offset = 0;
 };
 
 
@@ -104,7 +87,7 @@ public:
         bucket.transitions.clear();
         bucket.transitions.emplace_back(0, value);
     }
-    void store_to_bucket(const std::vector<Data>& data_ptrs, unsigned int num_ptrs) override {
+    void store_to_bucket(const std::vector<Data>&, Transition*, unsigned int*) override {
         if (not store_to_bucket_warning_flag) {
             std::cerr << "| Warning: storing to constant wire\n";
             store_to_bucket_warning_flag = true;

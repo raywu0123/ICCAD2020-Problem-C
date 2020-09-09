@@ -214,15 +214,15 @@ void Circuit::read_cells(ifstream& fin) {
         unsigned int num_args;
         fin >> cell_type >> cell_name >> num_args;
 
-        const ModuleSpec* module_spec = module_registry.get_module_spec(cell_type);
-        const StdCellDeclare* declare = module_registry.get_module_declare(cell_type);
         WireMap<Wire> args{};
-        for (int j = 0; j < num_args; j++) {
+        for (unsigned int j = 0; j < num_args; j++) {
             unsigned int arg, wire_index;
             fin >> arg >> wire_index;
             auto* wire = get_wire(wire_index);
             args.set(arg, wire);
         }
+        const ModuleSpec* module_spec = module_registry.get_module_spec(cell_type);
+        const StdCellDeclare* declare = module_registry.get_module_declare(cell_type);
         cells.emplace(cell_name, new Cell(module_spec, declare, args, cell_name));
     }
 }
@@ -236,7 +236,7 @@ void Circuit::read_schedules(ifstream& fin) {
         fin >> num_cell;
         vector<Cell*> cell_ids;
         cell_ids.reserve(num_cell);
-        for (int j = 0; j < num_cell; j++) {
+        for (unsigned int j = 0; j < num_cell; j++) {
             string cell_id;
             fin >> cell_id;
             cell_ids.emplace_back(get_cell(cell_id));
@@ -263,7 +263,9 @@ void Circuit::read_sdf(ifstream &fin, double input_timescale) const {
         for(int i_path = 0; i_path < num_paths; i_path++) {
             auto& path = paths[i_path];
             double sdf_rising_delay, sdf_falling_delay;
-            fin >> path.edge_type >> path.in >> path.out >> sdf_rising_delay >> sdf_falling_delay;
+            unsigned int in, out;
+            fin >> path.edge_type >> in >> out >> sdf_rising_delay >> sdf_falling_delay;
+            path.in = in; path.out = out;
 
             // convert to VCD specified time unit
             path.rising_delay = (int)(sdf_rising_delay * sdf_timescale / input_timescale);

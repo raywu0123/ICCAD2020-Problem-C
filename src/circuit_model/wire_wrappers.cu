@@ -5,70 +5,68 @@
 
 using namespace std;
 
-Data IndexedWire::alloc(int session_index) {
+Data OutputWire::load(
+    OutputCollector<Transition>& output_data_collector, OutputCollector<unsigned int>& output_size_collector
+) {
+    auto transition_offset = output_data_collector.push(static_cast<unsigned int>(capacity) * N_STIMULI_PARALLEL);
+    auto size_offset = output_size_collector.push(1);
+
+    data_list.emplace_back(transition_offset, size_offset);
+    return data_list.back();
+}
+
+void OutputWire::gather_result(Transition* output_data, unsigned int* sizes) {
+    wire->store_to_bucket(data_list, output_data, sizes);
+    data_list.clear();
+}
+
+void OutputWire::handle_overflow() {
+    data_list.clear();
+}
+
+void OutputWire::finish() {
+    data_list.clear();
+    wire->bucket.transitions.shrink_to_fit();
+}
+
+InputData& InputWire::alloc(int session_index) {
     if (session_index != previous_session_index) {
         first_free_data_ptr_index = 0;
         previous_session_index = session_index;
     }
-    unsigned int size = capacity * N_STIMULI_PARALLEL;
 
     if (first_free_data_ptr_index >= data_list.size())
-        data_list.push_back(MemoryManager::alloc(size));
+        data_list.emplace_back();
 
     if (first_free_data_ptr_index >= data_list.size())
         throw std::runtime_error("Invalid access to data_ptrs");
 
-    Data data = data_list[first_free_data_ptr_index];
-    cudaMemsetAsync(data.transitions, 0, sizeof(Transition) * size);
-    cudaMemsetAsync(data.size, 0, sizeof(unsigned int));
+    auto& data = data_list[first_free_data_ptr_index];
     first_free_data_ptr_index++;
     return data;
 }
 
-Data IndexedWire::load(int session_index) { return alloc(session_index); }
-
-void IndexedWire::free() {
-    for (const auto& data : data_list) MemoryManager::free(data);
-    data_list.clear();
-    first_free_data_ptr_index = 0;
-}
-
-void IndexedWire::store_to_bucket() const {
-    auto num_data = first_free_data_ptr_index;
-    wire->store_to_bucket(data_list, num_data);
-}
-
-void IndexedWire::handle_overflow() {
-    free();
-    first_free_data_ptr_index = 0;
-}
-
-void IndexedWire::finish() {
-    free();
-    wire->bucket.transitions.shrink_to_fit();
-}
-
-Data ScheduledWire::load(int session_index) {
-    const auto& data = IndexedWire::alloc(session_index);
+InputData InputWire::load(int session_index) {
+    auto& data = alloc(session_index);
     if (session_index > checkpoint.first) checkpoint = make_pair(session_index, bucket_idx);
 
     auto start_index = bucket_index_schedule[bucket_idx];
     const auto& end_index = bucket_index_schedule[bucket_idx + 1];
     if (start_index != 0) start_index--;
-    wire->load_from_bucket(data.transitions, start_index, end_index);
     bucket_idx++;
+
+    data.size = end_index - start_index;
+    data.offset = wire->offset + start_index;
     return data;
 }
 
-void ScheduledWire::free() { IndexedWire::free(); }
+unsigned int InputWire::size() const { return wire->bucket.size(); }
 
-unsigned int ScheduledWire::size() const { return wire->bucket.size(); }
-
-bool ScheduledWire::finished() const {
+bool InputWire::finished() const {
     return bucket_idx + 1 >= bucket_index_schedule.size();
 }
 
-void ScheduledWire::push_back_schedule_index(unsigned int i) {
+void InputWire::push_back_schedule_index(unsigned int i) {
     if (i > wire->bucket.size())
         throw std::runtime_error("Schedule index out of range.");
     if (not bucket_index_schedule.empty() and i < bucket_index_schedule.back())
@@ -76,13 +74,14 @@ void ScheduledWire::push_back_schedule_index(unsigned int i) {
     bucket_index_schedule.push_back(i);
 }
 
-void ScheduledWire::handle_overflow() {
+void InputWire::handle_overflow() {
     first_free_data_ptr_index = 0;
     bucket_idx = checkpoint.second;
 }
 
-void ScheduledWire::finish() {
-    free();
+void InputWire::finish() {
+    data_list.clear();
+    first_free_data_ptr_index = 0;
     wire->bucket.transitions.shrink_to_fit();
     vector<unsigned int>().swap(bucket_index_schedule);
 }
