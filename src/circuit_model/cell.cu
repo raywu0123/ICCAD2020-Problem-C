@@ -40,11 +40,9 @@ void Cell::build_wire_map(const WireMap<Wire>& pin_specs) {
     }
 }
 
-void Cell::set_stream(cudaStream_t s) { stream = s; }
-
 void Cell::init(
-    ResourceCollector<SDFPath>& sdf_collector,
-    ResourceCollector<Transition>& input_data_collector,
+    ResourceCollector<SDFPath, Cell>& sdf_collector,
+    ResourceCollector<Transition, Wire>& input_data_collector,
     OutputCollector<bool>& overflow_collector
 ) {
     overflow_offset = overflow_collector.push(1);
@@ -52,10 +50,17 @@ void Cell::init(
             input_wires,
             (INITIAL_CAPACITY * N_STIMULI_PARALLEL) - 1
     );
+    unsigned int sum_size = 0;
     for (const auto& input_wire : input_wires) {
-        if (input_wire != nullptr) input_wire->wire->to_device(input_data_collector);
+        if (input_wire != nullptr) {
+            input_wire->wire->to_device(input_data_collector);
+            sum_size += input_wire->size();
+        }
     }
-    sdf_offset = sdf_collector.push(sdf_paths);
+    for (const auto& output_wire: output_wires) {
+        if (output_wire != nullptr) output_wire->wire->bucket.reserve(sum_size);
+    }
+    sdf_offset = sdf_collector.push(sdf_paths, this);
 }
 
 void Cell::free() {
@@ -83,12 +88,12 @@ void Cell::prepare_resource(
 
     for (auto* input_wire : input_wires) {
         if (input_wire == nullptr) resource_buffer.input_data_schedule.push_back(InputData{});
-        else resource_buffer.input_data_schedule.push_back(input_wire->load(session_id, stream));
+        else resource_buffer.input_data_schedule.push_back(input_wire->load(session_id));
     }
     for (auto* output_wire : output_wires) {
         if (output_wire == nullptr) resource_buffer.output_data_schedule.push_back(Data{});
         else resource_buffer.output_data_schedule.push_back(
-            output_wire->load(session_id, stream, output_data_collector, output_size_collector)
+            output_wire->load(output_data_collector, output_size_collector)
         );
     }
     resource_buffer.finish_module();

@@ -10,7 +10,7 @@
 
 typedef std::pair<int, int> BitWidth;
 typedef std::pair<std::string, int> Wirekey;
-typedef long long int Timestamp;
+typedef unsigned long int Timestamp;
 
 struct pair_hash {
     template<class T1, class T2>

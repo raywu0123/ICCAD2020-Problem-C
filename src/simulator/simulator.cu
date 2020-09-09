@@ -1,5 +1,6 @@
 #include <stack>
 #include <cassert>
+#include <nvToolsExt.h>
 
 #include "simulator/simulator.h"
 #include "simulator/collision_utils.h"
@@ -239,7 +240,6 @@ __global__ void simulate_batch(
 
 void Simulator::run() {
     cout << "| Status: Running Simulation... " << endl;
-
     size_t new_heap_size = N_CELL_PARALLEL * N_STIMULI_PARALLEL * INITIAL_CAPACITY * 8
             * (sizeof(Timestamp) + sizeof(DelayInfo) + sizeof(Values) * MAX_NUM_MODULE_ARGS);
     cudaErrorCheck(cudaDeviceSetLimit(cudaLimitMallocHeapSize, new_heap_size));
@@ -251,17 +251,15 @@ void Simulator::run() {
     ProgressBar progress_bar(num_layers);
     ResourceBuffer resource_buffer;
     BatchResource batch_data{}; batch_data.init();
-    StreamManager stream_manager(N_STREAM);
     OutputCollector<Transition> output_data_collector; OutputCollector<unsigned int> output_size_collector;
     OutputCollector<bool> overflow_collector;
 
     for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
         const auto& schedule_layer = circuit.cell_schedule[i_layer];
         stack<Cell*, std::vector<Cell*>> job_queue(schedule_layer);
-        for (auto* cell : schedule_layer) cell->set_stream(stream_manager.get());
 
-        ResourceCollector<SDFPath> sdf_collector(schedule_layer.size());
-        ResourceCollector<Transition> input_data_collector(schedule_layer.size() * MAX_NUM_MODULE_ARGS);
+        ResourceCollector<SDFPath, Cell> sdf_collector(schedule_layer.size());
+        ResourceCollector<Transition, Wire> input_data_collector(schedule_layer.size() * MAX_NUM_MODULE_ARGS);
         overflow_collector.reset();
         for (auto* cell : schedule_layer) cell->init(sdf_collector, input_data_collector, overflow_collector);
         auto* device_sdf = sdf_collector.get();
@@ -315,21 +313,4 @@ void Simulator::run() {
     output_data_collector.free(); output_size_collector.free(); overflow_collector.free();
     batch_data.free();
     cout << endl;
-}
-
-StreamManager::StreamManager(unsigned int n_stream) : n_stream(n_stream) {
-    streams.reserve(n_stream);
-    for(int i = 0; i < n_stream; ++i) {
-        cudaStream_t stream;
-        cudaStreamCreate(&stream);
-        streams.push_back(stream);
-    }
-}
-
-StreamManager::~StreamManager() { for(auto& stream : streams) cudaStreamDestroy(stream); }
-
-cudaStream_t StreamManager::get() {
-    const auto& stream = streams[counter % n_stream];
-    counter ++;
-    return stream;
 }

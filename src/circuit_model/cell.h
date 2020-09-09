@@ -12,8 +12,8 @@
 struct InputWire {
     explicit InputWire(Wire* w, const CAPACITY_TYPE& capacity = INITIAL_CAPACITY) : wire(w), capacity(capacity) {};
 
-    InputData& alloc(int session_index, cudaStream_t stream);
-    InputData load(int session_index, cudaStream_t);
+    InputData& alloc(int session_index);
+    InputData load(int session_index);
     unsigned int size() const;
     void handle_overflow();
     bool finished() const;
@@ -37,7 +37,7 @@ struct InputWire {
 struct OutputWire {
     explicit OutputWire(Wire* w, const CAPACITY_TYPE& capacity = INITIAL_CAPACITY) : wire(w), capacity(capacity) {};
 
-    Data load(int session_index, cudaStream_t, OutputCollector<Transition>&, OutputCollector<unsigned int>&);
+    Data load(OutputCollector<Transition>&, OutputCollector<unsigned int>&);
     void finish();
     void gather_result(Transition*, unsigned int*);
     void handle_overflow();
@@ -78,8 +78,7 @@ public:
         const WireMap<Wire>&  pin_specs,
         std::string  name
     );
-    void set_stream(cudaStream_t);
-    void init(ResourceCollector<SDFPath>&, ResourceCollector<Transition>&, OutputCollector<bool>&);
+    void init(ResourceCollector<SDFPath, Cell>&, ResourceCollector<Transition, Wire>&, OutputCollector<bool>&);
     void free();
 
     static void build_bucket_index_schedule(std::vector<InputWire*>& wires, unsigned int size);
@@ -105,7 +104,6 @@ private:
     CAPACITY_TYPE output_capacity = INITIAL_CAPACITY;
     unsigned int overflow_offset = 0;
     unsigned int sdf_offset = 0;
-    cudaStream_t stream;
 };
 
 #endif

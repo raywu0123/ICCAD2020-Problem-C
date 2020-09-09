@@ -64,8 +64,7 @@ public:
     void assign(const Wire&);
     void set_drived();
 
-    void to_device(ResourceCollector<Transition>&);
-    void free_device();
+    void to_device(ResourceCollector<Transition, Wire>&);
 
     virtual void store_to_bucket(const std::vector<Data>&, Transition*, unsigned int*);
     virtual void emplace_transition(const Timestamp& t, char r);
@@ -75,7 +74,6 @@ public:
     bool is_constant = false;
 
     unsigned int offset = 0;
-    unsigned int ref_count = 0;
 };
 
 

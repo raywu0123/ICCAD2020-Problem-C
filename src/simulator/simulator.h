@@ -33,14 +33,4 @@ public:
     Circuit& circuit;
 };
 
-class StreamManager {
-public:
-    explicit StreamManager(unsigned int n_stream);
-    ~StreamManager();
-    cudaStream_t get();
-
-    unsigned int n_stream;
-    unsigned int counter = 0;
-    std::vector<cudaStream_t> streams;
-};
 #endif

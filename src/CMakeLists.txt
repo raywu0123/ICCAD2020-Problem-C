@@ -31,7 +31,7 @@ set(SOURCE_FILES
         utils.cu
         )
 
-set(CMAKE_CUDA_FLAGS "-lineinfo --ptxas-options=-v")
+set(CMAKE_CUDA_FLAGS "-lineinfo --ptxas-options=-v -gencode=arch=compute_75,code=compute_75")
 #set(CMAKE_CUDA_FLAGS "-g -G")
 add_library(mylib STATIC ${HEADER_FILES} ${SOURCE_FILES})
 set_target_properties(mylib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)

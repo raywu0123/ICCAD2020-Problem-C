@@ -6,7 +6,6 @@
 using namespace std;
 
 Data OutputWire::load(
-    int session_index, cudaStream_t stream,
     OutputCollector<Transition>& output_data_collector, OutputCollector<unsigned int>& output_size_collector
 ) {
     auto transition_offset = output_data_collector.push(static_cast<unsigned int>(capacity) * N_STIMULI_PARALLEL);
@@ -30,7 +29,7 @@ void OutputWire::finish() {
     wire->bucket.transitions.shrink_to_fit();
 }
 
-InputData& InputWire::alloc(int session_index, cudaStream_t stream) {
+InputData& InputWire::alloc(int session_index) {
     if (session_index != previous_session_index) {
         first_free_data_ptr_index = 0;
         previous_session_index = session_index;
@@ -47,8 +46,8 @@ InputData& InputWire::alloc(int session_index, cudaStream_t stream) {
     return data;
 }
 
-InputData InputWire::load(int session_index, cudaStream_t stream) {
-    auto& data = alloc(session_index, stream);
+InputData InputWire::load(int session_index) {
+    auto& data = alloc(session_index);
     if (session_index > checkpoint.first) checkpoint = make_pair(session_index, bucket_idx);
 
     auto start_index = bucket_index_schedule[bucket_idx];
@@ -57,7 +56,6 @@ InputData InputWire::load(int session_index, cudaStream_t stream) {
     bucket_idx++;
 
     data.size = end_index - start_index;
-    assert(wire->ref_count);
     data.offset = wire->offset + start_index;
     return data;
 }
@@ -84,7 +82,6 @@ void InputWire::handle_overflow() {
 void InputWire::finish() {
     data_list.clear();
     first_free_data_ptr_index = 0;
-    wire->free_device();
     wire->bucket.transitions.shrink_to_fit();
     vector<unsigned int>().swap(bucket_index_schedule);
 }

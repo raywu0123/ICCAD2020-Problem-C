@@ -5,9 +5,11 @@
 #include "memory_manager.h"
 
 
-template <class T>
+template <class T, class K>
 struct ResourceCollector {
     std::vector<const std::vector<T>*> vecs;
+    std::unordered_map<const K*, unsigned int> offsets;
+
     unsigned int size = 0; // accumulator of total number of elements
     T *device_ptr, *pinned_ptr;
 
@@ -15,12 +17,17 @@ struct ResourceCollector {
         vecs.reserve(num);
     }
 
-    unsigned int push(const std::vector<T>& in_vec) {
-        auto ret = size;
-        vecs.push_back(&in_vec);
-        size += in_vec.size();
-        return ret;
+    unsigned int push(const std::vector<T>& in_vec, const K* key) {
+        auto it = offsets.find(key);
+        if (it == offsets.end()) {
+            auto ret = size;
+            vecs.push_back(&in_vec);
+            size += in_vec.size();
+            offsets[key] = ret;
+            return ret;
+        } else return it->second;
     }
+
     T* get() {
         cudaMallocHost((void**) &pinned_ptr, sizeof(T) * size);
         unsigned int offset = 0;
@@ -34,6 +41,7 @@ struct ResourceCollector {
         cudaMemcpyAsync(device_ptr, pinned_ptr, sizeof(T) * size, cudaMemcpyHostToDevice);
         return device_ptr;
     }
+
     void free() const {
         cudaFreeHost(pinned_ptr);
         cudaFree(device_ptr);

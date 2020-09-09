@@ -35,15 +35,10 @@ void Wire::emplace_transition(const Timestamp &t, char r) {
     bucket.emplace_transition(t, r);
 }
 
-void Wire::to_device(ResourceCollector<Transition>& input_data_collector) {
-    ref_count++;
-    if (ref_count > 1) return;
-    offset = input_data_collector.push(bucket.transitions);
+void Wire::to_device(ResourceCollector<Transition, Wire>& input_data_collector) {
+    offset = input_data_collector.push(bucket.transitions, this);
 }
 
-void Wire::free_device() {
-    ref_count--;
-}
 
 bool ConstantWire::store_to_bucket_warning_flag = false;
 bool ConstantWire::emplace_transition_warning_flag = false;
