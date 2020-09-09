@@ -94,7 +94,7 @@ struct ResourceBuffer {
     PinnedMemoryVector<bool*> overflows;
     PinnedMemoryVector<CAPACITY_TYPE> capacities;
     PinnedMemoryVector<const ModuleSpec*> module_specs;
-    PinnedMemoryVector<unsigned int> sdf_offsets, s_timestamp_offsets, s_delay_info_offsets, s_value_offsets;;
+    PinnedMemoryVector<unsigned int> sdf_offsets, s_timestamp_offsets, s_delay_info_offsets, s_value_offsets, s_length_offsets;
     PinnedMemoryVector<unsigned int> sdf_num_rows;
     PinnedMemoryVector<InputData> input_data_schedule;
     PinnedMemoryVector<Data> output_data_schedule;
@@ -114,7 +114,7 @@ struct BatchResource {
     bool** overflows;
     unsigned int* capacities;
     const ModuleSpec** module_specs;
-    unsigned int *sdf_offsets, *s_timestamp_offsets, *s_delay_info_offsets, *s_value_offsets, *sdf_num_rows;
+    unsigned int *sdf_offsets, *s_timestamp_offsets, *s_delay_info_offsets, *s_value_offsets, *s_length_offsets, *sdf_num_rows;
     InputData* input_data_schedule;
     Data* output_data_schedule;
     unsigned int num_modules;

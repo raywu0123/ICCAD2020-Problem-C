@@ -77,7 +77,10 @@ void Cell::prepare_resource(
     int session_id, ResourceBuffer& resource_buffer, bool* device_overflow,
     OutputCollector<Transition>& output_data_collector,
     OutputCollector<unsigned int>& output_size_collector,
-    OutputCollector<Timestamp>& s_timestamp_collector, OutputCollector<DelayInfo>& s_delay_info_collector, OutputCollector<Values>& s_value_collector
+    OutputCollector<Timestamp>& s_timestamp_collector,
+    OutputCollector<DelayInfo>& s_delay_info_collector,
+    OutputCollector<Values>& s_value_collector,
+    OutputCollector<CAPACITY_TYPE>& s_length_collector
 ) {
     resource_buffer.overflows.push_back(device_overflow + overflow_offset);
     resource_buffer.capacities.push_back(output_capacity);
@@ -88,6 +91,7 @@ void Cell::prepare_resource(
     resource_buffer.s_timestamp_offsets.push_back(s_timestamp_collector.push(output_capacity * N_STIMULI_PARALLEL));
     resource_buffer.s_delay_info_offsets.push_back(s_delay_info_collector.push(output_capacity * N_STIMULI_PARALLEL));
     resource_buffer.s_value_offsets.push_back(s_value_collector.push(output_capacity * N_STIMULI_PARALLEL * input_wires.size()));
+    resource_buffer.s_length_offsets.push_back(s_length_collector.push(N_STIMULI_PARALLEL * output_wires.size()));
 
     for (auto* input_wire : input_wires) {
         if (input_wire == nullptr) resource_buffer.input_data_schedule.push_back(InputData{});

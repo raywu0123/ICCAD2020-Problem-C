@@ -12,6 +12,7 @@ void BatchResource::init(cudaStream_t) {
     cudaMalloc((void**) &s_timestamp_offsets, sizeof(unsigned int) * N_CELL_PARALLEL);
     cudaMalloc((void**) &s_delay_info_offsets, sizeof(unsigned int) * N_CELL_PARALLEL);
     cudaMalloc((void**) &s_value_offsets, sizeof(unsigned int) * N_CELL_PARALLEL);
+    cudaMalloc((void**) &s_length_offsets, sizeof(unsigned int) * N_CELL_PARALLEL);
 
     cudaMalloc((void**) &sdf_num_rows, sizeof(unsigned int) * N_CELL_PARALLEL);
     cudaMalloc((void**) &input_data_schedule, sizeof(InputData) * N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
@@ -31,6 +32,7 @@ void BatchResource::set(const ResourceBuffer& resource_buffer, cudaStream_t stre
     cudaMemcpyAsync(s_timestamp_offsets, resource_buffer.s_timestamp_offsets.data(), sizeof(unsigned int) * num_modules, direction);
     cudaMemcpyAsync(s_delay_info_offsets, resource_buffer.s_delay_info_offsets.data(), sizeof(unsigned int) * num_modules, direction);
     cudaMemcpyAsync(s_value_offsets, resource_buffer.s_value_offsets.data(), sizeof(unsigned int) * num_modules, direction);
+    cudaMemcpyAsync(s_length_offsets, resource_buffer.s_length_offsets.data(), sizeof(unsigned int) * num_modules, direction);
 
     cudaMemcpyAsync(sdf_num_rows, resource_buffer.sdf_num_rows.data(), sizeof(unsigned int) * num_modules, direction);
     cudaMemcpyAsync(input_data_schedule, resource_buffer.input_data_schedule.data(), sizeof(InputData) * resource_buffer.input_data_schedule.size(), direction);
@@ -41,7 +43,8 @@ void BatchResource::free() const {
     cudaFree(overflows);
     cudaFree(capacities);
     cudaFree(module_specs);
-    cudaFree(sdf_offsets); cudaFree(s_timestamp_offsets); cudaFree(s_delay_info_offsets); cudaFree(s_value_offsets);
+    cudaFree(sdf_offsets);
+    cudaFree(s_timestamp_offsets); cudaFree(s_delay_info_offsets); cudaFree(s_value_offsets); cudaFree(s_length_offsets);
     cudaFree(sdf_num_rows);
     cudaFree(input_data_schedule); cudaFree(output_data_schedule);
 }
@@ -50,7 +53,8 @@ ResourceBuffer::ResourceBuffer() {
     overflows.reserve(N_CELL_PARALLEL);
     capacities.reserve(N_CELL_PARALLEL);
     module_specs.reserve(N_CELL_PARALLEL);
-    sdf_offsets.reserve(N_CELL_PARALLEL); s_timestamp_offsets.reserve(N_CELL_PARALLEL); s_delay_info_offsets.reserve(N_CELL_PARALLEL); s_value_offsets.reserve(N_CELL_PARALLEL);
+    sdf_offsets.reserve(N_CELL_PARALLEL);
+    s_timestamp_offsets.reserve(N_CELL_PARALLEL); s_delay_info_offsets.reserve(N_CELL_PARALLEL); s_value_offsets.reserve(N_CELL_PARALLEL); s_length_offsets.reserve(N_CELL_PARALLEL);
     sdf_num_rows.reserve(N_CELL_PARALLEL);
     input_data_schedule.reserve(N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
     output_data_schedule.reserve(N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
@@ -66,7 +70,7 @@ void ResourceBuffer::clear() {
     overflows.clear();
     capacities.clear();
     module_specs.clear();
-    sdf_offsets.clear(); s_timestamp_offsets.clear(); s_delay_info_offsets.clear(); s_value_offsets.clear();
+    sdf_offsets.clear(); s_timestamp_offsets.clear(); s_delay_info_offsets.clear(); s_value_offsets.clear(); s_length_offsets.clear();
     sdf_num_rows.clear();
     input_data_schedule.clear();
     output_data_schedule.clear();

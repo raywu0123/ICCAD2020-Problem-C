@@ -86,7 +86,7 @@ public:
     void prepare_resource(
         int, ResourceBuffer&, bool* device_overflow,
         OutputCollector<Transition>&, OutputCollector<unsigned int>&,
-        OutputCollector<Timestamp>&, OutputCollector<DelayInfo>&, OutputCollector<Values>&
+        OutputCollector<Timestamp>&, OutputCollector<DelayInfo>&, OutputCollector<Values>&, OutputCollector<CAPACITY_TYPE>&
     );
 
     bool handle_overflow(bool*);

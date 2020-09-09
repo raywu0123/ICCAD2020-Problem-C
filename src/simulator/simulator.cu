@@ -153,23 +153,46 @@ __host__ __device__ void stepping_algorithm(
     }
 }
 
-__device__ void simulate_module(
+__device__ void slice_module(
     const ModuleSpec* const module_spec,
-    const SDFPath* const sdf_paths, const unsigned int& sdf_num_rows,
     const Transition* const all_input_data, InputData* const input_data,
-    Transition* const all_output_data, unsigned int* const all_size, Data* const output_data,
     const CAPACITY_TYPE& capacity,
     bool* overflow_ptr,
     Timestamp* s_input_timestamps, DelayInfo* s_input_delay_infos, Values* s_input_values
 ) {
-    if (threadIdx.x == 0) {
-        slice_waveforms(
-            s_input_timestamps, s_input_delay_infos, s_input_values,
-            all_input_data, input_data, capacity,
-            module_spec->num_input, overflow_ptr
+    slice_waveforms(
+        s_input_timestamps, s_input_delay_infos, s_input_values,
+        all_input_data, input_data, capacity,
+        module_spec->num_input, overflow_ptr
+    );
+}
+__global__ void slice_kernel(
+    BatchResource batch_resource, Transition* input_data,
+    Timestamp* s_timestamps, DelayInfo* s_delay_infos, Values* s_values
+) {
+    if (blockIdx.x < batch_resource.num_modules) {
+        const auto& module_spec = batch_resource.module_specs[blockIdx.x];
+        const auto& overflow_ptr = batch_resource.overflows[blockIdx.x];
+        const auto& module_input_data = &batch_resource.input_data_schedule[blockIdx.x * MAX_NUM_MODULE_ARGS];
+        const auto& capacity = batch_resource.capacities[blockIdx.x];
+        const auto& s_timestamp_offset = batch_resource.s_timestamp_offsets[blockIdx.x];
+        const auto& s_delay_info_offset = batch_resource.s_delay_info_offsets[blockIdx.x];
+        const auto& s_values_offset = batch_resource.s_value_offsets[blockIdx.x];
+        slice_module(
+            module_spec,
+            input_data, module_input_data,
+            capacity, overflow_ptr,
+            s_timestamps + s_timestamp_offset, s_delay_infos + s_delay_info_offset, s_values + s_values_offset
         );
     }
-    __syncthreads();
+}
+
+__device__ void stepping_module(
+    const ModuleSpec* const module_spec,
+    Transition* const all_output_data, Data* const output_data,
+    const CAPACITY_TYPE& capacity,
+    Timestamp* s_input_timestamps, Values* s_input_values
+) {
     assert(module_spec->num_output <= MAX_NUM_MODULE_OUTPUT);
     Transition* output_data_ptrs_for_stimuli[MAX_NUM_MODULE_OUTPUT] = { nullptr };
     const unsigned int& stimuli_idx = threadIdx.x;
@@ -186,9 +209,42 @@ __device__ void simulate_module(
         module_spec,
         capacity
     );
+}
+__global__ void stepping_kernel(
+    BatchResource batch_resource, Transition* output_data,
+    Timestamp* s_timestamps, Values* s_values
+) {
+    if (blockIdx.x < batch_resource.num_modules) {
+        const auto& module_spec = batch_resource.module_specs[blockIdx.x];
+        const auto& module_output_data = &batch_resource.output_data_schedule[blockIdx.x * MAX_NUM_MODULE_ARGS];
+        const auto& capacity = batch_resource.capacities[blockIdx.x];
+        const auto& s_timestamp_offset = batch_resource.s_timestamp_offsets[blockIdx.x];
+        const auto& s_values_offset = batch_resource.s_value_offsets[blockIdx.x];
+        stepping_module(
+            module_spec,
+            output_data, module_output_data,
+            capacity,
+            s_timestamps + s_timestamp_offset, s_values + s_values_offset
+        );
+    }
+}
 
+__device__ void compute_delay_module(
+    const ModuleSpec* const module_spec,
+    const SDFPath* const sdf_paths, const unsigned int& sdf_num_rows,
+    Transition* const all_output_data, Data* const output_data,
+    const CAPACITY_TYPE& capacity,
+    DelayInfo* s_input_delay_infos, CAPACITY_TYPE* lengths
+) {
     assert(module_spec->num_output <= MAX_NUM_MODULE_OUTPUT);
-    __shared__ CAPACITY_TYPE lengths[N_STIMULI_PARALLEL * MAX_NUM_MODULE_OUTPUT];
+
+    Transition* output_data_ptrs_for_stimuli[MAX_NUM_MODULE_OUTPUT] = { nullptr };
+    const unsigned int& stimuli_idx = threadIdx.x;
+    for (NUM_ARG_TYPE i = 0; i < module_spec->num_output; ++i) {
+        if (output_data[i].is_dummy) continue;
+        output_data_ptrs_for_stimuli[i] = all_output_data + output_data[i].transition_offset + stimuli_idx * capacity;
+    }
+
     DelayInfo* delay_info_for_stimuli = s_input_delay_infos + stimuli_idx * capacity;
     compute_delay(
         output_data_ptrs_for_stimuli, capacity, delay_info_for_stimuli,
@@ -196,45 +252,59 @@ __device__ void simulate_module(
         sdf_paths, sdf_num_rows,
         lengths + stimuli_idx * module_spec->num_output
     );
-
-    __syncthreads();
-    if (threadIdx.x == 0) {
-        resolve_collisions_for_batch_stimuli(
-            all_output_data, all_size, output_data,
-            lengths, capacity, module_spec->num_output
-        );
-    }
 }
-
-__global__ void simulate_batch(
-    BatchResource batch_resource, SDFPath* sdf,
-    Transition* input_data,
-    Transition* output_data, unsigned int* output_size,
-    Timestamp* s_timestamps, DelayInfo* s_delay_infos, Values* s_values
+__global__ void compute_delay_kernel(
+    BatchResource batch_resource, SDFPath* sdf, Transition* output_data,
+    DelayInfo* s_delay_infos, CAPACITY_TYPE* s_lengths
 ) {
     if (blockIdx.x < batch_resource.num_modules) {
         const auto& module_spec = batch_resource.module_specs[blockIdx.x];
         const auto& sdf_offset = batch_resource.sdf_offsets[blockIdx.x];
-        const auto& s_timestamp_offset = batch_resource.s_timestamp_offsets[blockIdx.x];
         const auto& s_delay_info_offset = batch_resource.s_delay_info_offsets[blockIdx.x];
-        const auto& s_values_offset = batch_resource.s_value_offsets[blockIdx.x];
+        const auto& s_lengths_offset = batch_resource.s_length_offsets[blockIdx.x];
         const auto& sdf_num_rows = batch_resource.sdf_num_rows[blockIdx.x];
-        const auto& overflow_ptr = batch_resource.overflows[blockIdx.x];
-
-        const auto& module_input_data = &batch_resource.input_data_schedule[blockIdx.x * MAX_NUM_MODULE_ARGS];
         const auto& module_output_data = &batch_resource.output_data_schedule[blockIdx.x * MAX_NUM_MODULE_ARGS];
-
         const auto& capacity = batch_resource.capacities[blockIdx.x];
-        simulate_module(
+        compute_delay_module(
             module_spec,
             sdf + sdf_offset, sdf_num_rows,
-            input_data, module_input_data,
-            output_data, output_size, module_output_data,
-            capacity, overflow_ptr,
-            s_timestamps + s_timestamp_offset, s_delay_infos + s_delay_info_offset, s_values + s_values_offset
+            output_data, module_output_data,
+            capacity,
+            s_delay_infos + s_delay_info_offset,
+            s_lengths + s_lengths_offset
         );
     }
 }
+
+__device__ void resolve_collision_module(
+    const ModuleSpec* const module_spec,
+    Transition* const all_output_data, Data* const output_data, unsigned int* const all_size,
+    const CAPACITY_TYPE& capacity, CAPACITY_TYPE* lengths
+) {
+    resolve_collisions_for_batch_stimuli(
+        all_output_data, all_size, output_data,
+        lengths, capacity, module_spec->num_output
+    );
+}
+
+__global__ void resolve_collision_kernel(
+    BatchResource batch_resource, Transition* output_data, unsigned int* output_size,
+    CAPACITY_TYPE* s_lengths
+) {
+    if (blockIdx.x < batch_resource.num_modules) {
+        const auto& module_spec = batch_resource.module_specs[blockIdx.x];
+        const auto& module_output_data = &batch_resource.output_data_schedule[blockIdx.x * MAX_NUM_MODULE_ARGS];
+        const auto& s_length_offset = batch_resource.s_length_offsets[blockIdx.x];
+        const auto& capacity = batch_resource.capacities[blockIdx.x];
+        resolve_collision_module(
+            module_spec,
+            output_data, module_output_data, output_size,
+            capacity,
+            s_lengths + s_length_offset
+        );
+    }
+}
+
 
 void Simulator::run() {
     cout << "| Status: Running Simulation... " << endl;
@@ -253,6 +323,7 @@ void Simulator::run() {
     OutputCollector<Timestamp> s_timestamp_collector;
     OutputCollector<Values> s_values_collector;
     OutputCollector<DelayInfo> s_delay_info_collector;
+    OutputCollector<CAPACITY_TYPE> s_length_collector;
 
     OutputCollector<Transition> output_data_collector;
     OutputCollector<unsigned int> output_size_collector;
@@ -273,7 +344,7 @@ void Simulator::run() {
         while (not job_queue.empty()) {
             unordered_set<Cell*> processing_cells;
 
-            s_timestamp_collector.reset(); s_delay_info_collector.reset(); s_values_collector.reset();
+            s_timestamp_collector.reset(); s_delay_info_collector.reset(); s_values_collector.reset(); s_length_collector.reset();
             output_data_collector.reset(); output_size_collector.reset();
             auto* device_overflow = overflow_collector.get_device();
             for (int i = 0; i < N_CELL_PARALLEL; i++) {
@@ -282,7 +353,7 @@ void Simulator::run() {
                 cell->prepare_resource(
                     session_id, resource_buffer, device_overflow,
                     output_data_collector, output_size_collector,
-                    s_timestamp_collector, s_delay_info_collector, s_values_collector
+                    s_timestamp_collector, s_delay_info_collector, s_values_collector, s_length_collector
                 );
                 if (cell->finished()) job_queue.pop();
             }
@@ -292,14 +363,24 @@ void Simulator::run() {
             auto* device_s_timestamps = s_timestamp_collector.get_device();
             auto* device_s_delay_infos = s_delay_info_collector.get_device();
             auto* device_s_values = s_values_collector.get_device();
+            auto* device_s_lengths = s_length_collector.get_device();
             auto* device_sizes = output_size_collector.get_device();
             cudaDeviceSynchronize();  // ensure async copies from different streams are all finished
-            simulate_batch<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL>>>(
-                batch_data,
-                device_sdf,
-                device_input_data,
-                device_output_data, device_sizes,
+            slice_kernel<<<N_CELL_PARALLEL, 1>>>(
+                batch_data, device_input_data,
                 device_s_timestamps, device_s_delay_infos, device_s_values
+            );
+            stepping_kernel<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL>>>(
+                batch_data, device_output_data,
+                device_s_timestamps, device_s_values
+            );
+            compute_delay_kernel<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL>>>(
+                batch_data, device_sdf, device_output_data,
+                device_s_delay_infos, device_s_lengths
+            );
+            resolve_collision_kernel<<<N_CELL_PARALLEL, 1>>>(
+                batch_data, device_output_data, device_sizes,
+                device_s_lengths
             );
             auto* host_output_data = output_data_collector.get_host();
             auto* host_sizes = output_size_collector.get_host();
