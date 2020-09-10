@@ -56,17 +56,15 @@ __device__ __host__ void slice_waveforms(
     const NUM_ARG_TYPE& num_wires,
     bool* overflow_ptr
 ) {
-    memset(s_timestamps, 0, sizeof(Timestamp) * N_STIMULI_PARALLEL * capacity);
-    memset(s_delay_infos, 0, sizeof(DelayInfo) * N_STIMULI_PARALLEL * capacity);
-    memset(s_values, 0, sizeof(Values) * num_wires * N_STIMULI_PARALLEL * capacity);
     CAPACITY_TYPE progress[MAX_NUM_MODULE_OUTPUT] = {0};
 
     NUM_ARG_TYPE num_finished = 0;
     unsigned int write_stimuli_index = 0, write_transition_index = 1;
+    auto C = capacity * num_wires;
 
     prepare_stimuli_head(
         s_timestamps + write_stimuli_index * capacity,
-        s_values + write_stimuli_index * capacity * num_wires,
+        s_values + write_stimuli_index * C,
         all_input_data, data, num_wires, progress
     );
     for (NUM_ARG_TYPE i = 0; i < num_wires; ++i) if (data[i].size <= 1) num_finished++;
@@ -97,7 +95,7 @@ __device__ __host__ void slice_waveforms(
             if (write_stimuli_index >= N_STIMULI_PARALLEL) break;
             prepare_stimuli_head(
                 s_timestamps + write_stimuli_index * capacity,
-                s_values + write_stimuli_index * capacity * num_wires,
+                s_values + write_stimuli_index * C,
                 all_input_data, data, num_wires, progress
             );
         }
@@ -119,7 +117,7 @@ __device__ __host__ void slice_waveforms(
             for (NUM_ARG_TYPE j = 0; j < num_wires; ++j) {
                 const auto& transition = all_input_data[data[j].offset + progress[j]];
                 s_values[
-                    write_stimuli_index * capacity * num_wires
+                    write_stimuli_index * C
                     + (write_transition_index + i) * num_wires
                     + j
                 ] = transition.value;
@@ -161,14 +159,10 @@ __device__ void simulate_module(
     const Transition* const all_input_data, InputData* const input_data,
     Transition* const all_output_data, unsigned int* const all_size, Data* const output_data,
     const CAPACITY_TYPE& capacity,
-    bool* overflow_ptr
+    bool* overflow_ptr,
+    Timestamp* s_input_timestamps, DelayInfo* s_input_delay_infos, Values* s_input_values
 ) {
-    __shared__ Timestamp* s_input_timestamps; __shared__ DelayInfo* s_input_delay_infos; __shared__ Values* s_input_values;
     if (threadIdx.x == 0) {
-        auto size = N_STIMULI_PARALLEL * static_cast<unsigned int>(capacity);
-        s_input_timestamps = new Timestamp[size];
-        s_input_delay_infos = new DelayInfo[size];
-        s_input_values = new Values[size * static_cast<unsigned int>(module_spec->num_input)];
         slice_waveforms(
             s_input_timestamps, s_input_delay_infos, s_input_values,
             all_input_data, input_data, capacity,
@@ -209,18 +203,21 @@ __device__ void simulate_module(
             all_output_data, all_size, output_data,
             lengths, capacity, module_spec->num_output
         );
-        delete[] s_input_timestamps; delete[] s_input_delay_infos; delete[] s_input_values;
     }
 }
 
 __global__ void simulate_batch(
     BatchResource batch_resource, SDFPath* sdf,
     Transition* input_data,
-    Transition* output_data, unsigned int* output_size
+    Transition* output_data, unsigned int* output_size,
+    Timestamp* s_timestamps, DelayInfo* s_delay_infos, Values* s_values
 ) {
     if (blockIdx.x < batch_resource.num_modules) {
         const auto& module_spec = batch_resource.module_specs[blockIdx.x];
         const auto& sdf_offset = batch_resource.sdf_offsets[blockIdx.x];
+        const auto& s_timestamp_offset = batch_resource.s_timestamp_offsets[blockIdx.x];
+        const auto& s_delay_info_offset = batch_resource.s_delay_info_offsets[blockIdx.x];
+        const auto& s_values_offset = batch_resource.s_value_offsets[blockIdx.x];
         const auto& sdf_num_rows = batch_resource.sdf_num_rows[blockIdx.x];
         const auto& overflow_ptr = batch_resource.overflows[blockIdx.x];
 
@@ -233,7 +230,8 @@ __global__ void simulate_batch(
             sdf + sdf_offset, sdf_num_rows,
             input_data, module_input_data,
             output_data, output_size, module_output_data,
-            capacity, overflow_ptr
+            capacity, overflow_ptr,
+            s_timestamps + s_timestamp_offset, s_delay_infos + s_delay_info_offset, s_values + s_values_offset
         );
     }
 }
@@ -251,7 +249,13 @@ void Simulator::run() {
     ProgressBar progress_bar(num_layers);
     ResourceBuffer resource_buffer;
     BatchResource batch_data{}; batch_data.init();
-    OutputCollector<Transition> output_data_collector; OutputCollector<unsigned int> output_size_collector;
+
+    OutputCollector<Timestamp> s_timestamp_collector;
+    OutputCollector<Values> s_values_collector;
+    OutputCollector<DelayInfo> s_delay_info_collector;
+
+    OutputCollector<Transition> output_data_collector;
+    OutputCollector<unsigned int> output_size_collector;
     OutputCollector<bool> overflow_collector;
 
     for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
@@ -268,25 +272,34 @@ void Simulator::run() {
 
         while (not job_queue.empty()) {
             unordered_set<Cell*> processing_cells;
+
+            s_timestamp_collector.reset(); s_delay_info_collector.reset(); s_values_collector.reset();
             output_data_collector.reset(); output_size_collector.reset();
-            overflow_collector.clear();
             auto* device_overflow = overflow_collector.get_device();
             for (int i = 0; i < N_CELL_PARALLEL; i++) {
                 if (job_queue.empty()) break;
                 auto* cell = job_queue.top(); processing_cells.insert(cell);
-                cell->prepare_resource(session_id, resource_buffer, output_data_collector, output_size_collector, device_overflow);
+                cell->prepare_resource(
+                    session_id, resource_buffer, device_overflow,
+                    output_data_collector, output_size_collector,
+                    s_timestamp_collector, s_delay_info_collector, s_values_collector
+                );
                 if (cell->finished()) job_queue.pop();
             }
             batch_data.set(resource_buffer); resource_buffer.clear();
 
             auto* device_output_data = output_data_collector.get_device();
+            auto* device_s_timestamps = s_timestamp_collector.get_device();
+            auto* device_s_delay_infos = s_delay_info_collector.get_device();
+            auto* device_s_values = s_values_collector.get_device();
             auto* device_sizes = output_size_collector.get_device();
             cudaDeviceSynchronize();  // ensure async copies from different streams are all finished
             simulate_batch<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL>>>(
                 batch_data,
                 device_sdf,
                 device_input_data,
-                device_output_data, device_sizes
+                device_output_data, device_sizes,
+                device_s_timestamps, device_s_delay_infos, device_s_values
             );
             auto* host_output_data = output_data_collector.get_host();
             auto* host_sizes = output_size_collector.get_host();
@@ -310,7 +323,9 @@ void Simulator::run() {
         sdf_collector.free(); input_data_collector.free();
         progress_bar.Progressed(i_layer + 1);
     }
-    output_data_collector.free(); output_size_collector.free(); overflow_collector.free();
+    output_data_collector.free(); output_size_collector.free();
+    s_timestamp_collector.free(); s_delay_info_collector.free(); s_values_collector.free();
+    overflow_collector.free();
     batch_data.free();
     cout << endl;
 }
