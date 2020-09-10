@@ -70,24 +70,24 @@ __device__ __host__ void slice_waveforms(
     for (NUM_ARG_TYPE i = 0; i < num_wires; ++i) if (data[i].size <= 1) num_finished++;
 
     while (num_finished < num_wires) {
-        // find min timestamp
+        // find min timestamp and find advancing wires
         Timestamp min_t = LONG_LONG_MAX;
+        NUM_ARG_TYPE advancing[MAX_NUM_MODULE_ARGS], num_advancing = 0;
+
         for (NUM_ARG_TYPE i = 0; i < num_wires; ++i) {
             const auto& index = progress[i];
             if (OOB(index + 1, data, i)) continue;
             const auto& t = all_input_data[data[i].offset + index + 1].timestamp;
-            if (t < min_t) min_t = t;
+            if (t <= min_t) {
+                if (t < min_t) {
+                    min_t = t;
+                    num_advancing = 0;
+                }
+                advancing[num_advancing] = i;
+                num_advancing++;
+            }
         }
         assert(min_t != LONG_LONG_MAX);
-
-        // find advancing wires
-        NUM_ARG_TYPE advancing[MAX_NUM_MODULE_ARGS], num_advancing = 0;
-        for(NUM_ARG_TYPE i = 0; i < num_wires; ++i) {
-            auto& index = progress[i];
-            if (OOB(index + 1, data, i)) continue;
-            if (all_input_data[data[i].offset + index + 1].timestamp != min_t) continue;
-            advancing[num_advancing] = i; num_advancing++;
-        }
 
         // decide where to write
         if (write_transition_index + num_advancing - 1 >= capacity) {
