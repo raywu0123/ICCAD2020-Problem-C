@@ -61,10 +61,6 @@ struct OutputCollector {
         size_accumulator = 0;
     }
 
-    void clear() {
-        cudaMemsetAsync(device_ptr, 0, sizeof(T) * size_accumulator);
-    }
-
     T* get_device() {
         if (size_accumulator > current_alloced_size) {
             cudaFree(device_ptr); cudaFreeHost(host_ptr);
@@ -98,7 +94,7 @@ struct ResourceBuffer {
     PinnedMemoryVector<bool*> overflows;
     PinnedMemoryVector<CAPACITY_TYPE> capacities;
     PinnedMemoryVector<const ModuleSpec*> module_specs;
-    PinnedMemoryVector<unsigned int> sdf_offsets;
+    PinnedMemoryVector<unsigned int> sdf_offsets, s_timestamp_offsets, s_delay_info_offsets, s_value_offsets;;
     PinnedMemoryVector<unsigned int> sdf_num_rows;
     PinnedMemoryVector<InputData> input_data_schedule;
     PinnedMemoryVector<Data> output_data_schedule;
@@ -118,7 +114,7 @@ struct BatchResource {
     bool** overflows;
     unsigned int* capacities;
     const ModuleSpec** module_specs;
-    unsigned int *sdf_offsets, *sdf_num_rows;
+    unsigned int *sdf_offsets, *s_timestamp_offsets, *s_delay_info_offsets, *s_value_offsets, *sdf_num_rows;
     InputData* input_data_schedule;
     Data* output_data_schedule;
     unsigned int num_modules;

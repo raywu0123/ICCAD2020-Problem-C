@@ -83,7 +83,11 @@ public:
 
     static void build_bucket_index_schedule(std::vector<InputWire*>& wires, unsigned int size);
     bool finished() const;
-    void prepare_resource(int, ResourceBuffer&, OutputCollector<Transition>&, OutputCollector<unsigned int>&, bool* device_overflow);
+    void prepare_resource(
+        int, ResourceBuffer&, bool* device_overflow,
+        OutputCollector<Transition>&, OutputCollector<unsigned int>&,
+        OutputCollector<Timestamp>&, OutputCollector<DelayInfo>&, OutputCollector<Values>&
+    );
 
     bool handle_overflow(bool*);
 
@@ -102,8 +106,7 @@ private:
     const ModuleSpec* module_spec;
     NUM_ARG_TYPE num_args = 0;
     CAPACITY_TYPE output_capacity = INITIAL_CAPACITY;
-    unsigned int overflow_offset = 0;
-    unsigned int sdf_offset = 0;
+    unsigned int overflow_offset = 0, sdf_offset = 0;
 };
 
 #endif
