@@ -25,18 +25,18 @@ void BatchResource::set(const ResourceBuffer& resource_buffer, cudaStream_t stre
     num_modules = resource_buffer.size;
 
     auto direction = cudaMemcpyHostToDevice;
-    cudaMemcpyAsync(overflows, resource_buffer.overflows.data(), sizeof(bool*) * num_modules, direction);
-    cudaMemcpyAsync(capacities, resource_buffer.capacities.data(), sizeof(CAPACITY_TYPE) * num_modules, direction);
-    cudaMemcpyAsync(module_specs, resource_buffer.module_specs.data(), sizeof(ModuleSpec*) * num_modules, direction);
-    cudaMemcpyAsync(sdf_offsets, resource_buffer.sdf_offsets.data(), sizeof(unsigned int) * num_modules, direction);
-    cudaMemcpyAsync(s_timestamp_offsets, resource_buffer.s_timestamp_offsets.data(), sizeof(unsigned int) * num_modules, direction);
-    cudaMemcpyAsync(s_delay_info_offsets, resource_buffer.s_delay_info_offsets.data(), sizeof(unsigned int) * num_modules, direction);
-    cudaMemcpyAsync(s_value_offsets, resource_buffer.s_value_offsets.data(), sizeof(unsigned int) * num_modules, direction);
-    cudaMemcpyAsync(s_length_offsets, resource_buffer.s_length_offsets.data(), sizeof(unsigned int) * num_modules, direction);
+    cudaMemcpyAsync(overflows, resource_buffer.overflows.data(), sizeof(bool*) * num_modules, direction, stream);
+    cudaMemcpyAsync(capacities, resource_buffer.capacities.data(), sizeof(CAPACITY_TYPE) * num_modules, direction, stream);
+    cudaMemcpyAsync(module_specs, resource_buffer.module_specs.data(), sizeof(ModuleSpec*) * num_modules, direction, stream);
+    cudaMemcpyAsync(sdf_offsets, resource_buffer.sdf_offsets.data(), sizeof(unsigned int) * num_modules, direction, stream);
+    cudaMemcpyAsync(s_timestamp_offsets, resource_buffer.s_timestamp_offsets.data(), sizeof(unsigned int) * num_modules, direction, stream);
+    cudaMemcpyAsync(s_delay_info_offsets, resource_buffer.s_delay_info_offsets.data(), sizeof(unsigned int) * num_modules, direction, stream);
+    cudaMemcpyAsync(s_value_offsets, resource_buffer.s_value_offsets.data(), sizeof(unsigned int) * num_modules, direction, stream);
+    cudaMemcpyAsync(s_length_offsets, resource_buffer.s_length_offsets.data(), sizeof(unsigned int) * num_modules, direction, stream);
 
-    cudaMemcpyAsync(sdf_num_rows, resource_buffer.sdf_num_rows.data(), sizeof(unsigned int) * num_modules, direction);
-    cudaMemcpyAsync(input_data_schedule, resource_buffer.input_data_schedule.data(), sizeof(InputData) * resource_buffer.input_data_schedule.size(), direction);
-    cudaMemcpyAsync(output_data_schedule, resource_buffer.output_data_schedule.data(), sizeof(Data) * resource_buffer.output_data_schedule.size(), direction);
+    cudaMemcpyAsync(sdf_num_rows, resource_buffer.sdf_num_rows.data(), sizeof(unsigned int) * num_modules, direction, stream);
+    cudaMemcpyAsync(input_data_schedule, resource_buffer.input_data_schedule.data(), sizeof(InputData) * resource_buffer.input_data_schedule.size(), direction, stream);
+    cudaMemcpyAsync(output_data_schedule, resource_buffer.output_data_schedule.data(), sizeof(Data) * resource_buffer.output_data_schedule.size(), direction, stream);
 }
 
 void BatchResource::free() const {

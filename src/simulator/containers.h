@@ -51,6 +51,17 @@ struct ResourceCollector {
 template<class T>
 struct OutputCollector {
 
+    OutputCollector() = default;
+    explicit OutputCollector(unsigned int reserve_size) { reserve(reserve_size); }
+
+    void reserve(unsigned int reserve_size) {
+        if (current_alloced_size >= reserve_size) return;
+        free();
+        current_alloced_size = reserve_size;
+        cudaMalloc((void**) &device_ptr, sizeof(T) * current_alloced_size);
+        cudaMallocHost((void**) &host_ptr, sizeof(T) * current_alloced_size);
+    }
+
     unsigned int push(unsigned int size) {
         unsigned int ret = size_accumulator;
         size_accumulator += size;
@@ -108,7 +119,7 @@ struct ResourceBuffer {
 
 struct BatchResource {
     void init(cudaStream_t = nullptr);
-    void set(const ResourceBuffer&, cudaStream_t = nullptr);
+    void set(const ResourceBuffer&, cudaStream_t);
     void free() const;
 
     bool** overflows;

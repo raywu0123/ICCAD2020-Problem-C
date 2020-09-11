@@ -379,10 +379,9 @@ void CellProcessor::layer_init(
     ResourceCollector<SDFPath, Cell>& sdf_collector, ResourceCollector<Transition, Wire>& input_data_collector
 ) {
     session_id = 0;
-    overflow_collector.reset();
+    overflow_collector.reset(); overflow_collector.reserve(cells.size());
 
     job_queue = stack<Cell*, std::vector<Cell*>>(cells);
-
     for (auto* cell : cells) cell->init(sdf_collector, input_data_collector, overflow_collector);
 }
 
@@ -408,7 +407,7 @@ bool CellProcessor::run() {
         );
         if (cell->finished()) job_queue.pop();
     }
-    batch_data.set(resource_buffer); resource_buffer.clear();
+    batch_data.set(resource_buffer, stream); resource_buffer.clear();
 
     auto* device_output_data = output_data_collector.get_device(stream);
     auto* device_s_timestamps = s_timestamp_collector.get_device(stream);
