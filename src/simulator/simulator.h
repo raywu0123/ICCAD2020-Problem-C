@@ -34,7 +34,7 @@ public:
     void run();
 
 private:
-    std::vector<std::vector<Cell*>> split_schedule_layer(const std::vector<Cell*>& layer, unsigned int num_split);
+
     Circuit& circuit;
 };
 
@@ -43,9 +43,10 @@ public:
     CellProcessor();
     ~CellProcessor();
 
+    static void layer_init_async(CellProcessor& processor, const std::vector<Cell*>& cells);
     void layer_init(
-        const std::vector<Cell*> cells,
-        ResourceCollector<SDFPath, Cell>&, ResourceCollector<Transition, Wire>&
+        const std::vector<Cell*>& cells,
+        ResourceCollector<SDFPath, Cell>& sdf_collector, ResourceCollector<Transition, Wire>& input_data_collector
     );
     void set_ptrs(SDFPath* sdf, Transition* input_data);
     bool run();

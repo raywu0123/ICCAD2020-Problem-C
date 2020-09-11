@@ -1,6 +1,7 @@
 #include <cassert>
 #include <chrono>
 #include <unistd.h>
+#include <thread>
 
 #include "simulator/simulator.h"
 #include "simulator/collision_utils.h"
@@ -320,11 +321,19 @@ void Simulator::run() {
     vector<CellProcessor> cell_processors; cell_processors.resize(N_STREAM);
     for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
         const auto& schedule_layer = circuit.cell_schedule[i_layer];
-        const auto& split_cells = split_schedule_layer(schedule_layer, N_STREAM);
+        const auto& split_cells = split_vector(schedule_layer, N_STREAM);
 
         ResourceCollector<SDFPath, Cell> sdf_collector(schedule_layer.size());
         ResourceCollector<Transition, Wire> input_data_collector(schedule_layer.size() * MAX_NUM_MODULE_ARGS);
 
+        vector<thread> init_threads;
+        for (int i = 0; i < N_STREAM; ++i) {
+            init_threads.emplace_back(
+                CellProcessor::layer_init_async,
+                std::ref(cell_processors[i]), std::ref(split_cells[i])
+            );
+        }
+        for (auto& thread : init_threads) thread.join();
         for (int i = 0; i < N_STREAM; ++i)
             cell_processors[i].layer_init(split_cells[i], sdf_collector, input_data_collector);
 
@@ -348,19 +357,6 @@ void Simulator::run() {
     cout << endl;
 }
 
-vector<vector<Cell*>> Simulator::split_schedule_layer(const vector<Cell*>& layer, unsigned int num_split) {
-    vector<vector<Cell*>> splits; splits.resize(num_split);
-    int split_size = ceil(double(layer.size()) / double(num_split));
-    for (int i = 0; i < num_split; ++i) {
-        splits[i].reserve(split_size);
-        for (int j = 0; j < split_size; ++j) {
-            if (i * split_size + j >= layer.size()) break;
-            splits[i].push_back(layer[i * split_size + j]);
-        }
-    }
-    return splits;
-}
-
 CellProcessor::CellProcessor() {
     cudaStreamCreate(&stream);
     batch_data.init();
@@ -374,14 +370,17 @@ CellProcessor::~CellProcessor() {
     overflow_collector.free();
 }
 
+void CellProcessor::layer_init_async(CellProcessor& processor, const std::vector<Cell*>& cells) {
+    processor.session_id = 0;
+    processor.overflow_collector.reset(); processor.overflow_collector.reserve(cells.size());
+    processor.job_queue = stack<Cell*, std::vector<Cell*>>(cells);
+    for (auto* cell : cells) cell->init_async();
+}
+
 void CellProcessor::layer_init(
-    std::vector<Cell*> cells,
+    const std::vector<Cell *> &cells,
     ResourceCollector<SDFPath, Cell>& sdf_collector, ResourceCollector<Transition, Wire>& input_data_collector
 ) {
-    session_id = 0;
-    overflow_collector.reset(); overflow_collector.reserve(cells.size());
-
-    job_queue = stack<Cell*, std::vector<Cell*>>(cells);
     for (auto* cell : cells) cell->init(sdf_collector, input_data_collector, overflow_collector);
 }
 

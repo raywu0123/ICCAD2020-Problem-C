@@ -40,16 +40,18 @@ void Cell::build_wire_map(const WireMap<Wire>& pin_specs) {
     }
 }
 
+void Cell::init_async() {
+    Cell::build_bucket_index_schedule(
+        input_wires,
+        (INITIAL_CAPACITY * N_STIMULI_PARALLEL) - 1
+    );
+}
 void Cell::init(
     ResourceCollector<SDFPath, Cell>& sdf_collector,
     ResourceCollector<Transition, Wire>& input_data_collector,
     OutputCollector<bool>& overflow_collector
 ) {
     overflow_offset = overflow_collector.push(1);
-    Cell::build_bucket_index_schedule(
-            input_wires,
-            (INITIAL_CAPACITY * N_STIMULI_PARALLEL) - 1
-    );
     unsigned int sum_size = 0;
     for (const auto& input_wire : input_wires) {
         if (input_wire != nullptr) {

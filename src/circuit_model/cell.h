@@ -78,6 +78,7 @@ public:
         const WireMap<Wire>&  pin_specs,
         std::string  name
     );
+    void init_async();
     void init(ResourceCollector<SDFPath, Cell>&, ResourceCollector<Transition, Wire>&, OutputCollector<bool>&);
     void free();
 
