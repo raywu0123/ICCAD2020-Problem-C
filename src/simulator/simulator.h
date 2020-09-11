@@ -2,6 +2,7 @@
 #define ICCAD2020_SIMULATOR_H
 
 #include <vector>
+#include <stack>
 
 #include "circuit_model/circuit.h"
 #include "simulation_result.h"
@@ -30,7 +31,50 @@ public:
     explicit Simulator(Circuit& c): circuit(c) {};
     void run();
 
+private:
+    std::vector<std::vector<Cell*>> split_schedule_layer(const std::vector<Cell*>& layer, unsigned int num_split);
     Circuit& circuit;
+};
+
+class CellProcessor {
+public:
+    CellProcessor();
+    ~CellProcessor();
+
+    void layer_init(
+        const std::vector<Cell*> cells,
+        ResourceCollector<SDFPath, Cell>&, ResourceCollector<Transition, Wire>&
+    );
+    void set_ptrs(SDFPath* sdf, Transition* input_data);
+    bool run();
+    static void CUDART_CB post_process(cudaStream_t stream, cudaError_t status, void* processor);
+
+    SDFPath* device_sdf = nullptr;
+    Transition* device_input_data = nullptr;
+
+    Transition* host_output_data = nullptr;
+    unsigned int* host_sizes = nullptr;
+    bool* host_overflows = nullptr;
+
+    std::stack<Cell*, std::vector<Cell*>> job_queue;
+    std::unordered_set<Cell*> processing_cells;
+
+    ResourceBuffer resource_buffer;
+    BatchResource batch_data{};
+
+    OutputCollector<Timestamp> s_timestamp_collector;
+    OutputCollector<Values> s_values_collector;
+    OutputCollector<DelayInfo> s_delay_info_collector;
+    OutputCollector<CAPACITY_TYPE> s_length_collector;
+
+    OutputCollector<Transition> output_data_collector;
+    OutputCollector<unsigned int> output_size_collector;
+    OutputCollector<bool> overflow_collector;
+
+    cudaStream_t stream;
+
+    bool has_unfinished = false;
+    int session_id = 0;
 };
 
 #endif

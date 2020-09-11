@@ -61,19 +61,19 @@ struct OutputCollector {
         size_accumulator = 0;
     }
 
-    T* get_device() {
+    T* get_device(cudaStream_t stream) {
         if (size_accumulator > current_alloced_size) {
             cudaFree(device_ptr); cudaFreeHost(host_ptr);
             current_alloced_size = size_accumulator * 2;
             cudaMalloc((void**) &device_ptr, sizeof(T) * current_alloced_size);
             cudaMallocHost((void**) &host_ptr, sizeof(T) * current_alloced_size);
         }
-        cudaMemsetAsync(device_ptr, 0, sizeof(T) * size_accumulator);
+        cudaMemsetAsync(device_ptr, 0, sizeof(T) * size_accumulator, stream);
         return device_ptr;
     }
 
-    T* get_host() {
-        cudaMemcpyAsync(host_ptr, device_ptr, sizeof(T) * size_accumulator, cudaMemcpyDeviceToHost);
+    T* get_host(cudaStream_t stream) {
+        cudaMemcpyAsync(host_ptr, device_ptr, sizeof(T) * size_accumulator, cudaMemcpyDeviceToHost, stream);
         return host_ptr;
     }
 

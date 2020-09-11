@@ -1,6 +1,6 @@
-#include <stack>
 #include <cassert>
-#include <nvToolsExt.h>
+#include <chrono>
+#include <unistd.h>
 
 #include "simulator/simulator.h"
 #include "simulator/collision_utils.h"
@@ -317,96 +317,145 @@ void Simulator::run() {
     cout << "| Total " << num_layers << " layers" << endl;
 
     ProgressBar progress_bar(num_layers);
-    ResourceBuffer resource_buffer;
-    BatchResource batch_data{}; batch_data.init();
-
-    OutputCollector<Timestamp> s_timestamp_collector;
-    OutputCollector<Values> s_values_collector;
-    OutputCollector<DelayInfo> s_delay_info_collector;
-    OutputCollector<CAPACITY_TYPE> s_length_collector;
-
-    OutputCollector<Transition> output_data_collector;
-    OutputCollector<unsigned int> output_size_collector;
-    OutputCollector<bool> overflow_collector;
-
+    vector<CellProcessor> cell_processors; cell_processors.resize(N_STREAM);
     for (unsigned int i_layer = 0; i_layer < num_layers; i_layer++) {
         const auto& schedule_layer = circuit.cell_schedule[i_layer];
-        stack<Cell*, std::vector<Cell*>> job_queue(schedule_layer);
+        const auto& split_cells = split_schedule_layer(schedule_layer, N_STREAM);
 
         ResourceCollector<SDFPath, Cell> sdf_collector(schedule_layer.size());
         ResourceCollector<Transition, Wire> input_data_collector(schedule_layer.size() * MAX_NUM_MODULE_ARGS);
-        overflow_collector.reset();
-        for (auto* cell : schedule_layer) cell->init(sdf_collector, input_data_collector, overflow_collector);
+
+        for (int i = 0; i < N_STREAM; ++i)
+            cell_processors[i].layer_init(split_cells[i], sdf_collector, input_data_collector);
+
         auto* device_sdf = sdf_collector.get();
         auto* device_input_data = input_data_collector.get();
-        int session_id = 0;
+        for (auto& processor : cell_processors) processor.set_ptrs(device_sdf, device_input_data);
+        cudaDeviceSynchronize();
 
-        while (not job_queue.empty()) {
-            unordered_set<Cell*> processing_cells;
-
-            s_timestamp_collector.reset(); s_delay_info_collector.reset(); s_values_collector.reset(); s_length_collector.reset();
-            output_data_collector.reset(); output_size_collector.reset();
-            auto* device_overflow = overflow_collector.get_device();
-            for (int i = 0; i < N_CELL_PARALLEL; i++) {
-                if (job_queue.empty()) break;
-                auto* cell = job_queue.top(); processing_cells.insert(cell);
-                cell->prepare_resource(
-                    session_id, resource_buffer, device_overflow,
-                    output_data_collector, output_size_collector,
-                    s_timestamp_collector, s_delay_info_collector, s_values_collector, s_length_collector
-                );
-                if (cell->finished()) job_queue.pop();
+        bool all_finished = false;
+        while (not all_finished) {
+            all_finished = true;
+            for (auto& processor : cell_processors) {
+                all_finished &= processor.run();
             }
-            batch_data.set(resource_buffer); resource_buffer.clear();
-
-            auto* device_output_data = output_data_collector.get_device();
-            auto* device_s_timestamps = s_timestamp_collector.get_device();
-            auto* device_s_delay_infos = s_delay_info_collector.get_device();
-            auto* device_s_values = s_values_collector.get_device();
-            auto* device_s_lengths = s_length_collector.get_device();
-            auto* device_sizes = output_size_collector.get_device();
-            cudaDeviceSynchronize();  // ensure async copies from different streams are all finished
-            slice_kernel<<<N_CELL_PARALLEL, 1>>>(
-                batch_data, device_input_data,
-                device_s_timestamps, device_s_delay_infos, device_s_values
-            );
-            stepping_kernel<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL>>>(
-                batch_data, device_output_data,
-                device_s_timestamps, device_s_values
-            );
-            compute_delay_kernel<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL>>>(
-                batch_data, device_sdf, device_output_data,
-                device_s_delay_infos, device_s_lengths
-            );
-            resolve_collision_kernel<<<N_CELL_PARALLEL, 1>>>(
-                batch_data, device_output_data, device_sizes,
-                device_s_lengths
-            );
-            auto* host_output_data = output_data_collector.get_host();
-            auto* host_sizes = output_size_collector.get_host();
-            auto* host_overflows = overflow_collector.get_host();
-            cudaDeviceSynchronize();
-
-            unordered_set<Cell*> non_overflow_cells, finished_cells;
-            for (auto* cell : processing_cells) {
-                bool finished = cell->finished();
-                bool overflow = cell->handle_overflow(host_overflows);
-                if (not overflow) {
-                    non_overflow_cells.insert(cell);
-                    if (finished) finished_cells.insert(cell);
-                } else if (finished) job_queue.push(cell);
-            }
-
-            for (auto* cell : non_overflow_cells) cell->gather_results(host_output_data, host_sizes);
-            for (auto* cell : finished_cells) cell->free();
-            session_id++;
         }
+
         sdf_collector.free(); input_data_collector.free();
         progress_bar.Progressed(i_layer + 1);
     }
+
+    cout << endl;
+}
+
+vector<vector<Cell*>> Simulator::split_schedule_layer(const vector<Cell*>& layer, unsigned int num_split) {
+    vector<vector<Cell*>> splits; splits.resize(num_split);
+    int split_size = ceil(double(layer.size()) / double(num_split));
+    for (int i = 0; i < num_split; ++i) {
+        splits[i].reserve(split_size);
+        for (int j = 0; j < split_size; ++j) {
+            if (i * split_size + j >= layer.size()) break;
+            splits[i].push_back(layer[i * split_size + j]);
+        }
+    }
+    return splits;
+}
+
+CellProcessor::CellProcessor() {
+    cudaStreamCreate(&stream);
+    batch_data.init();
+}
+
+CellProcessor::~CellProcessor() {
+    cudaStreamDestroy(stream);
+    batch_data.free();
     output_data_collector.free(); output_size_collector.free();
     s_timestamp_collector.free(); s_delay_info_collector.free(); s_values_collector.free();
     overflow_collector.free();
-    batch_data.free();
-    cout << endl;
+}
+
+void CellProcessor::layer_init(
+    std::vector<Cell*> cells,
+    ResourceCollector<SDFPath, Cell>& sdf_collector, ResourceCollector<Transition, Wire>& input_data_collector
+) {
+    session_id = 0;
+    overflow_collector.reset();
+
+    job_queue = stack<Cell*, std::vector<Cell*>>(cells);
+
+    for (auto* cell : cells) cell->init(sdf_collector, input_data_collector, overflow_collector);
+}
+
+void CellProcessor::set_ptrs(SDFPath *sdf, Transition *input_data) {
+    device_sdf = sdf; device_input_data = input_data;
+}
+
+bool CellProcessor::run() {
+    if (has_unfinished) return false;
+    else if (!has_unfinished and job_queue.empty()) return true;
+
+    processing_cells.clear();
+    s_timestamp_collector.reset(); s_delay_info_collector.reset(); s_values_collector.reset(); s_length_collector.reset();
+    output_data_collector.reset(); output_size_collector.reset();
+    auto* device_overflow = overflow_collector.get_device(stream);
+    for (int i = 0; i < N_CELL_PARALLEL; i++) {
+        if (job_queue.empty()) break;
+        auto* cell = job_queue.top(); processing_cells.insert(cell);
+        cell->prepare_resource(
+                session_id, resource_buffer, device_overflow,
+                output_data_collector, output_size_collector,
+                s_timestamp_collector, s_delay_info_collector, s_values_collector, s_length_collector
+        );
+        if (cell->finished()) job_queue.pop();
+    }
+    batch_data.set(resource_buffer); resource_buffer.clear();
+
+    auto* device_output_data = output_data_collector.get_device(stream);
+    auto* device_s_timestamps = s_timestamp_collector.get_device(stream);
+    auto* device_s_delay_infos = s_delay_info_collector.get_device(stream);
+    auto* device_s_values = s_values_collector.get_device(stream);
+    auto* device_s_lengths = s_length_collector.get_device(stream);
+    auto* device_sizes = output_size_collector.get_device(stream);
+    slice_kernel<<<N_CELL_PARALLEL, 1, 0, stream>>>(
+            batch_data, device_input_data,
+            device_s_timestamps, device_s_delay_infos, device_s_values
+    );
+    stepping_kernel<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL, 0, stream>>>(
+            batch_data, device_output_data,
+            device_s_timestamps, device_s_values
+    );
+    compute_delay_kernel<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL, 0, stream>>>(
+            batch_data, device_sdf, device_output_data,
+            device_s_delay_infos, device_s_lengths
+    );
+    resolve_collision_kernel<<<N_CELL_PARALLEL, 1, 0, stream>>>(
+            batch_data, device_output_data, device_sizes,
+            device_s_lengths
+    );
+    host_output_data = output_data_collector.get_host(stream);
+    host_sizes = output_size_collector.get_host(stream);
+    host_overflows = overflow_collector.get_host(stream);
+
+    cudaStreamAddCallback(stream, CellProcessor::post_process, (void*) this, 0);
+    has_unfinished = true;
+    return false;
+}
+
+CUDART_CB void CellProcessor::post_process(cudaStream_t stream, cudaError_t status, void* userData) {
+    auto* processor = static_cast<CellProcessor*>(userData);
+
+    unordered_set<Cell*> non_overflow_cells, finished_cells;
+    for (auto* cell : processor->processing_cells) {
+        bool finished = cell->finished();
+        bool overflow = cell->handle_overflow(processor->host_overflows);
+        if (not overflow) {
+            non_overflow_cells.insert(cell);
+            if (finished) finished_cells.insert(cell);
+        } else if (finished) processor->job_queue.push(cell);
+    }
+
+    for (auto* cell : non_overflow_cells) cell->gather_results(processor->host_output_data, processor->host_sizes);
+    for (auto* cell : finished_cells) cell->free();
+    processor->session_id++;
+    processor->has_unfinished = false;
 }
