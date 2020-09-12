@@ -51,6 +51,17 @@ struct ResourceCollector {
 template<class T>
 struct OutputCollector {
 
+    OutputCollector() = default;
+    explicit OutputCollector(unsigned int reserve_size) { reserve(reserve_size); }
+
+    void reserve(unsigned int reserve_size) {
+        if (current_alloced_size >= reserve_size) return;
+        free();
+        current_alloced_size = reserve_size;
+        cudaMalloc((void**) &device_ptr, sizeof(T) * current_alloced_size);
+        cudaMallocHost((void**) &host_ptr, sizeof(T) * current_alloced_size);
+    }
+
     unsigned int push(unsigned int size) {
         unsigned int ret = size_accumulator;
         size_accumulator += size;
@@ -61,19 +72,19 @@ struct OutputCollector {
         size_accumulator = 0;
     }
 
-    T* get_device() {
+    T* get_device(cudaStream_t stream) {
         if (size_accumulator > current_alloced_size) {
             cudaFree(device_ptr); cudaFreeHost(host_ptr);
             current_alloced_size = size_accumulator * 2;
             cudaMalloc((void**) &device_ptr, sizeof(T) * current_alloced_size);
             cudaMallocHost((void**) &host_ptr, sizeof(T) * current_alloced_size);
         }
-        cudaMemsetAsync(device_ptr, 0, sizeof(T) * size_accumulator);
+        cudaMemsetAsync(device_ptr, 0, sizeof(T) * size_accumulator, stream);
         return device_ptr;
     }
 
-    T* get_host() {
-        cudaMemcpyAsync(host_ptr, device_ptr, sizeof(T) * size_accumulator, cudaMemcpyDeviceToHost);
+    T* get_host(cudaStream_t stream) {
+        cudaMemcpyAsync(host_ptr, device_ptr, sizeof(T) * size_accumulator, cudaMemcpyDeviceToHost, stream);
         return host_ptr;
     }
 
@@ -94,7 +105,7 @@ struct ResourceBuffer {
     PinnedMemoryVector<bool*> overflows;
     PinnedMemoryVector<CAPACITY_TYPE> capacities;
     PinnedMemoryVector<const ModuleSpec*> module_specs;
-    PinnedMemoryVector<unsigned int> sdf_offsets, s_timestamp_offsets, s_delay_info_offsets, s_value_offsets;;
+    PinnedMemoryVector<unsigned int> sdf_offsets, s_timestamp_offsets, s_delay_info_offsets, s_value_offsets, s_length_offsets;
     PinnedMemoryVector<unsigned int> sdf_num_rows;
     PinnedMemoryVector<InputData> input_data_schedule;
     PinnedMemoryVector<Data> output_data_schedule;
@@ -108,13 +119,13 @@ struct ResourceBuffer {
 
 struct BatchResource {
     void init(cudaStream_t = nullptr);
-    void set(const ResourceBuffer&, cudaStream_t = nullptr);
+    void set(const ResourceBuffer&, cudaStream_t);
     void free() const;
 
     bool** overflows;
     unsigned int* capacities;
     const ModuleSpec** module_specs;
-    unsigned int *sdf_offsets, *s_timestamp_offsets, *s_delay_info_offsets, *s_value_offsets, *sdf_num_rows;
+    unsigned int *sdf_offsets, *s_timestamp_offsets, *s_delay_info_offsets, *s_value_offsets, *s_length_offsets, *sdf_num_rows;
     InputData* input_data_schedule;
     Data* output_data_schedule;
     unsigned int num_modules;

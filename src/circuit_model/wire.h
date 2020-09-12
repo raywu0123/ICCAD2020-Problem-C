@@ -56,6 +56,17 @@ struct Bucket {
     Transition& back() { return transitions.back(); }
 };
 
+struct WireStat {
+    Timestamp T0 = 0, T1 = 0, TX = 0, TZ = 0;
+
+    void update(const Values& v, const Timestamp& d) {
+        if (v == Values::ZERO) T0 += d;
+        else if (v == Values::ONE) T1 += d;
+        else if (v == Values::X) TX += d;
+        else if (v == Values::Z) TZ += d;
+    }
+};
+
 class Wire {
 public:
     Wire() = default;
@@ -74,6 +85,7 @@ public:
     bool is_constant = false;
 
     unsigned int offset = 0;
+    WireStat wire_stat{};
 };
 
 

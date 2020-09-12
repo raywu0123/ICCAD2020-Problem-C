@@ -3,6 +3,7 @@
 #include <queue>
 #include <ctime>
 #include <chrono>
+#include <thread>
 
 #include "simulation_result.h"
 
@@ -157,6 +158,18 @@ SAIFResult::SAIFResult(
 ) : SimulationResult(wires, scopes, timescale_pair, dumpon_time, dumpoff_time, bus_manager) {}
 
 void SAIFResult::write(char *path) {
+    unordered_set<Wire*> wire_set(wires.begin(), wires.end());
+    vector<Wire*> cleaned_wires(wire_set.begin(), wire_set.end());
+
+    const vector<vector<Wire*>>& split_wires = split_vector(cleaned_wires, N_SIM_RESULT_THREAD);
+    vector<thread> workers; workers.reserve(N_SIM_RESULT_THREAD);
+    for (int i = 0; i < N_SIM_RESULT_THREAD; ++i)
+        workers.emplace_back(
+            SAIFResult::calculate_wire_stats_vector,
+            std::ref(split_wires[i]), dumpon_time, dumpoff_time
+        );
+    for (auto& thread : workers) thread.join();
+
     SimulationResult::write(path);
     f_out << "(SAIFILE\n";
     f_out << "(SAIFVERSION \"2.0\")\n";
@@ -174,11 +187,10 @@ void SAIFResult::write(char *path) {
     f_out << indent << "(INSTANCE " << scopes[1] << "\n";
     f_out << indent << indent << "(NET\n";
 
-    for (const auto& wire : wires) {
-        const auto& wire_stats = calculate_wire_stats(wire->bucket, dumpon_time, dumpoff_time);
+    for (const auto& wire : cleaned_wires) {
         for (const auto& wireinfo : wire->wire_infos){
             const auto& bus = bus_manager.buses[wireinfo.bus_index];
-            write_wirekey_result(bus.bitwidth, wireinfo.wirekey, wire_stats);
+            write_wirekey_result(bus.bitwidth, wireinfo.wirekey, wire->wire_stat);
         }
     }
 
@@ -204,8 +216,12 @@ void SAIFResult::write_wirekey_result(const BitWidth& bitwidth, const Wirekey &w
             << ")\n";
 }
 
-WireStat SAIFResult::calculate_wire_stats(const Bucket& bucket, const Timestamp& dumpon_time, const Timestamp& dumpoff_time) {
-    WireStat wirestat{};
+void SAIFResult::calculate_wire_stats_vector(const std::vector<Wire*>& wires, Timestamp dumpon_time, Timestamp dumpoff_time) {
+    for (auto* wire : wires)
+        SAIFResult::calculate_wire_stats(wire->wire_stat, wire->bucket, dumpon_time, dumpoff_time);
+}
+
+void SAIFResult::calculate_wire_stats(WireStat& wire_stat, const Bucket& bucket, const Timestamp& dumpon_time, const Timestamp& dumpoff_time) {
     const auto& transitions = bucket.transitions;
     const auto& size = transitions.size();
     for (unsigned idx = 1; idx < size; idx++) {
@@ -215,12 +231,11 @@ WireStat SAIFResult::calculate_wire_stats(const Bucket& bucket, const Timestamp&
 
         auto d = min(t_curr.timestamp, dumpoff_time) - max(t_prev.timestamp, dumpon_time);
         auto& prev_v = t_prev.value;
-        wirestat.update(prev_v, d);
+        wire_stat.update(prev_v, d);
     }
 
     const auto& last_transition = transitions.back();
     if (last_transition.timestamp < dumpoff_time) {
-        wirestat.update(last_transition.value, dumpoff_time - max(last_transition.timestamp, dumpon_time));
+        wire_stat.update(last_transition.value, dumpoff_time - max(last_transition.timestamp, dumpon_time));
     }
-    return wirestat;
 }

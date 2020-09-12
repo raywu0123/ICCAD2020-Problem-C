@@ -78,6 +78,7 @@ public:
         const WireMap<Wire>&  pin_specs,
         std::string  name
     );
+    void init_async();
     void init(ResourceCollector<SDFPath, Cell>&, ResourceCollector<Transition, Wire>&, OutputCollector<bool>&);
     void free();
 
@@ -86,7 +87,7 @@ public:
     void prepare_resource(
         int, ResourceBuffer&, bool* device_overflow,
         OutputCollector<Transition>&, OutputCollector<unsigned int>&,
-        OutputCollector<Timestamp>&, OutputCollector<DelayInfo>&, OutputCollector<Values>&
+        OutputCollector<Timestamp>&, OutputCollector<DelayInfo>&, OutputCollector<Values>&, OutputCollector<CAPACITY_TYPE>&
     );
 
     bool handle_overflow(bool*);

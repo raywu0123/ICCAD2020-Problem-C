@@ -58,17 +58,6 @@ private:
     std::unordered_set<std::string> referenced_wire_ids;
 };
 
-struct WireStat {
-    Timestamp T0 = 0, T1 = 0, TX = 0, TZ = 0;
-
-    void update(const Values& v, const Timestamp& d) {
-        if (v == Values::ZERO) T0 += d;
-        else if (v == Values::ONE) T1 += d;
-        else if (v == Values::X) TX += d;
-        else if (v == Values::Z) TZ += d;
-    }
-};
-
 class SAIFResult : public SimulationResult {
 public:
     explicit SAIFResult(
@@ -79,7 +68,8 @@ public:
         BusManager& bus_manager
     );
     void write(char* path) override;
-    static WireStat calculate_wire_stats(const Bucket&, const Timestamp& dumpon_time, const Timestamp& dumpoff_time);
+    static void calculate_wire_stats_vector(const std::vector<Wire*>& wires, Timestamp dumpon_time, Timestamp dumpoff_time);
+    static void calculate_wire_stats(WireStat& wire_stat, const Bucket&, const Timestamp& dumpon_time, const Timestamp& dumpoff_time);
     void write_wirekey_result(const BitWidth& bitwidth, const Wirekey& wirekey, const WireStat& wirestat);
 
     std::string indent = "   ";
