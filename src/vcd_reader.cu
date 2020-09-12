@@ -2,6 +2,7 @@
 #include <string>
 #include <functional>
 #include <cassert>
+#include <chrono>
 
 #include "vcd_reader.h"
 
@@ -38,11 +39,15 @@ void VCDReader::summary() const {
 }
 
 void VCDReader::read_input_waveforms(Circuit& circuit) {
-    cout << "| STATUS: Reading Input VCD file..." << endl;
+    cout << "| STATUS: Reading Input VCD file...\n";
+    auto t1 = chrono::high_resolution_clock::now();
     read_vars();
     get_buckets(circuit);
     read_dump();
     fin.close();
+    auto t2 = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(t2 - t1).count();
+    cout << "| STATUS: VCDReader spent " << duration << " ms\n";
 }
 
 void VCDReader::read_vars() {
@@ -67,12 +72,15 @@ void VCDReader::get_buckets(Circuit& circuit) {
         token_info.bucket_index = wires.size();
         const auto& bitwidth = token_info.bitwidth;
         int step = bitwidth.first > bitwidth.second ? -1 : 1;
+        bool is_vector = not (bitwidth.first == 0 and bitwidth.second == 0);
         for (int bit_index = bitwidth.first; bit_index != bitwidth.second + step; bit_index += step) {
             // buckets in MSB -> LSB order
             auto* wire = circuit.get_wire(Wirekey{token_info.wire_name, bit_index});
             wires.push_back(wire);
             if (wire->is_constant) {
-                cerr << "| WARNING: Input VCD specified for constant wire " << token_info.wire_name << endl;
+                cerr << "| WARNING: Input VCD specified for constant wire " << token_info.wire_name;
+                if (is_vector) cerr << "[" << bit_index << "]";
+                cerr << "\n";
             }
         }
     }
