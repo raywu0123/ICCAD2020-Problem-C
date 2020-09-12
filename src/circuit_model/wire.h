@@ -101,13 +101,13 @@ public:
     }
     void store_to_bucket(const std::vector<Data>&, Transition*, unsigned int*) override {
         if (not store_to_bucket_warning_flag) {
-            std::cerr << "| Warning: storing to constant wire\n";
+            std::cerr << "| WARNING: Storing to constant wire\n";
             store_to_bucket_warning_flag = true;
         }
     };
     void emplace_transition(const Timestamp& t, char r) override {
         if (not emplace_transition_warning_flag) {
-            std::cerr << "| Warning: emplacing transition to constant wire\n";
+            std::cerr << "| WARNING: Emplacing transition to constant wire\n";
             emplace_transition_warning_flag = true;
         }
     }
