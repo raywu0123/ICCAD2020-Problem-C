@@ -8,6 +8,21 @@
 #include "simulation_result.h"
 #include "constants.h"
 
+__device__ __host__ void slice_waveforms(
+    SliceInfo* s_slice_infos,
+    Transition* all_input_data, InputData* data, const CAPACITY_TYPE& capacity,
+    const NUM_ARG_TYPE& num_wires, bool* overflow_ptr
+);
+
+__host__ __device__ void stepping_algorithm(
+    Transition** input_data, const unsigned int* sizes,
+    DelayInfo* s_delay_infos,
+    Transition** output_data,
+    const ModuleSpec* module_spec,
+    const CAPACITY_TYPE& capacity,
+    bool* overflow_ptr,
+    bool verbose = false
+);
 
 __host__ __device__ int lookup_delay(
     NUM_ARG_TYPE, NUM_ARG_TYPE, EdgeTypes, EdgeTypes,
@@ -21,11 +36,7 @@ __host__ __device__ void compute_delay(
     CAPACITY_TYPE* lengths, bool verbose = false
 );
 
-__device__ __host__ void slice_waveforms(
-    Timestamp* s_timestamps, DelayInfo* s_delay_infos, Values* s_values,
-    const Transition* const all_input_data, InputData* data, const CAPACITY_TYPE& capacity,
-    const NUM_ARG_TYPE& num_wires, bool* overflow_ptr
-);
+
 
 
 class Simulator {
@@ -57,7 +68,7 @@ public:
 
     Transition* host_output_data = nullptr;
     unsigned int* host_sizes = nullptr;
-    bool* host_overflows = nullptr;
+    bool *host_overflows = nullptr, *host_s_overflows = nullptr;
 
     std::stack<Cell*, std::vector<Cell*>> job_queue;
     std::unordered_set<Cell*> processing_cells;
@@ -65,14 +76,13 @@ public:
     ResourceBuffer resource_buffer;
     BatchResource batch_data{};
 
-    OutputCollector<Timestamp> s_timestamp_collector{N_CELL_PARALLEL * N_STIMULI_PARALLEL * INITIAL_CAPACITY};
-    OutputCollector<Values> s_values_collector{N_CELL_PARALLEL * N_STIMULI_PARALLEL * INITIAL_CAPACITY * MAX_NUM_MODULE_OUTPUT};
+    OutputCollector<SliceInfo> s_slice_info_collector{N_CELL_PARALLEL * N_STIMULI_PARALLEL * MAX_NUM_MODULE_OUTPUT};
     OutputCollector<DelayInfo> s_delay_info_collector{N_CELL_PARALLEL * N_STIMULI_PARALLEL * INITIAL_CAPACITY};
     OutputCollector<CAPACITY_TYPE> s_length_collector{N_CELL_PARALLEL * N_STIMULI_PARALLEL * MAX_NUM_MODULE_OUTPUT};
 
     OutputCollector<Transition> output_data_collector{N_CELL_PARALLEL * N_STIMULI_PARALLEL * INITIAL_CAPACITY * MAX_NUM_MODULE_OUTPUT};
     OutputCollector<unsigned int> output_size_collector{N_CELL_PARALLEL * MAX_NUM_MODULE_OUTPUT};
-    OutputCollector<bool> overflow_collector;
+    OutputCollector<bool> overflow_collector, s_overflow_collector;
 
     cudaStream_t stream;
 

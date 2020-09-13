@@ -79,19 +79,18 @@ public:
         std::string  name
     );
     void init_async();
-    void init(ResourceCollector<SDFPath, Cell>&, ResourceCollector<Transition, Wire>&, OutputCollector<bool>&);
+    void init(ResourceCollector<SDFPath, Cell>&, ResourceCollector<Transition, Wire>&, OutputCollector<bool>&, OutputCollector<bool>&);
     void free();
 
     static void build_bucket_index_schedule(std::vector<InputWire*>& wires, unsigned int size);
     bool finished() const;
     void prepare_resource(
-        int, ResourceBuffer&, bool* device_overflow,
+        int, ResourceBuffer&,
         OutputCollector<Transition>&, OutputCollector<unsigned int>&,
-        OutputCollector<Timestamp>&, OutputCollector<DelayInfo>&, OutputCollector<Values>&, OutputCollector<CAPACITY_TYPE>&
+        OutputCollector<SliceInfo>&, OutputCollector<DelayInfo>&, OutputCollector<CAPACITY_TYPE>&
     );
 
-    bool handle_overflow(bool*);
-
+    bool handle_overflow(const bool*, const bool*);
     void gather_results(Transition*, unsigned int*);
 
     std::vector<InputWire*> input_wires;
@@ -106,8 +105,8 @@ private:
 
     const ModuleSpec* module_spec;
     NUM_ARG_TYPE num_args = 0;
-    CAPACITY_TYPE output_capacity = INITIAL_CAPACITY;
-    unsigned int overflow_offset = 0, sdf_offset = 0;
+    CAPACITY_TYPE output_capacity = INITIAL_CAPACITY, s_capacity = INITIAL_CAPACITY;
+    unsigned int overflow_offset = 0, s_overflow_offset = 0, sdf_offset = 0;
 };
 
 #endif

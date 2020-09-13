@@ -4,11 +4,11 @@
 using CAPACITY_TYPE = unsigned int;
 using NUM_ARG_TYPE = unsigned char;
 
-const unsigned int N_STREAM = 16;
+const unsigned int N_STREAM = 1;
 const unsigned int N_SIM_RESULT_THREAD = 32;
 const unsigned int N_CELL_PARALLEL = 512;
 const unsigned int N_STIMULI_PARALLEL = 256;
-const CAPACITY_TYPE INITIAL_CAPACITY = 16;
+__device__ const CAPACITY_TYPE INITIAL_CAPACITY = 16;
 const NUM_ARG_TYPE MAX_NUM_MODULE_OUTPUT = 10;
 const NUM_ARG_TYPE MAX_NUM_MODULE_ARGS = 20;
 

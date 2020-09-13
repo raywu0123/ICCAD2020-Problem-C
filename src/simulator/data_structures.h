@@ -58,6 +58,7 @@ __host__ __device__ EdgeTypes get_edge_type(const Values& v1, const Values& v2);
 
 struct DelayInfo {
     DelayInfo() = default;
+    DelayInfo(NUM_ARG_TYPE arg, EdgeTypes edge_type) : arg(arg), edge_type(edge_type) {};
     DelayInfo(NUM_ARG_TYPE arg, char edge_type) : arg(arg), edge_type(raw_to_edge_type(edge_type)) {};
     NUM_ARG_TYPE arg = 0;
     EdgeTypes edge_type = EdgeTypes::UNDEF;
@@ -66,6 +67,9 @@ struct DelayInfo {
     }
 };
 
+struct SliceInfo {
+    unsigned int offset = 0;
+};
 
 struct Transition {
     Timestamp timestamp = 0;

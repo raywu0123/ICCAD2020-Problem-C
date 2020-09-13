@@ -49,9 +49,10 @@ void Cell::init_async() {
 void Cell::init(
     ResourceCollector<SDFPath, Cell>& sdf_collector,
     ResourceCollector<Transition, Wire>& input_data_collector,
-    OutputCollector<bool>& overflow_collector
+    OutputCollector<bool>& overflow_collector, OutputCollector<bool>& s_overflow_collector
 ) {
     overflow_offset = overflow_collector.push(1);
+    s_overflow_offset = s_overflow_collector.push(1);
     unsigned int sum_size = 0;
     for (const auto& input_wire : input_wires) {
         if (input_wire != nullptr) {
@@ -76,23 +77,23 @@ void Cell::free() {
 }
 
 void Cell::prepare_resource(
-    int session_id, ResourceBuffer& resource_buffer, bool* device_overflow,
+    int session_id, ResourceBuffer& resource_buffer,
     OutputCollector<Transition>& output_data_collector,
     OutputCollector<unsigned int>& output_size_collector,
-    OutputCollector<Timestamp>& s_timestamp_collector,
+    OutputCollector<SliceInfo>& s_slice_info_collector,
     OutputCollector<DelayInfo>& s_delay_info_collector,
-    OutputCollector<Values>& s_value_collector,
     OutputCollector<CAPACITY_TYPE>& s_length_collector
 ) {
-    resource_buffer.overflows.push_back(device_overflow + overflow_offset);
-    resource_buffer.capacities.push_back(output_capacity);
+    resource_buffer.output_capacities.push_back(output_capacity);
+    resource_buffer.s_capacities.push_back(s_capacity);
     resource_buffer.module_specs.push_back(module_spec);
     resource_buffer.sdf_offsets.push_back(sdf_offset);
     resource_buffer.sdf_num_rows.push_back(sdf_paths.size());
 
-    resource_buffer.s_timestamp_offsets.push_back(s_timestamp_collector.push(output_capacity * N_STIMULI_PARALLEL));
+    resource_buffer.overflow_offsets.push_back(overflow_offset);
+    resource_buffer.s_overflow_offsets.push_back(s_overflow_offset);
     resource_buffer.s_delay_info_offsets.push_back(s_delay_info_collector.push(output_capacity * N_STIMULI_PARALLEL));
-    resource_buffer.s_value_offsets.push_back(s_value_collector.push(output_capacity * N_STIMULI_PARALLEL * input_wires.size()));
+    resource_buffer.s_slice_info_offsets.push_back(s_slice_info_collector.push((N_STIMULI_PARALLEL + 1) * input_wires.size()));
     resource_buffer.s_length_offsets.push_back(s_length_collector.push(N_STIMULI_PARALLEL * output_wires.size()));
 
     for (auto* input_wire : input_wires) {
@@ -114,17 +115,19 @@ void Cell::gather_results(Transition* output_data, unsigned int* sizes) {
     }
 }
 
-bool Cell::handle_overflow(bool* host_overflows) {
-    if (host_overflows[overflow_offset]) {
+bool Cell::handle_overflow(const bool* host_overflows, const bool* host_s_overflows) {
+    auto overflow = host_overflows[overflow_offset] or host_s_overflows[s_overflow_offset];
+    if (overflow) {
         for (auto& input_wire : input_wires) {
             if (input_wire != nullptr) input_wire->handle_overflow();
         }
         for (auto& output_wire : output_wires) {
             if (output_wire != nullptr) output_wire->handle_overflow();
         }
-        output_capacity *= 2;
+        if (host_overflows[overflow_offset]) output_capacity *= 2;
+        if (host_s_overflows[s_overflow_offset]) s_capacity *= 2;
     }
-    return host_overflows[overflow_offset];
+    return overflow;
 }
 
 bool Cell::finished() const {

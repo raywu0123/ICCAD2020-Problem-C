@@ -32,7 +32,6 @@ extern __host__ __device__ void compute_delay(
     for (NUM_ARG_TYPE i = 0; i < num_output; i++) {
         auto* output_data = data[i];
         if (output_data == nullptr) continue;
-
         CAPACITY_TYPE write_idx = 0;
         if (output_data[0].timestamp == -1) {
             output_data[0].timestamp = 0;

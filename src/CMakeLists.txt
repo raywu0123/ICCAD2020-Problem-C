@@ -20,6 +20,7 @@ set(SOURCE_FILES
         simulator/containers.cu
         simulator/module_registry.cu
         simulator/memory_manager.cu
+        simulator/slicing_utils.cu
         simulator/delay_utils.cu
         simulator/collision_utils.cu
         simulation_result.cu

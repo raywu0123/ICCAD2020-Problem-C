@@ -102,10 +102,10 @@ struct OutputCollector {
 
 struct ResourceBuffer {
 
-    PinnedMemoryVector<bool*> overflows;
-    PinnedMemoryVector<CAPACITY_TYPE> capacities;
+    PinnedMemoryVector<unsigned int> overflow_offsets, s_overflow_offsets;
+    PinnedMemoryVector<CAPACITY_TYPE> output_capacities, s_capacities;
     PinnedMemoryVector<const ModuleSpec*> module_specs;
-    PinnedMemoryVector<unsigned int> sdf_offsets, s_timestamp_offsets, s_delay_info_offsets, s_value_offsets, s_length_offsets;
+    PinnedMemoryVector<unsigned int> sdf_offsets, s_slice_info_offsets, s_delay_info_offsets, s_length_offsets;
     PinnedMemoryVector<unsigned int> sdf_num_rows;
     PinnedMemoryVector<InputData> input_data_schedule;
     PinnedMemoryVector<Data> output_data_schedule;
@@ -122,10 +122,12 @@ struct BatchResource {
     void set(const ResourceBuffer&, cudaStream_t);
     void free() const;
 
-    bool** overflows;
-    unsigned int* capacities;
+    unsigned int *output_capacities, *s_capacities;
     const ModuleSpec** module_specs;
-    unsigned int *sdf_offsets, *s_timestamp_offsets, *s_delay_info_offsets, *s_value_offsets, *s_length_offsets, *sdf_num_rows;
+    unsigned int
+        *sdf_offsets,
+        *overflow_offsets, *s_overflow_offsets,
+        *s_slice_info_offsets, *s_delay_info_offsets, *s_length_offsets, *sdf_num_rows;
     InputData* input_data_schedule;
     Data* output_data_schedule;
     unsigned int num_modules;
