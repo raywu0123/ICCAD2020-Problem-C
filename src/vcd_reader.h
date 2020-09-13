@@ -12,6 +12,33 @@
 #include "simulator/data_structures.h"
 
 
+template<class T>
+class StringMap {
+
+public:
+    StringMap() = default;
+
+    void reserve(size_t max_length) {
+        assert(max_length > 0);
+        size_t size = pow(126 - 32 + 1,  max_length);
+        vec.resize(size);
+    }
+
+    size_t hash_function(const std::string& key) {
+        size_t index = 0;
+        for (const auto& c : key) index = index * (126 - 32 + 1) + (c - 32);
+        return index;
+    }
+
+    T operator[] (const std::string& key) const {
+        return vec[hash_function(key)];
+    }
+    T& operator[] (const std::string& key) {
+        return vec[hash_function(key)];
+    }
+    std::vector<T> vec;
+};
+
 class VCDReader {
 
 public:
@@ -32,7 +59,8 @@ private:
 
     std::ifstream fin;
 
-    std::unordered_map<std::string, TokenInfo> token_to_wire;
+    StringMap<TokenInfo*> token_to_wire;
+    std::vector<std::pair<std::string, TokenInfo>> token_and_infos;
     std::vector<Wire*> wires;
 
     unsigned int n_dump = 0;
