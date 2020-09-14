@@ -15,8 +15,8 @@ void BatchResource::init(cudaStream_t) {
     cudaMalloc((void**) &s_length_offsets, sizeof(unsigned int) * N_CELL_PARALLEL);
 
     cudaMalloc((void**) &sdf_num_rows, sizeof(unsigned int) * N_CELL_PARALLEL);
-    cudaMalloc((void**) &input_data_schedule, sizeof(InputData) * N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
-    cudaMalloc((void**) &output_data_schedule, sizeof(Data) * N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
+    cudaMalloc((void**) &input_data_schedule, sizeof(InputData) * N_CELL_PARALLEL * MAX_NUM_MODULE_INPUT);
+    cudaMalloc((void**) &output_data_schedule, sizeof(Data) * N_CELL_PARALLEL * MAX_NUM_MODULE_OUTPUT);
 }
 
 void BatchResource::set(const ResourceBuffer& resource_buffer, cudaStream_t stream) {
@@ -56,14 +56,14 @@ ResourceBuffer::ResourceBuffer() {
     sdf_offsets.reserve(N_CELL_PARALLEL);
     s_timestamp_offsets.reserve(N_CELL_PARALLEL); s_delay_info_offsets.reserve(N_CELL_PARALLEL); s_value_offsets.reserve(N_CELL_PARALLEL); s_length_offsets.reserve(N_CELL_PARALLEL);
     sdf_num_rows.reserve(N_CELL_PARALLEL);
-    input_data_schedule.reserve(N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
-    output_data_schedule.reserve(N_CELL_PARALLEL * MAX_NUM_MODULE_ARGS);
+    input_data_schedule.reserve(N_CELL_PARALLEL * MAX_NUM_MODULE_INPUT);
+    output_data_schedule.reserve(N_CELL_PARALLEL * MAX_NUM_MODULE_OUTPUT);
 }
 
 void ResourceBuffer::finish_module() {
     size++;
-    input_data_schedule.resize(size * MAX_NUM_MODULE_ARGS);
-    output_data_schedule.resize(size * MAX_NUM_MODULE_ARGS);
+    input_data_schedule.resize(size * MAX_NUM_MODULE_INPUT);
+    output_data_schedule.resize(size * MAX_NUM_MODULE_OUTPUT);
 }
 
 void ResourceBuffer::clear() {

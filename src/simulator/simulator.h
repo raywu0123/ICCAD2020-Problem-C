@@ -65,12 +65,12 @@ public:
     ResourceBuffer resource_buffer;
     BatchResource batch_data{};
 
-    OutputCollector<Timestamp> s_timestamp_collector{N_CELL_PARALLEL * N_STIMULI_PARALLEL * INITIAL_CAPACITY};
-    OutputCollector<Values> s_values_collector{N_CELL_PARALLEL * N_STIMULI_PARALLEL * INITIAL_CAPACITY * MAX_NUM_MODULE_OUTPUT};
-    OutputCollector<DelayInfo> s_delay_info_collector{N_CELL_PARALLEL * N_STIMULI_PARALLEL * INITIAL_CAPACITY};
+    OutputCollector<Timestamp> s_timestamp_collector{N_CELL_PARALLEL * N_STIMULI_PARALLEL * CAPACITY_UPPER_BOUND};
+    OutputCollector<Values> s_values_collector{N_CELL_PARALLEL * N_STIMULI_PARALLEL * CAPACITY_UPPER_BOUND * MAX_NUM_MODULE_OUTPUT};
+    OutputCollector<DelayInfo> s_delay_info_collector{N_CELL_PARALLEL * N_STIMULI_PARALLEL * CAPACITY_UPPER_BOUND};
     OutputCollector<CAPACITY_TYPE> s_length_collector{N_CELL_PARALLEL * N_STIMULI_PARALLEL * MAX_NUM_MODULE_OUTPUT};
 
-    OutputCollector<Transition> output_data_collector{N_CELL_PARALLEL * N_STIMULI_PARALLEL * INITIAL_CAPACITY * MAX_NUM_MODULE_OUTPUT};
+    OutputCollector<Transition> output_data_collector{N_CELL_PARALLEL * N_STIMULI_PARALLEL * CAPACITY_UPPER_BOUND * MAX_NUM_MODULE_OUTPUT};
     OutputCollector<unsigned int> output_size_collector{N_CELL_PARALLEL * MAX_NUM_MODULE_OUTPUT};
     OutputCollector<bool> overflow_collector;
 

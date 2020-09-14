@@ -19,9 +19,6 @@ Cell::Cell(
 }
 
 void Cell::build_wire_map(const WireMap<Wire>& pin_specs) {
-    if (num_args > MAX_NUM_MODULE_ARGS) {
-        throw runtime_error("Too many module args (" + to_string(num_args) + ")\n");
-    }
     input_wires.resize(declare->num_input);
     for (NUM_ARG_TYPE arg = 0; arg < declare->num_input; ++arg) {
         auto* wire_ptr = pin_specs.get(arg);

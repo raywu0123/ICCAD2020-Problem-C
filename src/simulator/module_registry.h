@@ -25,7 +25,6 @@ private:
 
     std::unordered_map<std::string, ModuleSpec*> name_to_module_spec{};  // to be transferred to device
     std::unordered_map<std::string, StdCellDeclare> name_to_declares{};
-    std::unordered_map<std::string, std::vector<SubmoduleSpec>> name_to_submodule_specs{};
 };
 
 #endif
