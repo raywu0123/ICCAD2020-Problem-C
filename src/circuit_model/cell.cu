@@ -42,6 +42,13 @@ void Cell::init_async() {
         input_wires,
         (INITIAL_CAPACITY * N_STIMULI_PARALLEL) - 1
     );
+    unsigned int sum_size = 0;
+    for (const auto& input_wire : input_wires) {
+        if (input_wire != nullptr) sum_size += input_wire->size();
+    }
+    for (const auto& output_wire: output_wires) {
+        if (output_wire != nullptr) output_wire->wire->bucket.reserve(sum_size);
+    }
 }
 void Cell::init(
     ResourceCollector<SDFPath, Cell>& sdf_collector,
@@ -49,15 +56,8 @@ void Cell::init(
     OutputCollector<bool>& overflow_collector
 ) {
     overflow_offset = overflow_collector.push(1);
-    unsigned int sum_size = 0;
     for (const auto& input_wire : input_wires) {
-        if (input_wire != nullptr) {
-            input_wire->wire->to_device(input_data_collector);
-            sum_size += input_wire->size();
-        }
-    }
-    for (const auto& output_wire: output_wires) {
-        if (output_wire != nullptr) output_wire->wire->bucket.reserve(sum_size);
+        if (input_wire != nullptr) input_wire->wire->to_device(input_data_collector);
     }
     sdf_offset = sdf_collector.push(sdf_paths, this);
 }
