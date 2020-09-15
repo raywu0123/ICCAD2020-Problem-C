@@ -82,7 +82,6 @@ void InputWire::handle_overflow() {
 void InputWire::finish() {
     data_list.clear();
     first_free_data_ptr_index = 0;
-    wire->bucket.transitions.shrink_to_fit();
     vector<unsigned int>().swap(bucket_index_schedule);
 }
 
