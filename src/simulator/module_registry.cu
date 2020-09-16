@@ -46,12 +46,13 @@ void ModuleRegistry::register_module(
     if(name_to_module_spec.find(name) != name_to_module_spec.end()) {
         throw runtime_error("Duplicate modules: " + name + "\n");
     }
-    if(name_to_submodule_specs.find(name) != name_to_submodule_specs.end()) {
-        throw runtime_error("Duplicate modules: " + name + "\n");
-    }
     if(name_to_declares.find(name) != name_to_declares.end()) {
         throw runtime_error("Duplicate modules: " + name + "\n");
     }
+    if (declares.num_input > MAX_NUM_MODULE_INPUT)
+        throw runtime_error("Module " + name + " with " + to_string(declares.num_input) + " inputs, larger than assumed\n");
+    if (declares.num_output > MAX_NUM_MODULE_OUTPUT)
+        throw runtime_error("Module " + name + " with " + to_string(declares.num_output) + " outputs, larger than assumed\n");
     name_to_declares[name] = declares;
 
     // prepare table

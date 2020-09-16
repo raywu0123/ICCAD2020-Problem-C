@@ -27,7 +27,7 @@ TEST_P(SliceWaveformTestFixture, SimpleCases) {
     auto* s_values = new Values[N_STIMULI_PARALLEL * capacity * num_wires];
 
     auto inputs = test_data.inputs;
-    InputData data[MAX_NUM_MODULE_ARGS];
+    InputData data[MAX_NUM_MODULE_INPUT];
 
     vector<Transition> input_data_collector;
     for (int i = 0; i < num_wires; ++i) {

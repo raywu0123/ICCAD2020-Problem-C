@@ -1,6 +1,9 @@
 #ifndef ICCAD2020_CONTAINERS_H
 #define ICCAD2020_CONTAINERS_H
 
+#include <iostream>
+#include <utility>
+
 #include "constants.h"
 #include "memory_manager.h"
 

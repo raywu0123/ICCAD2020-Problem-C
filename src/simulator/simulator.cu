@@ -57,8 +57,7 @@ __device__ __host__ void slice_waveforms(
     const NUM_ARG_TYPE& num_wires,
     bool* overflow_ptr
 ) {
-    CAPACITY_TYPE progress[MAX_NUM_MODULE_OUTPUT] = {0};
-
+    CAPACITY_TYPE progress[MAX_NUM_MODULE_INPUT] = {0};
     NUM_ARG_TYPE num_finished = 0;
     unsigned int write_stimuli_index = 0, write_transition_index = 1;
     auto C = capacity * num_wires;
@@ -73,7 +72,7 @@ __device__ __host__ void slice_waveforms(
     while (num_finished < num_wires) {
         // find min timestamp and find advancing wires
         Timestamp min_t = LONG_LONG_MAX;
-        NUM_ARG_TYPE advancing[MAX_NUM_MODULE_ARGS], num_advancing = 0;
+        NUM_ARG_TYPE advancing[MAX_NUM_MODULE_INPUT], num_advancing = 0;
 
         for (NUM_ARG_TYPE i = 0; i < num_wires; ++i) {
             const auto& index = progress[i];
@@ -174,7 +173,7 @@ __global__ void slice_kernel(
     if (blockIdx.x < batch_resource.num_modules) {
         const auto& module_spec = batch_resource.module_specs[blockIdx.x];
         const auto& overflow_ptr = batch_resource.overflows[blockIdx.x];
-        const auto& module_input_data = &batch_resource.input_data_schedule[blockIdx.x * MAX_NUM_MODULE_ARGS];
+        const auto& module_input_data = &batch_resource.input_data_schedule[blockIdx.x * MAX_NUM_MODULE_INPUT];
         const auto& capacity = batch_resource.capacities[blockIdx.x];
         const auto& s_timestamp_offset = batch_resource.s_timestamp_offsets[blockIdx.x];
         const auto& s_delay_info_offset = batch_resource.s_delay_info_offsets[blockIdx.x];
@@ -194,7 +193,6 @@ __device__ void stepping_module(
     const CAPACITY_TYPE& capacity,
     Timestamp* s_input_timestamps, Values* s_input_values
 ) {
-    assert(module_spec->num_output <= MAX_NUM_MODULE_OUTPUT);
     Transition* output_data_ptrs_for_stimuli[MAX_NUM_MODULE_OUTPUT] = { nullptr };
     const unsigned int& stimuli_idx = threadIdx.x;
     for (NUM_ARG_TYPE i = 0; i < module_spec->num_output; ++i) {
@@ -217,7 +215,7 @@ __global__ void stepping_kernel(
 ) {
     if (blockIdx.x < batch_resource.num_modules) {
         const auto& module_spec = batch_resource.module_specs[blockIdx.x];
-        const auto& module_output_data = &batch_resource.output_data_schedule[blockIdx.x * MAX_NUM_MODULE_ARGS];
+        const auto& module_output_data = &batch_resource.output_data_schedule[blockIdx.x * MAX_NUM_MODULE_OUTPUT];
         const auto& capacity = batch_resource.capacities[blockIdx.x];
         const auto& s_timestamp_offset = batch_resource.s_timestamp_offsets[blockIdx.x];
         const auto& s_values_offset = batch_resource.s_value_offsets[blockIdx.x];
@@ -237,8 +235,6 @@ __device__ void compute_delay_module(
     const CAPACITY_TYPE& capacity,
     DelayInfo* s_input_delay_infos, CAPACITY_TYPE* lengths
 ) {
-    assert(module_spec->num_output <= MAX_NUM_MODULE_OUTPUT);
-
     Transition* output_data_ptrs_for_stimuli[MAX_NUM_MODULE_OUTPUT] = { nullptr };
     const unsigned int& stimuli_idx = threadIdx.x;
     for (NUM_ARG_TYPE i = 0; i < module_spec->num_output; ++i) {
@@ -264,7 +260,7 @@ __global__ void compute_delay_kernel(
         const auto& s_delay_info_offset = batch_resource.s_delay_info_offsets[blockIdx.x];
         const auto& s_lengths_offset = batch_resource.s_length_offsets[blockIdx.x];
         const auto& sdf_num_rows = batch_resource.sdf_num_rows[blockIdx.x];
-        const auto& module_output_data = &batch_resource.output_data_schedule[blockIdx.x * MAX_NUM_MODULE_ARGS];
+        const auto& module_output_data = &batch_resource.output_data_schedule[blockIdx.x * MAX_NUM_MODULE_OUTPUT];
         const auto& capacity = batch_resource.capacities[blockIdx.x];
         compute_delay_module(
             module_spec,
@@ -294,7 +290,7 @@ __global__ void resolve_collision_kernel(
 ) {
     if (blockIdx.x < batch_resource.num_modules) {
         const auto& module_spec = batch_resource.module_specs[blockIdx.x];
-        const auto& module_output_data = &batch_resource.output_data_schedule[blockIdx.x * MAX_NUM_MODULE_ARGS];
+        const auto& module_output_data = &batch_resource.output_data_schedule[blockIdx.x * MAX_NUM_MODULE_OUTPUT];
         const auto& s_length_offset = batch_resource.s_length_offsets[blockIdx.x];
         const auto& capacity = batch_resource.capacities[blockIdx.x];
         resolve_collision_module(
@@ -324,7 +320,7 @@ void Simulator::run() {
         const auto& split_cells = split_vector(schedule_layer, N_STREAM);
 
         ResourceCollector<SDFPath, Cell> sdf_collector(schedule_layer.size());
-        ResourceCollector<Transition, Wire> input_data_collector(schedule_layer.size() * MAX_NUM_MODULE_ARGS);
+        ResourceCollector<Transition, Wire> input_data_collector(schedule_layer.size() * MAX_NUM_MODULE_INPUT);
 
         vector<thread> init_threads;
         for (int i = 0; i < N_STREAM; ++i) {
@@ -406,7 +402,7 @@ bool CellProcessor::run() {
         );
         if (cell->finished()) job_queue.pop();
     }
-    batch_data.set(resource_buffer, stream); resource_buffer.clear();
+    batch_data.set(resource_buffer, stream);
 
     auto* device_output_data = output_data_collector.get_device(stream);
     auto* device_s_timestamps = s_timestamp_collector.get_device(stream);
@@ -414,19 +410,19 @@ bool CellProcessor::run() {
     auto* device_s_values = s_values_collector.get_device(stream);
     auto* device_s_lengths = s_length_collector.get_device(stream);
     auto* device_sizes = output_size_collector.get_device(stream);
-    slice_kernel<<<N_CELL_PARALLEL, 1, 0, stream>>>(
+    slice_kernel<<<resource_buffer.size, 1, 0, stream>>>(
             batch_data, device_input_data,
             device_s_timestamps, device_s_delay_infos, device_s_values
     );
-    stepping_kernel<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL, 0, stream>>>(
+    stepping_kernel<<<resource_buffer.size, N_STIMULI_PARALLEL, 0, stream>>>(
             batch_data, device_output_data,
             device_s_timestamps, device_s_values
     );
-    compute_delay_kernel<<<N_CELL_PARALLEL, N_STIMULI_PARALLEL, 0, stream>>>(
+    compute_delay_kernel<<<resource_buffer.size, N_STIMULI_PARALLEL, 0, stream>>>(
             batch_data, device_sdf, device_output_data,
             device_s_delay_infos, device_s_lengths
     );
-    resolve_collision_kernel<<<N_CELL_PARALLEL, 1, 0, stream>>>(
+    resolve_collision_kernel<<<resource_buffer.size, 1, 0, stream>>>(
             batch_data, device_output_data, device_sizes,
             device_s_lengths
     );
@@ -436,6 +432,7 @@ bool CellProcessor::run() {
 
     cudaStreamAddCallback(stream, CellProcessor::post_process, (void*) this, 0);
     has_unfinished = true;
+    resource_buffer.clear();
     return false;
 }
 

@@ -19,9 +19,6 @@ Cell::Cell(
 }
 
 void Cell::build_wire_map(const WireMap<Wire>& pin_specs) {
-    if (num_args > MAX_NUM_MODULE_ARGS) {
-        throw runtime_error("Too many module args (" + to_string(num_args) + ")\n");
-    }
     input_wires.resize(declare->num_input);
     for (NUM_ARG_TYPE arg = 0; arg < declare->num_input; ++arg) {
         auto* wire_ptr = pin_specs.get(arg);
@@ -45,6 +42,13 @@ void Cell::init_async() {
         input_wires,
         (INITIAL_CAPACITY * N_STIMULI_PARALLEL) - 1
     );
+    unsigned int sum_size = 0;
+    for (const auto& input_wire : input_wires) {
+        if (input_wire != nullptr) sum_size += input_wire->size();
+    }
+    for (const auto& output_wire: output_wires) {
+        if (output_wire != nullptr) output_wire->wire->bucket.reserve(sum_size);
+    }
 }
 void Cell::init(
     ResourceCollector<SDFPath, Cell>& sdf_collector,
@@ -52,15 +56,8 @@ void Cell::init(
     OutputCollector<bool>& overflow_collector
 ) {
     overflow_offset = overflow_collector.push(1);
-    unsigned int sum_size = 0;
     for (const auto& input_wire : input_wires) {
-        if (input_wire != nullptr) {
-            input_wire->wire->to_device(input_data_collector);
-            sum_size += input_wire->size();
-        }
-    }
-    for (const auto& output_wire: output_wires) {
-        if (output_wire != nullptr) output_wire->wire->bucket.reserve(sum_size);
+        if (input_wire != nullptr) input_wire->wire->to_device(input_data_collector);
     }
     sdf_offset = sdf_collector.push(sdf_paths, this);
 }
